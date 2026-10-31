@@ -76,6 +76,8 @@ Routes: `/` shows the projects page and `/plan/:id` opens the editor. Both are l
 
 Priority order. Check items off or remove them as they are done.
 
+- [ ] **Interior design (in progress).** Colors, art and verticality, tracked task by task in `docs/interior-design-tasks.md`. Resume at the first unchecked task.
+
 - [ ] **Add CI.** Run `npm test`, `npm run build` and `npm run e2e`. The Playwright config already switches to retries and a GitHub reporter when `CI` is set. CI needs Chrome installed, or change `channel` to the bundled Chromium.
 - [ ] **Add user accounts.** Implement an `HttpPlanRepository`, add an auth flow, and swap the provider in `app.config.ts`. Add a one-time migration of local plans into the account.
 - [ ] **Bring selected furniture to the top.** It currently draws in array order, so it can sit under other items.
