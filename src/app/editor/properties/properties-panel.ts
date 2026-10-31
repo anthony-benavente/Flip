@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { formatArea, formatLength } from '../../geometry/units';
 import { clampOpeningOffset, reclampOpenings, setWallLength } from '../../geometry/wall-geometry';
-import { Room } from '../../geometry/room-detection';
+import { EXTERIOR_WALL_COLOR, Room, roomsBesideWall, wallFaceColor } from '../../geometry/room-detection';
 import { catalogItem } from '../../model/catalog';
-import { DisplayUnits, FurnitureItem, newId, Opening, Plan, Wall } from '../../model/plan.model';
+import { DisplayUnits, FurnitureItem, newId, Opening, Plan, Wall, WallSide } from '../../model/plan.model';
 import { EditorActions } from '../../state/editor-actions';
 import { EditorStore } from '../../state/editor.store';
 import { PlanStore } from '../../state/plan.store';
@@ -30,6 +30,18 @@ export const WALL_SWATCHES = [
   { name: 'Charcoal', color: '#55575b' },
 ];
 
+/** Bolder paints for accent walls. */
+export const ACCENT_SWATCHES = [
+  { name: 'Navy', color: '#2f4a6d' },
+  { name: 'Forest', color: '#3f6b4f' },
+  { name: 'Teal', color: '#2f7f80' },
+  { name: 'Terracotta', color: '#c06a4a' },
+  { name: 'Mustard', color: '#d4a537' },
+  { name: 'Blush', color: '#d9a6a1' },
+  { name: 'Charcoal', color: '#3d3f44' },
+  { name: 'Sage', color: '#b9c4ad' },
+];
+
 export const FURNITURE_SWATCHES = ['#7a8ca3', '#b08d6e', '#8b6b4a', '#3c3f44', '#e6e1d8', '#5f8a4f', '#a83f3f', '#d9b44a', '#c9ccd1', '#f4f4f2'];
 
 @Component({
@@ -46,6 +58,7 @@ export class PropertiesPanel {
 
   protected readonly floorSwatches = FLOOR_SWATCHES;
   protected readonly wallSwatches = WALL_SWATCHES;
+  protected readonly accentSwatches = ACCENT_SWATCHES;
   protected readonly furnitureSwatches = FURNITURE_SWATCHES;
   protected readonly units = this.planStore.units;
 
@@ -61,7 +74,31 @@ export class PropertiesPanel {
       case 'wall': {
         const seg = this.planStore.segmentById().get(s.id);
         if (!seg) return { kind: 'plan' as const };
-        return { kind: 'wall' as const, wall: seg.wall, length: seg.length, openings: plan.openings.filter((o) => o.wallId === s.id).length };
+        const beside = roomsBesideWall(seg, this.planStore.rooms());
+        const sides = (['front', 'back'] as const).map((side) => {
+          const room = beside[side];
+          const accent = seg.wall.colors?.[side] ?? null;
+          return {
+            side,
+            label: room ? `Facing ${room.name}` : 'Outside',
+            room,
+            accent,
+            color: wallFaceColor(seg, side, room) ?? EXTERIOR_WALL_COLOR,
+          };
+        });
+        // Room-facing sides first; a free-standing wall shows both sides.
+        sides.sort((x, y) => Number(!x.room) - Number(!y.room));
+        if (!sides.some((x) => x.room)) {
+          sides[0].label = 'Side A';
+          sides[1].label = 'Side B';
+        }
+        return {
+          kind: 'wall' as const,
+          wall: seg.wall,
+          length: seg.length,
+          openings: plan.openings.filter((o) => o.wallId === s.id).length,
+          sides,
+        };
       }
       case 'node': {
         const n = this.planStore.nodes().get(s.id);
@@ -143,6 +180,22 @@ export class PropertiesPanel {
       if (w) Object.assign(w, patch);
       reclampOpenings(d);
     });
+  }
+
+  /** Sets or clears (color = null) the accent paint on one face of a wall. */
+  protected setWallColor(id: string, side: WallSide, color: string | null, coalesceKey?: string): void {
+    this.planStore.update(
+      (d) => {
+        const w = d.walls.find((x) => x.id === id);
+        if (!w) return;
+        const colors = { ...w.colors };
+        if (color) colors[side] = color;
+        else delete colors[side];
+        if (Object.keys(colors).length) w.colors = colors;
+        else delete w.colors;
+      },
+      { coalesceKey },
+    );
   }
 
   // --- openings ----------------------------------------------------------

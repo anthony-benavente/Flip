@@ -82,7 +82,7 @@ export function splitWall(plan: Plan, wallId: string, p: Point): string {
 
   const node: WallNode = { id: newId('n'), x: point.x, y: point.y };
   plan.nodes.push(node);
-  const second: Wall = { ...wall, id: newId('w'), a: node.id };
+  const second: Wall = { ...wall, id: newId('w'), a: node.id, ...(wall.colors ? { colors: { ...wall.colors } } : {}) };
   const oldB = wall.b;
   wall.b = node.id;
   second.b = oldB;

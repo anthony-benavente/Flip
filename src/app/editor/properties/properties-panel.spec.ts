@@ -83,6 +83,61 @@ describe('PropertiesPanel', () => {
     expect(plan.segmentById().get(walls[0])!.length).toBeCloseTo(10 * CM_PER_FOOT);
   });
 
+  describe('accent walls', () => {
+    const side = (s: 'front' | 'back') => el.querySelector<HTMLElement>(`.wall-side[data-side="${s}"]`)!;
+
+    beforeEach(async () => {
+      editor.select([{ kind: 'wall', id: walls[0] }]);
+      await render();
+    });
+
+    it('lists the room-facing side first, then the outside', () => {
+      const labels = Array.from(el.querySelectorAll('.wall-side .side-label')).map((l) => l.textContent?.trim());
+      // The top wall runs left to right, so its front (normal) side faces down into the room.
+      expect(labels).toEqual(['Facing Room', 'Outside']);
+      expect(side('front').querySelector('.badge')).toBeNull();
+    });
+
+    it('paints one side with an accent color', async () => {
+      side('front').querySelector<HTMLButtonElement>('.swatch[title="Navy"]')!.click();
+      await render();
+      expect(plan.plan().walls.find((w) => w.id === walls[0])!.colors).toEqual({ front: '#2f4a6d' });
+      expect(side('front').querySelector('.badge')?.textContent).toBe('Accent');
+      expect(side('front').querySelector('.swatch.active')?.getAttribute('title')).toBe('Navy');
+      // Other walls are untouched.
+      expect(plan.plan().walls.filter((w) => w.colors)).toHaveLength(1);
+    });
+
+    it('goes back to the room color and drops empty color data', async () => {
+      side('front').querySelector<HTMLButtonElement>('.swatch[title="Teal"]')!.click();
+      await render();
+      Array.from(side('front').querySelectorAll('button'))
+        .find((b) => b.textContent?.includes('Match room color'))!
+        .click();
+      await render();
+      expect('colors' in plan.plan().walls.find((w) => w.id === walls[0])!).toBe(false);
+      expect(side('front').querySelector('.badge')).toBeNull();
+    });
+
+    it('accepts a custom color from the picker as one undo step', async () => {
+      const picker = side('back').querySelector<HTMLInputElement>('input[type=color]')!;
+      for (const c of ['#111111', '#222222', '#333333']) {
+        picker.value = c;
+        picker.dispatchEvent(new Event('input'));
+      }
+      expect(plan.plan().walls.find((w) => w.id === walls[0])!.colors).toEqual({ back: '#333333' });
+      plan.commit();
+      plan.undo();
+      expect(plan.plan().walls.find((w) => w.id === walls[0])!.colors).toBeUndefined();
+    });
+
+    it('can be undone', async () => {
+      side('front').querySelector<HTMLButtonElement>('.swatch[title="Mustard"]')!.click();
+      plan.undo();
+      expect(plan.plan().walls.find((w) => w.id === walls[0])!.colors).toBeUndefined();
+    });
+  });
+
   it('resizes furniture', async () => {
     editor.select([{ kind: 'furniture', id: 'f1' }]);
     await render();

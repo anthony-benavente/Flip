@@ -138,6 +138,24 @@ export class PlanCanvas {
     }));
   });
 
+  /** Accent wall faces, drawn as a colored band along the inside of that face. */
+  protected readonly accents = computed(() => {
+    const px = this.px();
+    const result: { key: string; x1: number; y1: number; x2: number; y2: number; width: number; color: string }[] = [];
+    for (const s of this.planStore.segments()) {
+      const colors = s.wall.colors;
+      if (!colors) continue;
+      for (const side of ['front', 'back'] as const) {
+        const color = colors[side];
+        if (!color) continue;
+        const width = s.wall.thickness * 0.38;
+        const off = scale(s.normal, (side === 'front' ? 1 : -1) * (s.wall.thickness / 2 - width / 2 - 1.5 * px));
+        result.push({ key: `${s.wall.id}:${side}`, x1: s.a.x + off.x, y1: s.a.y + off.y, x2: s.b.x + off.x, y2: s.b.y + off.y, width, color });
+      }
+    }
+    return result;
+  });
+
   protected readonly openings = computed(() => {
     const segs = this.planStore.segmentById();
     const sel = this.editor.selectedIds();

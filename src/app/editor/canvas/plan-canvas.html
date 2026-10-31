@@ -63,6 +63,11 @@
         />
       }
     </g>
+    <g class="wall-accents">
+      @for (a of accents(); track a.key) {
+        <line [attr.data-accent]="a.key" [attr.x1]="a.x1" [attr.y1]="a.y1" [attr.x2]="a.x2" [attr.y2]="a.y2" [attr.stroke]="a.color" [attr.stroke-width]="a.width" />
+      }
+    </g>
 
     <!-- Doors and windows -->
     @for (o of openings(); track o.id) {

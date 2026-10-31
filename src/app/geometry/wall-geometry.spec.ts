@@ -52,6 +52,16 @@ describe('wall editing', () => {
     expect(o.offset).toBeCloseTo(150);
   });
 
+  it('keeps accent colors on both pieces when a wall is split', () => {
+    const plan = createEmptyPlan();
+    const { wallIds } = addWall(plan, { x: 0, y: 0 }, { x: 400, y: 0 }, props);
+    plan.walls[0].colors = { front: '#2f4a6d' };
+    splitWall(plan, wallIds[0], { x: 150, y: 0 });
+    expect(plan.walls.map((w) => w.colors)).toEqual([{ front: '#2f4a6d' }, { front: '#2f4a6d' }]);
+    // The pieces must not share one colors object, or editing one would repaint the other.
+    expect(plan.walls[0].colors).not.toBe(plan.walls[1].colors);
+  });
+
   it('merges corners and drops degenerate walls', () => {
     const plan = createEmptyPlan();
     addWall(plan, { x: 0, y: 0 }, { x: 100, y: 0 }, props);

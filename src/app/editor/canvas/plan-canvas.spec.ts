@@ -43,6 +43,25 @@ describe('PlanCanvas', () => {
     expect(all('.dimension').map((d) => d.textContent?.trim())).toEqual(expect.arrayContaining([`12' 0"`, `14' 0"`]));
   });
 
+  it('draws an accent stripe on the painted side of a wall', async () => {
+    expect(all('.wall-accents line')).toHaveLength(0);
+    const top = plan.segments().find((s) => s.a.y === 0 && s.b.y === 0)!;
+    plan.update((d) => {
+      d.walls.find((w) => w.id === top.wall.id)!.colors = { front: '#2f4a6d', back: '#d4a537' };
+    });
+    await render();
+    const front = el.querySelector(`[data-accent="${top.wall.id}:front"]`)!;
+    const back = el.querySelector(`[data-accent="${top.wall.id}:back"]`)!;
+    expect(front.getAttribute('stroke')).toBe('#2f4a6d');
+    expect(back.getAttribute('stroke')).toBe('#d4a537');
+    // Each stripe sits inside the wall on its own side of the centerline.
+    const fy = Number(front.getAttribute('y1')) - top.a.y;
+    const by = Number(back.getAttribute('y1')) - top.a.y;
+    expect(Math.sign(fy)).toBe(Math.sign(top.normal.y));
+    expect(Math.sign(by)).toBe(-Math.sign(top.normal.y));
+    expect(Math.abs(fy)).toBeLessThan(top.wall.thickness / 2);
+  });
+
   it('shows corner handles only with the select tool', async () => {
     expect(all('circle.node')).toHaveLength(4);
     editor.tool.set('wall');

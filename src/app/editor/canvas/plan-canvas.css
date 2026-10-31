@@ -61,13 +61,22 @@
   stroke: #a39d92;
 }
 
+/* Lighter than the accent blue so a painted accent stripe stays visible on a selected wall. */
 .walls-fill line.selected {
-  stroke: var(--accent);
+  stroke: #8eaef0;
 }
 
 .walls-outline,
 .walls-fill {
   pointer-events: none;
+}
+
+.wall-accents {
+  pointer-events: none;
+}
+
+.wall-accents line {
+  stroke-linecap: butt;
 }
 
 .walls-hit line {

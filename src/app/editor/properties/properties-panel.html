@@ -54,6 +54,43 @@
     @if (v.openings) {
       <p class="tip">{{ v.openings }} door/window opening{{ v.openings === 1 ? '' : 's' }} on this wall.</p>
     }
+    <h3>Paint</h3>
+    @for (s of v.sides; track s.side) {
+      <div class="field wall-side" [attr.data-side]="s.side">
+        <div class="side-head">
+          <span class="side-chip" [style.background]="s.color"></span>
+          <span class="side-label">{{ s.label }}</span>
+          @if (s.accent) {
+            <span class="badge">Accent</span>
+          }
+        </div>
+        <div class="swatches">
+          @for (c of accentSwatches; track c.color) {
+            <button
+              class="swatch"
+              [class.active]="s.accent === c.color"
+              [style.background]="c.color"
+              [title]="c.name"
+              [attr.aria-label]="c.name + ' accent for ' + s.label"
+              (click)="setWallColor(v.wall.id, s.side, c.color)"
+            ></button>
+          }
+          <input
+            type="color"
+            class="color"
+            [value]="s.color"
+            [attr.aria-label]="'Custom color for ' + s.label"
+            (input)="setWallColor(v.wall.id, s.side, value($event), 'accent:' + v.wall.id + ':' + s.side)"
+          />
+        </div>
+        @if (s.accent) {
+          <button class="btn ghost reset" (click)="setWallColor(v.wall.id, s.side, null)">
+            {{ s.room ? 'Match room color' : 'Clear accent' }}
+          </button>
+        }
+      </div>
+    }
+    <p class="tip">Accent colors show as a stripe on the plan and as paint in the 3D view.</p>
     <div class="actions">
       <button class="btn danger" (click)="actions.deleteSelection()"><app-icon name="trash" /> Delete wall</button>
     </div>
@@ -182,7 +219,7 @@
         <input type="color" class="color" [value]="r.wallColor" (input)="setRoom(r, { wallColor: value($event) }, 'wall:' + r.key)" aria-label="Custom wall color" />
       </div>
     </div>
-    <p class="tip">Colors show in the 3D preview.</p>
+    <p class="tip">Colors show in the 3D preview. To paint one wall differently, select that wall and pick an accent color.</p>
   }
 
   @case ('multi') {

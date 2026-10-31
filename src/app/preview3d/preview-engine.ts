@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Room, roomAt } from '../geometry/room-detection';
+import { EXTERIOR_WALL_COLOR, Room, roomsBesideWall, wallFaceColor } from '../geometry/room-detection';
 import { add, scale } from '../geometry/vec';
 import { WallSegment } from '../geometry/wall-geometry';
 import { catalogItem } from '../model/catalog';
@@ -10,7 +10,6 @@ import { wallPieces } from './wall-pieces';
 
 /** cm → m */
 const M = 0.01;
-const EXTERIOR_WALL = '#e4dfd6';
 const WALL_EDGE = '#cfc8bc';
 const DOOR_COLOR = '#b48b5e';
 const DOOR_OPEN_ANGLE = (70 * Math.PI) / 180;
@@ -173,11 +172,10 @@ export class PreviewEngine {
   private buildWall(seg: WallSegment, openings: Plan['openings'], rooms: Room[]): void {
     const t = seg.wall.thickness;
     const L = seg.length;
-    const probe = (sign: number) => roomAt(rooms, add(add(seg.a, scale(seg.dir, L / 2)), scale(seg.normal, sign * (t / 2 + 5))));
-    const front = probe(1);
-    const back = probe(-1);
-    const matFront = this.own(new THREE.MeshStandardMaterial({ color: front?.wallColor ?? EXTERIOR_WALL, roughness: 0.92 }));
-    const matBack = this.own(new THREE.MeshStandardMaterial({ color: back?.wallColor ?? EXTERIOR_WALL, roughness: 0.92 }));
+    const beside = roomsBesideWall(seg, rooms);
+    const faceColor = (side: 'front' | 'back') => wallFaceColor(seg, side, beside[side]) ?? EXTERIOR_WALL_COLOR;
+    const matFront = this.own(new THREE.MeshStandardMaterial({ color: faceColor('front'), roughness: 0.92 }));
+    const matBack = this.own(new THREE.MeshStandardMaterial({ color: faceColor('back'), roughness: 0.92 }));
     const matEdge = this.own(new THREE.MeshStandardMaterial({ color: WALL_EDGE, roughness: 0.92 }));
     // BoxGeometry face order: +x, -x, +y, -y, +z, -z. Local +z is the wall's 2D normal side.
     const faceMats = [matEdge, matEdge, matEdge, matEdge, matFront, matBack];

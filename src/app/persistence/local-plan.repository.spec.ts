@@ -12,6 +12,14 @@ describe('LocalPlanRepository', () => {
     expect((await repo.list()).map((s) => s.name)).toEqual(['Test']);
   });
 
+  it('keeps accent wall colors through save and load', async () => {
+    const repo = new LocalPlanRepository(new MemoryStorage());
+    const plan = createStarterPlan('Accent');
+    plan.walls[1].colors = { front: '#2f4a6d', back: '#d4a537' };
+    await repo.save(plan);
+    expect((await repo.get(plan.id))!.walls[1].colors).toEqual({ front: '#2f4a6d', back: '#d4a537' });
+  });
+
   it('renames and deletes', async () => {
     const repo = new LocalPlanRepository(new MemoryStorage());
     const plan = createStarterPlan('Old');

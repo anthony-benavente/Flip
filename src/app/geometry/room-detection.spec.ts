@@ -1,7 +1,7 @@
 import { createEmptyPlan } from '../model/defaults';
 import { Plan, Point } from '../model/plan.model';
-import { attachRoomMeta, detectRooms } from './room-detection';
-import { addWall } from './wall-geometry';
+import { attachRoomMeta, detectRooms, roomsBesideWall, wallFaceColor } from './room-detection';
+import { addWall, wallSegments } from './wall-geometry';
 
 const props = { thickness: 10, height: 240 };
 
@@ -120,5 +120,50 @@ describe('attachRoomMeta', () => {
     const other = rooms.find((r) => r.name === 'Room');
     expect(kitchen?.floorColor).toBe('#111111');
     expect(other?.meta).toBeNull();
+  });
+});
+
+describe('wall faces', () => {
+  function twoRooms() {
+    const plan = createEmptyPlan();
+    polyline(plan, [
+      { x: 0, y: 0 },
+      { x: 800, y: 0 },
+      { x: 800, y: 400 },
+      { x: 0, y: 400 },
+    ]);
+    const divider = addWall(plan, { x: 300, y: 0 }, { x: 300, y: 400 }, props).wallIds[0];
+    const rooms = attachRoomMeta(detectRooms(plan), [
+      { id: 'k', anchor: { x: 100, y: 100 }, name: 'Kitchen', floorColor: '#111111', wallColor: '#aaaaaa' },
+      { id: 'd', anchor: { x: 500, y: 100 }, name: 'Dining', floorColor: '#222222', wallColor: '#bbbbbb' },
+    ]);
+    return { plan, rooms, divider };
+  }
+
+  it('finds the room on each side of a shared wall', () => {
+    const { plan, rooms, divider } = twoRooms();
+    const seg = wallSegments(plan).find((s) => s.wall.id === divider)!;
+    // The divider runs downward (+y), so its normal perp(dir) points to -x: the kitchen.
+    const beside = roomsBesideWall(seg, rooms);
+    expect(beside.front?.name).toBe('Kitchen');
+    expect(beside.back?.name).toBe('Dining');
+  });
+
+  it('reports no room on the outside of an exterior wall', () => {
+    const { plan, rooms } = twoRooms();
+    const top = wallSegments(plan).find((s) => s.a.y === 0 && s.b.y === 0 && s.a.x < 300)!;
+    const beside = roomsBesideWall(top, rooms);
+    expect([beside.front?.name ?? null, beside.back?.name ?? null].sort()).toEqual(['Kitchen', null].sort());
+  });
+
+  it('uses the accent color over the room color, per face', () => {
+    const { plan, rooms, divider } = twoRooms();
+    const seg = wallSegments(plan).find((s) => s.wall.id === divider)!;
+    const beside = roomsBesideWall(seg, rooms);
+    expect(wallFaceColor(seg, 'front', beside.front)).toBe('#aaaaaa');
+    seg.wall.colors = { front: '#2f4a6d' };
+    expect(wallFaceColor(seg, 'front', beside.front)).toBe('#2f4a6d');
+    expect(wallFaceColor(seg, 'back', beside.back)).toBe('#bbbbbb');
+    expect(wallFaceColor(seg, 'back', null)).toBeNull();
   });
 });

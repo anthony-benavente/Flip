@@ -19,7 +19,16 @@ export interface Wall {
   b: string;
   thickness: number;
   height: number;
+  /**
+   * Paint overrides for each face of the wall (accent walls). `front` is the face on the side the
+   * wall's normal points to (`perp(b - a)`), `back` is the opposite face. Unset faces use the color
+   * of the room on that side.
+   */
+  colors?: WallColors;
 }
+
+export type WallSide = 'front' | 'back';
+export type WallColors = Partial<Record<WallSide, string>>;
 
 export type OpeningKind = 'door' | 'window';
 

@@ -1,5 +1,6 @@
-import { Plan, Point, RoomMeta } from '../model/plan.model';
-import { labelPoint, pointInPolygon, polygonArea } from './vec';
+import { Plan, Point, RoomMeta, WallSide } from '../model/plan.model';
+import { add, labelPoint, pointInPolygon, polygonArea, scale } from './vec';
+import type { WallSegment } from './wall-geometry';
 
 export interface DetectedRoom {
   /** Stable for a given wall loop: sorted wall ids joined. */
@@ -21,6 +22,8 @@ export interface Room extends DetectedRoom {
 
 export const DEFAULT_FLOOR_COLOR = '#d9c3a0';
 export const DEFAULT_WALL_COLOR = '#f2efe9';
+/** Paint of wall faces that are outside every room. */
+export const EXTERIOR_WALL_COLOR = '#e4dfd6';
 
 /** Faces smaller than this (about 1 sq ft) are ignored. */
 const MIN_ROOM_AREA = 900;
@@ -119,6 +122,18 @@ export function roomAt(rooms: Room[], p: Point): Room | null {
     if (pointInPolygon(p, r.polygon) && (!best || r.area < best.area)) best = r;
   }
   return best;
+}
+
+/** The room on each face of a wall, or null where that face is outside every room. */
+export function roomsBesideWall(seg: WallSegment, rooms: Room[]): Record<WallSide, Room | null> {
+  const mid = add(seg.a, scale(seg.dir, seg.length / 2));
+  const probe = (sign: number) => roomAt(rooms, add(mid, scale(seg.normal, sign * (seg.wall.thickness / 2 + 5))));
+  return { front: probe(1), back: probe(-1) };
+}
+
+/** Paint color of one wall face: its accent override, else the room's wall color, else null (exterior). */
+export function wallFaceColor(seg: WallSegment, side: WallSide, room: Room | null): string | null {
+  return seg.wall.colors?.[side] ?? room?.wallColor ?? null;
 }
 
 function push<K, V>(m: Map<K, V[]>, k: K, v: V) {
