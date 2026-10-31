@@ -158,7 +158,7 @@ Tracker for the interior design feature (colors, art, verticality) on branch `fe
     - a header with the face name, Flip side, and Close.
   - `editor-page` shows the plan and elevation side by side.
   - Done when: `wall-elevation.spec` passes (dispatched pointer events plus `detectChanges`).
-- [ ] **T27: M4 e2e.**
+- [x] **T27: M4 e2e.**
   - Open the elevation from wall properties, drag the print up, check the saved `elevation` changes, then close it and return to the previous view.
   - Done when: `npm run build` and `npm run e2e` pass.
 

@@ -88,4 +88,43 @@ test.describe('interior design', () => {
     await expect(page.locator('.art-tile.active img')).toBeVisible();
     await expect(page.getByText('picture was deleted')).toHaveCount(0);
   });
+
+  test('arranges art on a wall in the elevation view', async ({ page }, testInfo) => {
+    await newStarterRoom(page);
+    await clickAt(page, 0, 5 * FT);
+    await expect(panelHeading(page)).toHaveText('Wall');
+    await page.getByRole('button', { name: 'Elevation of Facing Living room' }).click();
+
+    const elevation = page.locator('app-wall-elevation');
+    await expect(elevation.locator('h2')).toContainText('Living room wall');
+    await expect(page.locator('app-plan-canvas')).toBeVisible();
+    const face = elevation.locator('svg');
+    const box = (await face.boundingBox())!;
+    await page.locator('.item', { has: page.getByText('Framed print 16×20', { exact: true }) }).dragTo(face, {
+      targetPosition: { x: box.width / 2, y: box.height / 2 },
+    });
+    const placed = await savedPlan(page, (p) => p.furniture.length === 1);
+    const before = placed.furniture[0].elevation;
+    expect(before).toBeGreaterThan(0);
+    await expect(elevation.locator('.item')).toHaveCount(1);
+
+    // Drag it up the wall with snapping off.
+    const art = (await elevation.locator('.item .hit').boundingBox())!;
+    const start = { x: art.x + art.width / 2, y: art.y + art.height / 2 };
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.keyboard.down('Alt');
+    await page.mouse.move(start.x, start.y - 20, { steps: 4 });
+    await page.mouse.move(start.x, start.y - 40, { steps: 4 });
+    await page.mouse.up();
+    await page.keyboard.up('Alt');
+    const moved = await savedPlan(page, (p) => p.furniture[0].elevation > before + 5);
+    expect(moved.furniture[0].rotation).toBe(placed.furniture[0].rotation);
+    await page.screenshot({ path: testInfo.outputPath('elevation.png') });
+
+    await elevation.getByRole('button', { name: 'Close elevation' }).click();
+    await expect(elevation).toHaveCount(0);
+    await expect(page.locator('app-plan-canvas')).toBeVisible();
+    await expect(page.locator('app-preview3d')).toHaveCount(0);
+  });
 });

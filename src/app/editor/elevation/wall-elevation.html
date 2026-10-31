@@ -103,7 +103,12 @@
             [attr.y2]="g.y"
           />
           @if (g.kind !== 'floor') {
-            <text [attr.x]="v.width + 36 * px()" [attr.y]="g.y" [attr.font-size]="11 * px()">
+            <!-- Inside the wall's left edge, just below the line (ceiling) or above it (the rest). -->
+            <text
+              [attr.x]="6 * px()"
+              [attr.y]="g.y + (g.kind === 'ceiling' ? 10 : -7) * px()"
+              [attr.font-size]="11 * px()"
+            >
               {{ g.label }}
             </text>
           }
