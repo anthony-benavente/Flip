@@ -11,7 +11,7 @@ import { WallSegment } from '../geometry/wall-geometry';
 import { catalogItem } from '../model/catalog';
 import { ModelOrientation } from '../model/custom-model';
 import { EXTERIOR_WALL_COLOR } from '../model/palettes';
-import { Opening, Plan, WallSide } from '../model/plan.model';
+import { FloorMaterial, Opening, Plan, WallSide } from '../model/plan.model';
 import { FurnitureMeshFactory } from './furniture-meshes';
 import { fitModelToBox, SHARED_MODEL } from './model-fit';
 import { wallPieces } from './wall-pieces';
@@ -55,7 +55,7 @@ export function buildPlanScene(
   const materials: THREE.Material[] = [];
   const own = <T extends THREE.Material>(m: T): T => (materials.push(m), m);
 
-  for (const room of rooms) group.add(buildFloor(room, own));
+  for (const room of rooms) group.add(buildFloor(room, factory, own));
 
   const openingsByWall = new Map<string, Opening[]>();
   for (const o of plan.openings) openingsByWall.set(o.wallId, [...(openingsByWall.get(o.wallId) ?? []), o]);
@@ -101,12 +101,20 @@ export function disposePlanScene(scene: PlanScene): void {
 
 type Own = <T extends THREE.Material>(m: T) => T;
 
-function buildFloor(room: Room, own: Own): THREE.Mesh {
+/** How shiny each floor material is. */
+const FLOOR_ROUGHNESS: Record<FloorMaterial, number> = { solid: 0.85, wood: 0.6, tile: 0.35, carpet: 1, concrete: 0.8 };
+
+function buildFloor(room: Room, factory: FurnitureMeshFactory, own: Own): THREE.Mesh {
   const shape = new THREE.Shape(room.polygon.map((p) => new THREE.Vector2(p.x * M, -p.y * M)));
-  const mesh = new THREE.Mesh(
-    new THREE.ShapeGeometry(shape),
-    own(new THREE.MeshStandardMaterial({ color: room.floorColor, roughness: 0.85, side: THREE.DoubleSide })),
+  const material = own(
+    new THREE.MeshStandardMaterial({
+      color: room.floorColor,
+      map: factory.floorTexture(room.floorMaterial),
+      roughness: FLOOR_ROUGHNESS[room.floorMaterial] ?? FLOOR_ROUGHNESS.solid,
+      side: THREE.DoubleSide,
+    }),
   );
+  const mesh = new THREE.Mesh(new THREE.ShapeGeometry(shape), material);
   mesh.name = `floor:${room.key}`;
   // The shape is drawn in (x, -y); rotating it flat maps that to world (X, Z = y).
   mesh.rotation.x = -Math.PI / 2;

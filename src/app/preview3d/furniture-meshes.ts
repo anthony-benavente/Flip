@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { FurnitureShape } from '../model/catalog';
+import { FloorMaterial } from '../model/plan.model';
 import { shade } from '../shared/color';
+import { floorPattern } from './floor-textures';
 
 export interface BuildOptions {
   /** Picture shown on art items (an uploaded image). */
@@ -20,6 +22,7 @@ const PLACEHOLDER_ART = '#d8d0c4';
  */
 export class FurnitureMeshFactory {
   private readonly materials = new Map<string, THREE.MeshStandardMaterial>();
+  private readonly floorTextures = new Map<FloorMaterial, THREE.DataTexture | null>();
   private readonly glass = new THREE.MeshPhysicalMaterial({
     color: 0xcfe6f2,
     transparent: true,
@@ -58,9 +61,34 @@ export class FurnitureMeshFactory {
     return this.material(MIRROR, { roughness: 0.05, metalness: 0.9 });
   }
 
+  /**
+   * Shared, tiling grayscale texture for a floor material, or null for a plain floor. Floor UVs are
+   * in meters, so the repeat makes one copy of the pattern cover its real size.
+   */
+  floorTexture(material: FloorMaterial): THREE.Texture | null {
+    if (!this.floorTextures.has(material)) {
+      const pattern = floorPattern(material);
+      let texture: THREE.DataTexture | null = null;
+      if (pattern) {
+        texture = new THREE.DataTexture(pattern.data, pattern.size, pattern.size, THREE.RGBAFormat);
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(1 / pattern.meters, 1 / pattern.meters);
+        texture.magFilter = THREE.LinearFilter;
+        texture.minFilter = THREE.LinearMipmapLinearFilter;
+        texture.generateMipmaps = true;
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.needsUpdate = true;
+      }
+      this.floorTextures.set(material, texture);
+    }
+    return this.floorTextures.get(material)!;
+  }
+
   dispose(): void {
     for (const m of this.materials.values()) m.dispose();
     this.materials.clear();
+    for (const t of this.floorTextures.values()) t?.dispose();
+    this.floorTextures.clear();
     this.glass.dispose();
   }
 

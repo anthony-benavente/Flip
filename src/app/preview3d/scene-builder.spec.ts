@@ -9,6 +9,14 @@ import { squareRoom } from '../testing/fixtures';
 import { FurnitureMeshFactory } from './furniture-meshes';
 import { buildPlanScene, disposePlanScene, M, ModelResolver } from './scene-builder';
 
+function floorOf(scene: { group: THREE.Group }): THREE.Mesh {
+  let floor: THREE.Mesh | undefined;
+  scene.group.traverse((o) => {
+    if (!floor && o instanceof THREE.Mesh && o.name.startsWith('floor:')) floor = o;
+  });
+  return floor!;
+}
+
 describe('buildPlanScene', () => {
   const factory = new FurnitureMeshFactory();
   afterAll(() => factory.dispose());
@@ -97,6 +105,18 @@ describe('buildPlanScene', () => {
     expect(holders).toHaveLength(1);
     expect(holders[0].mid.y).toBeCloseTo(0);
     expect(art.position.y).toBeCloseTo((catalogItem('art-small').defaultElevation! - catalogItem('art-small').height / 2) * M);
+  });
+
+  it('gives patterned floors a shared, tiling texture tinted by the floor color', () => {
+    const plain = floorOf(build().scene);
+    expect((plain.material as THREE.MeshStandardMaterial).map).toBeNull();
+    const first = floorOf(build((p) => (p.rooms[0].floorMaterial = 'wood')).scene);
+    const second = floorOf(build((p) => (p.rooms[0].floorMaterial = 'wood')).scene);
+    const material = first.material as THREE.MeshStandardMaterial;
+    expect(material.map).not.toBeNull();
+    expect(material.map).toBe((second.material as THREE.MeshStandardMaterial).map);
+    expect(material.map!.wrapS).toBe(THREE.RepeatWrapping);
+    expect(material.color.getHexString()).toBe(build().plan.rooms[0].floorColor.slice(1));
   });
 
   it('bounds the walls at full height', () => {

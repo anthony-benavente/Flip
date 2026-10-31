@@ -84,7 +84,7 @@ Tracker for the interior design feature (colors, art, verticality) on branch `fe
   - The room's scheme accent goes first in the accent swatches in `wall-properties.ts`.
   - Split out a `RoomFinishes` component if the style budget requires it.
   - Done when: a spec shows a scheme applies in one undo step.
-- [ ] **T14: Floor textures.**
+- [x] **T14: Floor textures.**
   - New `preview3d/floor-textures.ts`, a pure tileable grayscale RGBA generator per material.
   - The factory caches a `DataTexture` (`RepeatWrapping`, repeat in meters) and disposes it.
   - `buildFloor` uses `map` tinted by `floorColor`.
