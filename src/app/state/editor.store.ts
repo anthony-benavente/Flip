@@ -2,7 +2,7 @@ import { computed, Injectable, signal } from '@angular/core';
 import { SnapGuide, SnapKind } from '../geometry/snapping';
 import { DEFAULT_WALL_HEIGHT, DEFAULT_WALL_THICKNESS } from '../model/defaults';
 import { Size, Viewport } from '../geometry/viewport';
-import { Point } from '../model/plan.model';
+import { Point, WallSide } from '../model/plan.model';
 
 export type ToolId = 'select' | 'wall' | 'door' | 'window' | 'pan';
 export type ViewMode = '2d' | 'split' | '3d';
@@ -12,6 +12,12 @@ export interface SelectionItem {
   kind: SelectableKind;
   /** Element id; for rooms, the room key. */
   id: string;
+}
+
+/** The wall face shown in the elevation view. */
+export interface ElevationTarget {
+  wallId: string;
+  side: WallSide;
 }
 
 /** Transient drawing state shown by the canvas overlay layer. */
@@ -42,6 +48,11 @@ export class EditorStore {
   /** Size of the 2D canvas in px, published by the canvas component. */
   readonly canvasSize = signal<Size>({ width: 800, height: 600 });
   readonly viewMode = signal<ViewMode>('2d');
+  /**
+   * Wall face open in the elevation view, shown beside the plan in place of the 3D preview.
+   * Closing it returns to the current view mode.
+   */
+  readonly elevation = signal<ElevationTarget | null>(null);
   readonly overlay = signal<ToolOverlay>({});
   readonly cursorWorld = signal<Point | null>(null);
   readonly showHelp = signal(false);
@@ -84,6 +95,14 @@ export class EditorStore {
   cycleViewMode(): void {
     const order: ViewMode[] = ['2d', 'split', '3d'];
     this.viewMode.update((m) => order[(order.indexOf(m) + 1) % order.length]);
+  }
+
+  openElevation(wallId: string, side: WallSide): void {
+    this.elevation.set({ wallId, side });
+  }
+
+  closeElevation(): void {
+    this.elevation.set(null);
   }
 
   requestFit(): void {

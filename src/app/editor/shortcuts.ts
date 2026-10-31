@@ -59,6 +59,7 @@ export const SHORTCUTS: Shortcut[] = [
   { keys: 'H / hold Space', label: 'Pan', combos: [{ key: 'h' }], run: tool('pan') },
   { keys: 'F', label: 'Fit plan to screen', combos: [{ key: 'f' }], run: (ctx) => ctx.editor.requestFit() },
   { keys: '3', label: 'Cycle plan / split / 3D', combos: [{ key: '3' }], run: (ctx) => ctx.editor.cycleViewMode() },
+  { keys: 'E', label: 'Open or close the selected wall\'s elevation', combos: [{ key: 'e' }], run: (ctx) => ctx.actions.toggleElevation() },
   { keys: 'Ctrl+Z', label: 'Undo', combos: [{ key: 'z', ctrl: true, shift: false }], run: (ctx) => ctx.plan.undo() },
   {
     keys: 'Ctrl+Y / Ctrl+Shift+Z',

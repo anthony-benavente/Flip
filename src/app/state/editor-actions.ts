@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { viewCenter } from '../geometry/viewport';
 import { restingElevation } from '../geometry/elevation';
+import { roomsBesideWall } from '../geometry/room-detection';
 import { snapFurnitureToWall } from '../geometry/furniture-geometry';
 import { gridSize } from '../geometry/units';
 import { removeNodes, removeWalls } from '../geometry/wall-geometry';
@@ -35,6 +36,19 @@ export class EditorActions {
     });
     this.editor.tool.set('select');
     this.editor.select([{ kind: 'furniture', id: item.id }]);
+  }
+
+  /** Opens the elevation of the selected wall's room-facing side, or closes an open elevation. */
+  toggleElevation(): void {
+    if (this.editor.elevation()) {
+      this.editor.closeElevation();
+      return;
+    }
+    const sel = this.editor.singleSelection();
+    const seg = sel?.kind === 'wall' ? this.plan.segmentById().get(sel.id) : undefined;
+    if (!seg) return;
+    const beside = roomsBesideWall(seg, this.plan.rooms());
+    this.editor.openElevation(seg.wall.id, beside.front || !beside.back ? 'front' : 'back');
   }
 
   deleteSelection(): void {

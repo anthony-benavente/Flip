@@ -130,9 +130,8 @@ Tracker for the interior design feature (colors, art, verticality) on branch `fe
   - Move `preview3d/wall-pieces.ts` (and its spec) to `geometry/`, and update imports.
   - Move `readHit` from `plan-canvas.ts` into a shared canvas helper.
   - Done when: tests pass.
-- [ ] **T23: State and entry points.**
-  - `ViewMode` gains `'elevation'` (left out of `cycleViewMode`).
-  - Add an `editor.elevation` signal with `openElevation`/`closeElevation`; the view auto-closes if the wall disappears.
+- [x] **T23: State and entry points.**
+  - An `editor.elevation` signal with `openElevation`/`closeElevation` (instead of a new `ViewMode`, so closing returns to the current view and the 2D/split/3D cycle is untouched). Auto-closing when the wall disappears lands with the component in T26.
   - An "Elevation" button per face in `WallProperties.sides()`.
   - Shortcut `E` in `shortcuts.ts`.
   - Done when: specs for the editor store and shortcuts pass.

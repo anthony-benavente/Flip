@@ -92,6 +92,11 @@ describe('PropertiesPanel', () => {
       await render();
     });
 
+    it('opens the elevation of either side', () => {
+      side('back').querySelector<HTMLButtonElement>('.elevation-btn')!.click();
+      expect(editor.elevation()).toEqual({ wallId: walls[0], side: 'back' });
+    });
+
     it('lists the room-facing side first, then the outside', () => {
       const labels = Array.from(el.querySelectorAll('.wall-side .side-label')).map((l) => l.textContent?.trim());
       // The top wall runs left to right, so its front (normal) side faces down into the room.

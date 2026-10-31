@@ -8,6 +8,7 @@ import { ColorPick, ColorSwatches } from '../../shared/color-swatches';
 import { Icon } from '../../shared/icon';
 import { LengthInput } from '../../shared/length-input';
 import { EditorActions } from '../../state/editor-actions';
+import { EditorStore } from '../../state/editor.store';
 import { PlanStore } from '../../state/plan.store';
 
 /** Length, thickness and height of one wall, plus accent paint for each of its faces. */
@@ -46,6 +47,9 @@ import { PlanStore } from '../../state/plan.store';
           @if (s.accent) {
             <span class="badge">Accent</span>
           }
+          <button class="btn ghost elevation-btn" [attr.aria-label]="'Elevation of ' + s.label" title="Arrange art and shelves on this side (E)" (click)="editor.openElevation(segment().wall.id, s.side)">
+            Elevation
+          </button>
         </div>
         <app-color-swatches
           [swatches]="s.swatches"
@@ -71,6 +75,7 @@ export class WallProperties {
 
   private readonly plan = inject(PlanStore);
   protected readonly actions = inject(EditorActions);
+  protected readonly editor = inject(EditorStore);
   protected readonly units = this.plan.units;
 
   protected readonly openingCount = computed(() => this.plan.plan().openings.filter((o) => o.wallId === this.segment().wall.id).length);

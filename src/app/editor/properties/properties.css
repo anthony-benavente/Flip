@@ -174,3 +174,9 @@ h3 {
   margin-top: 8px;
   font-size: 13px;
 }
+
+.elevation-btn {
+  margin-left: auto;
+  padding: 2px 8px;
+  font-size: 12px;
+}

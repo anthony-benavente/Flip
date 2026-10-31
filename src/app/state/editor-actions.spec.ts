@@ -83,6 +83,17 @@ describe('EditorActions', () => {
     });
   });
 
+  it('toggles the elevation of the selected wall, facing its room', () => {
+    actions.toggleElevation();
+    expect(editor.elevation()).toBeNull();
+    editor.select([{ kind: 'wall', id: walls[0] }]);
+    actions.toggleElevation();
+    // The top wall runs left to right, so its front faces down into the room.
+    expect(editor.elevation()).toEqual({ wallId: walls[0], side: 'front' });
+    actions.toggleElevation();
+    expect(editor.elevation()).toBeNull();
+  });
+
   describe('deleteSelection', () => {
     it('removes furniture, openings and walls together, including openings on deleted walls', () => {
       editor.select([
