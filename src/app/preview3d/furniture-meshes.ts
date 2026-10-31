@@ -2,6 +2,18 @@ import * as THREE from 'three';
 import { FurnitureShape } from '../model/catalog';
 import { shade } from '../shared/color';
 
+export interface BuildOptions {
+  /** Picture shown on art items (an uploaded image). */
+  map?: THREE.Texture;
+  /** Takes ownership of materials made just for this item (the scene disposes them). */
+  own?: <T extends THREE.Material>(m: T) => T;
+}
+
+const BULB = '#ffe7b0';
+const MIRROR = '#dfe6ea';
+/** Picture area of framed art with no uploaded image. */
+const PLACEHOLDER_ART = '#d8d0c4';
+
 /**
  * Builds simple primitive models for furniture. Units are meters. The model is centered on x/z,
  * sits on y = 0, with its back at -z (matching the 2D plan's local -y).
@@ -32,13 +44,27 @@ export class FurnitureMeshFactory {
     return m;
   }
 
+  /** A flat picture facing +z: the uploaded image when there is one, otherwise a plain color. */
+  private picture(g: THREE.Group, w: number, h: number, cy: number, z: number, opts: BuildOptions, fallback: string): void {
+    const material = opts.map
+      ? (opts.own ?? ((m) => m))(new THREE.MeshStandardMaterial({ map: opts.map, roughness: 0.7 }))
+      : this.material(fallback, { roughness: 0.9 });
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(Math.max(w, 0.001), Math.max(h, 0.001)), material);
+    m.position.set(0, cy, z);
+    g.add(m);
+  }
+
+  private mirrorGlass(): THREE.MeshStandardMaterial {
+    return this.material(MIRROR, { roughness: 0.05, metalness: 0.9 });
+  }
+
   dispose(): void {
     for (const m of this.materials.values()) m.dispose();
     this.materials.clear();
     this.glass.dispose();
   }
 
-  build(shape: FurnitureShape, w: number, d: number, h: number, color: string): THREE.Group {
+  build(shape: FurnitureShape, w: number, d: number, h: number, color: string, opts: BuildOptions = {}): THREE.Group {
     const g = new THREE.Group();
     const c = color;
     const dark = shade(color, -0.25);
@@ -58,6 +84,12 @@ export class FurnitureMeshFactory {
     const cyl = (cx: number, cz: number, rTop: number, rBottom: number, y0: number, y1: number, col: string, mat?: THREE.Material) => {
       const m = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBottom, Math.max(y1 - y0, 0.001), 28), mat ?? this.material(col));
       m.position.set(cx, (y0 + y1) / 2, cz);
+      g.add(m);
+      return m;
+    };
+    const sphere = (x: number, y: number, z: number, r: number, mat: THREE.Material) => {
+      const m = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12), mat);
+      m.position.set(x, y, z);
       g.add(m);
       return m;
     };
@@ -261,7 +293,122 @@ export class FurnitureMeshFactory {
         const r = Math.min(w, d) / 2;
         cyl(0, 0, r * 0.6, r * 0.7, 0, 0.03, '#333');
         cyl(0, 0, 0.012, 0.012, 0.03, h - 0.3, '#333');
-        cyl(0, 0, r * 0.75, r, h - 0.32, h, c, this.material(c, { emissive: '#ffe7b0' }));
+        cyl(0, 0, r * 0.75, r, h - 0.32, h, c, this.material(c, { emissive: BULB }));
+        break;
+      }
+      case 'table-lamp': {
+        const r = Math.min(w, d) / 2;
+        cyl(0, 0, r * 0.45, r * 0.5, 0, h * 0.06, dark);
+        cyl(0, 0, r * 0.25, r * 0.4, h * 0.06, h * 0.45, c, this.material(c, { roughness: 0.4 }));
+        cyl(0, 0, 0.008, 0.008, h * 0.45, h * 0.6, '#333');
+        cyl(0, 0, r * 0.7, r, h * 0.55, h, '#f3ead8', this.material('#f3ead8', { emissive: BULB }));
+        break;
+      }
+      case 'vase': {
+        const r = Math.min(w, d) / 2;
+        const glaze = this.material(c, { roughness: 0.3 });
+        cyl(0, 0, r, r * 0.65, 0, h * 0.7, c, glaze);
+        cyl(0, 0, r * 0.45, r, h * 0.7, h * 0.85, c, glaze);
+        cyl(0, 0, r * 0.5, r * 0.45, h * 0.85, h, c, glaze);
+        break;
+      }
+      case 'books':
+        box(X0, X1 - 0.01, 0, h / 3, Z0, Z1, c);
+        box(X0 + 0.01, X1, h / 3, (2 * h) / 3, Z0, Z1 - 0.01, '#3f5a7a');
+        box(X0 + 0.005, X1 - 0.005, (2 * h) / 3, h, Z0 + 0.005, Z1, '#d9b44a');
+        break;
+      case 'art': {
+        const frame = Math.min(0.04, Math.min(w, h) * 0.06);
+        const mat = Math.min(w, h) * 0.12;
+        box(X0, X1, 0, h, Z0, Z1 - 0.004, c, this.material(c, { roughness: 0.5 }));
+        box(X0 + frame, X1 - frame, frame, h - frame, Z1 - 0.004, Z1 - 0.002, '#f6f4ef');
+        this.picture(g, w - 2 * (frame + mat), h - 2 * (frame + mat), h / 2, Z1 - 0.001, opts, PLACEHOLDER_ART);
+        break;
+      }
+      case 'canvas-art':
+        box(X0, X1, 0, h, Z0, Z1, c, this.material(c, { roughness: 0.9 }));
+        if (opts.map) this.picture(g, w, h, h / 2, Z1 + 0.001, opts, c);
+        break;
+      case 'mirror': {
+        const frame = Math.min(0.05, Math.min(w, h) * 0.07);
+        box(X0, X1, 0, h, Z0, Z1 - 0.004, c, this.material(c, { roughness: 0.4, metalness: 0.5 }));
+        box(X0 + frame, X1 - frame, frame, h - frame, Z1 - 0.004, Z1, MIRROR, this.mirrorGlass());
+        break;
+      }
+      case 'round-mirror': {
+        const r = Math.min(w, h) / 2;
+        const disc = (radius: number, z0: number, z1: number, m: THREE.Material) => {
+          const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, z1 - z0, 48), m);
+          mesh.rotation.x = Math.PI / 2;
+          mesh.position.set(0, h / 2, (z0 + z1) / 2);
+          g.add(mesh);
+        };
+        disc(r, Z0, Z1 - 0.004, this.material(c, { roughness: 0.4, metalness: 0.5 }));
+        disc(r * 0.88, Z1 - 0.004, Z1, this.mirrorGlass());
+        break;
+      }
+      case 'shelf':
+        box(X0, X1, 0, h, Z0, Z1, c);
+        break;
+      case 'tv-wall':
+        box(X0, X1, 0, h, Z0, Z1 - 0.004, '#141414', this.material('#141414', { roughness: 0.3, metalness: 0.3 }));
+        box(X0 + 0.01, X1 - 0.01, 0.01, h - 0.01, Z1 - 0.004, Z1, '#0b0c0e', this.material('#0b0c0e', { roughness: 0.1, metalness: 0.2 }));
+        break;
+      case 'sconce': {
+        const brass = this.material('#b8955a', { roughness: 0.35, metalness: 0.7 });
+        const r = Math.min(w, d * 0.8) / 2;
+        box(-w * 0.2, w * 0.2, 0, h * 0.7, Z0, Z0 + 0.01, '', brass);
+        box(-0.008, 0.008, h * 0.4, h * 0.45, Z0 + 0.01, Z0 + d * 0.6, '', brass);
+        cyl(0, Z0 + d * 0.6, r * 0.8, r, h * 0.35, h, c, this.material(c, { emissive: BULB }));
+        break;
+      }
+      case 'pendant': {
+        // Ceiling items: y = 0 is the bottom of the fixture, y = h touches the ceiling.
+        const r = Math.min(w, d) / 2;
+        const shadeH = Math.min(h * 0.4, r * 1.2);
+        cyl(0, 0, r * 0.3, r, 0, shadeH, c, this.material(c, { roughness: 0.5, metalness: 0.3 }));
+        sphere(0, shadeH * 0.25, 0, r * 0.25, this.material('#fff8e6', { emissive: BULB }));
+        cyl(0, 0, 0.004, 0.004, shadeH, h - 0.02, '#222');
+        cyl(0, 0, 0.05, 0.05, h - 0.02, h, '#222');
+        break;
+      }
+      case 'chandelier': {
+        const brass = this.material(c, { roughness: 0.35, metalness: 0.7 });
+        const ring = Math.min(w, d) / 2 - 0.03;
+        const armY = h * 0.25;
+        cyl(0, 0, 0.03, 0.01, 0, armY + 0.04, c, brass);
+        cyl(0, 0, 0.006, 0.006, armY + 0.04, h - 0.02, c, brass);
+        cyl(0, 0, 0.05, 0.05, h - 0.02, h, c, brass);
+        const bulb = this.material('#fff8e6', { emissive: BULB });
+        for (let i = 0; i < 6; i++) {
+          const a = (i * Math.PI) / 3;
+          const x = Math.cos(a) * ring;
+          const z = Math.sin(a) * ring;
+          const arm = new THREE.Mesh(new THREE.BoxGeometry(ring, 0.012, 0.012), brass);
+          arm.position.set(x / 2, armY, z / 2);
+          arm.rotation.y = -a;
+          g.add(arm);
+          cyl(x, z, 0.012, 0.012, armY, armY + 0.08, c, brass);
+          sphere(x, armY + 0.11, z, 0.025, bulb);
+        }
+        break;
+      }
+      case 'ceiling-fan': {
+        const r = Math.min(w, d) / 2;
+        const bladeY = h * 0.3;
+        cyl(0, 0, 0.09, 0.07, 0, h * 0.2, '#f3ead8', this.material('#f3ead8', { emissive: BULB }));
+        cyl(0, 0, 0.1, 0.11, h * 0.2, h * 0.45, dark);
+        cyl(0, 0, 0.012, 0.012, h * 0.45, h - 0.02, dark);
+        cyl(0, 0, 0.05, 0.05, h - 0.02, h, dark);
+        const blade = this.material(c, { roughness: 0.6 });
+        const length = r - 0.1;
+        for (let i = 0; i < 5; i++) {
+          const a = (i * 2 * Math.PI) / 5;
+          const m = new THREE.Mesh(new THREE.BoxGeometry(length, 0.01, 0.13), blade);
+          m.position.set(Math.cos(a) * (0.1 + length / 2), bladeY, Math.sin(a) * (0.1 + length / 2));
+          m.rotation.y = -a;
+          g.add(m);
+        }
         break;
       }
       case 'box':

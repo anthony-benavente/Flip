@@ -25,7 +25,7 @@ Tracker for the interior design feature (colors, art, verticality) on branch `fe
   - Keep `box` last. Art depth must be at least 3 cm.
   - Add `symbolParts` cases in `furniture-symbols.ts`, and `isRoundShape` entries for the round items.
   - Done when: `catalog.spec` passes, including symbols staying inside each footprint.
-- [ ] **T3: 3D meshes for the new shapes.**
+- [x] **T3: 3D meshes for the new shapes.**
   - Add a case per shape in `furniture-meshes.ts` `build`, built at local y = 0.
   - Add `build(..., opts?: { map?: Texture })` now. The `art` picture plane uses `map` if given, otherwise a tint of the color.
   - Lights use `emissive`.

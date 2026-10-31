@@ -48,6 +48,17 @@ describe('FurnitureMeshFactory', () => {
     expect(factory.material('#123456')).not.toBe(factory.material('#654321'));
   });
 
+  it('shows an uploaded picture on art and hands its material to the owner', () => {
+    const map = new THREE.Texture();
+    const owned: THREE.Material[] = [];
+    const g = factory.build('art', 0.6, 0.04, 0.75, '#2b2b2b', { map, own: (m) => (owned.push(m), m) });
+    const pictures: THREE.Mesh[] = [];
+    g.traverse((o) => o instanceof THREE.Mesh && (o.material as THREE.MeshStandardMaterial).map === map && pictures.push(o));
+    expect(pictures).toHaveLength(1);
+    expect(owned).toEqual([pictures[0].material]);
+    map.dispose();
+  });
+
   it('casts shadows from solid parts', () => {
     const g = factory.build('sofa', 2, 0.9, 0.85, '#7a8ca3');
     const meshes: THREE.Mesh[] = [];
