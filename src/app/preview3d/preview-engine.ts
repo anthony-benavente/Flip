@@ -192,6 +192,7 @@ export class PreviewEngine {
       if (cut !== w.cut) {
         w.cut = cut;
         w.group.scale.y = cut ? CUTAWAY_SCALE : 1;
+        for (const o of w.attached) o.visible = !cut;
       }
     }
   }

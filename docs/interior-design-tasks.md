@@ -57,7 +57,7 @@ Tracker for the interior design feature (colors, art, verticality) on branch `fe
   - `furnitureViews` sorts by `itemElevation` (floor-layer items first).
   - It adds `mount`; ceiling items draw at reduced opacity. (Height badge dropped: the Elevation field in T10 covers it.)
   - Done when: `view-models.spec` passes.
-- [ ] **T9: 3D elevation and cutaway.**
+- [x] **T9: 3D elevation and cutaway.**
   - `scene-builder.ts:71` sets y from `itemElevation`. The bounds at `:81` include the top.
   - `SceneWall.attached` comes from `mountedWall`, and `PreviewEngine.updateCutaway` hides attached items on cut walls.
   - Done when: `scene-builder.spec` passes.

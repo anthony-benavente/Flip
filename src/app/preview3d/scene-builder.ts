@@ -4,6 +4,7 @@
  * Coordinates: plan (x, y) in cm maps to world (X, Z) in meters, with Y up.
  */
 import * as THREE from 'three';
+import { itemElevation, mountedWall } from '../geometry/elevation';
 import { Room, roomsBesideWall, wallFaceColor } from '../geometry/room-detection';
 import { add, scale } from '../geometry/vec';
 import { WallSegment } from '../geometry/wall-geometry';
@@ -27,6 +28,8 @@ export interface SceneWall {
   /** Midpoint and unit normal on the ground plane (world X, Z). */
   mid: THREE.Vector2;
   normal: THREE.Vector2;
+  /** Items hung on this wall, hidden with it when the cutaway lowers it. */
+  attached: THREE.Object3D[];
 }
 
 export interface PlanScene {
@@ -62,23 +65,28 @@ export function buildPlanScene(
     return wall;
   });
 
+  const wallById = new Map(walls.map((w) => [w.id, w]));
+  const bounds = new THREE.Box3();
   for (const f of plan.furniture) {
+    const elevation = itemElevation(f, rooms);
     const custom = f.modelId ? models(f.modelId) : undefined;
     const model = custom
       ? fitModelToBox(custom.object, custom.orientation, f.width * M, f.depth * M, f.height * M)
       : factory.build(catalogItem(f.catalogId).shape, f.width * M, f.depth * M, f.height * M, f.color);
     model.name = `furniture:${f.id}`;
-    model.position.set(f.x * M, 0, f.y * M);
+    model.position.set(f.x * M, elevation * M, f.y * M);
     model.rotation.y = (-f.rotation * Math.PI) / 180;
     group.add(model);
+    const mount = mountedWall(f, segments);
+    if (mount) wallById.get(mount.seg.wall.id)?.attached.push(model);
+    bounds.expandByPoint(new THREE.Vector3(f.x * M, elevation * M, f.y * M));
+    bounds.expandByPoint(new THREE.Vector3(f.x * M, (elevation + f.height) * M, f.y * M));
   }
 
-  const bounds = new THREE.Box3();
   for (const s of segments) {
     bounds.expandByPoint(new THREE.Vector3(s.a.x * M, 0, s.a.y * M));
     bounds.expandByPoint(new THREE.Vector3(s.b.x * M, s.wall.height * M, s.b.y * M));
   }
-  for (const f of plan.furniture) bounds.expandByPoint(new THREE.Vector3(f.x * M, 0, f.y * M));
 
   return { group, walls, bounds, materials };
 }
@@ -143,6 +151,7 @@ function buildWall(seg: WallSegment, openings: Opening[], rooms: Room[], factory
     group,
     mid: new THREE.Vector2(mid.x * M, mid.y * M),
     normal: new THREE.Vector2(seg.normal.x, seg.normal.y),
+    attached: [],
   };
 }
 

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { attachRoomMeta, detectRooms } from '../geometry/room-detection';
 import { wallSegments } from '../geometry/wall-geometry';
 import { createEmptyPlan, createFurniture } from '../model/defaults';
+import { catalogItem } from '../model/catalog';
 import { EXTERIOR_WALL_COLOR } from '../model/palettes';
 import { Plan } from '../model/plan.model';
 import { squareRoom } from '../testing/fixtures';
@@ -73,6 +74,29 @@ describe('buildPlanScene', () => {
     expect(f.position.toArray()).toEqual([1.2, 0, 0.8]);
     // Plan rotations are clockwise on screen (y down); in world they turn about -Y.
     expect(f.rotation.y).toBeCloseTo(-Math.PI / 2);
+  });
+
+  it('lifts stacked and wall items and hangs ceiling items from the ceiling', () => {
+    const { scene } = build((p) => {
+      p.furniture.push({ ...createFurniture('table-lamp', { x: 120, y: 80 }), id: 'lamp', elevation: 75 });
+      p.furniture.push({ ...createFurniture('pendant', { x: 200, y: 150 }), id: 'pendant' });
+    });
+    expect(scene.group.getObjectByName('furniture:lamp')!.position.y).toBeCloseTo(0.75);
+    const pendant = scene.group.getObjectByName('furniture:pendant')!;
+    expect(pendant.position.y).toBeCloseTo(2.4 - catalogItem('pendant').height * M);
+  });
+
+  it('attaches wall items to their wall for the cutaway', () => {
+    const { scene } = build((p) => {
+      const art = { ...createFurniture('art-small', { x: 200, y: 0 }), id: 'art' };
+      art.y = 5 + art.depth / 2;
+      p.furniture.push(art);
+    });
+    const art = scene.group.getObjectByName('furniture:art')!;
+    const holders = scene.walls.filter((w) => w.attached.includes(art));
+    expect(holders).toHaveLength(1);
+    expect(holders[0].mid.y).toBeCloseTo(0);
+    expect(art.position.y).toBeCloseTo((catalogItem('art-small').defaultElevation! - catalogItem('art-small').height / 2) * M);
   });
 
   it('bounds the walls at full height', () => {
