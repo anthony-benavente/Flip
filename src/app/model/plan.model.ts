@@ -78,7 +78,16 @@ export interface RoomMeta {
   name: string;
   floorColor: string;
   wallColor: string;
+  /** Unset finishes use the defaults in `palettes.ts`. */
+  ceilingColor?: string;
+  /** Baseboards, crown molding and door and window casings. */
+  trimColor?: string;
+  floorMaterial?: FloorMaterial;
+  crownMolding?: boolean;
 }
+
+/** Surface pattern of a floor; its color comes from `RoomMeta.floorColor`. */
+export type FloorMaterial = 'solid' | 'wood' | 'tile' | 'carpet' | 'concrete';
 
 export interface Plan {
   id: string;

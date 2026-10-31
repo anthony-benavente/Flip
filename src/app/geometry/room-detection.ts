@@ -1,4 +1,11 @@
-import { DEFAULT_FLOOR_COLOR, DEFAULT_WALL_COLOR } from '../model/palettes';
+import {
+  DEFAULT_CEILING_COLOR,
+  DEFAULT_FLOOR_COLOR,
+  DEFAULT_FLOOR_MATERIAL,
+  DEFAULT_TRIM_COLOR,
+  DEFAULT_WALL_COLOR,
+  RoomFinishes,
+} from '../model/palettes';
 import { Plan, Point, RoomMeta, WallSide } from '../model/plan.model';
 import { add, labelPoint, pointInPolygon, polygonArea, scale } from './vec';
 import type { WallSegment } from './wall-geometry';
@@ -16,11 +23,10 @@ export interface DetectedRoom {
   ceilingHeight: number;
 }
 
-export interface Room extends DetectedRoom {
+export interface Room extends DetectedRoom, RoomFinishes {
   meta: RoomMeta | null;
   name: string;
-  floorColor: string;
-  wallColor: string;
+  crownMolding: boolean;
 }
 
 
@@ -111,6 +117,10 @@ export function attachRoomMeta(detected: DetectedRoom[], metas: RoomMeta[]): Roo
       name: meta?.name ?? 'Room',
       floorColor: meta?.floorColor ?? DEFAULT_FLOOR_COLOR,
       wallColor: meta?.wallColor ?? DEFAULT_WALL_COLOR,
+      ceilingColor: meta?.ceilingColor ?? DEFAULT_CEILING_COLOR,
+      trimColor: meta?.trimColor ?? DEFAULT_TRIM_COLOR,
+      floorMaterial: meta?.floorMaterial ?? DEFAULT_FLOOR_MATERIAL,
+      crownMolding: !!meta?.crownMolding,
     });
   }
   return detected.map((r) => result.get(r)!);

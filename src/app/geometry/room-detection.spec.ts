@@ -1,3 +1,4 @@
+import { DEFAULT_CEILING_COLOR, DEFAULT_TRIM_COLOR } from '../model/palettes';
 import { createEmptyPlan } from '../model/defaults';
 import { Plan, Point } from '../model/plan.model';
 import { attachRoomMeta, detectRooms, roomsBesideWall, wallFaceColor } from './room-detection';
@@ -114,12 +115,13 @@ describe('attachRoomMeta', () => {
     ]);
     addWall(plan, { x: 300, y: 0 }, { x: 300, y: 400 }, props);
     const rooms = attachRoomMeta(detectRooms(plan), [
-      { id: 'r1', anchor: { x: 100, y: 100 }, name: 'Kitchen', floorColor: '#111111', wallColor: '#222222' },
+      { id: 'r1', anchor: { x: 100, y: 100 }, name: 'Kitchen', floorColor: '#111111', wallColor: '#222222', trimColor: '#333333', crownMolding: true },
     ]);
     const kitchen = rooms.find((r) => r.name === 'Kitchen');
     const other = rooms.find((r) => r.name === 'Room');
-    expect(kitchen?.floorColor).toBe('#111111');
+    expect(kitchen).toMatchObject({ floorColor: '#111111', trimColor: '#333333', crownMolding: true, ceilingColor: DEFAULT_CEILING_COLOR });
     expect(other?.meta).toBeNull();
+    expect(other).toMatchObject({ floorMaterial: 'solid', trimColor: DEFAULT_TRIM_COLOR, crownMolding: false });
   });
 });
 

@@ -92,11 +92,13 @@ export function resetFurnitureSize(draft: Plan, id: string): void {
   Object.assign(f, { width: c.width, depth: c.depth, height: c.height });
 }
 
+export type RoomPatch = Partial<Omit<RoomMeta, 'id' | 'anchor'>>;
+
 /**
- * Updates a detected room's name or colors, creating its metadata on first edit. The anchor is
+ * Updates a detected room's name, colors or finishes, creating its metadata on first edit. The anchor is
  * moved to the room's current label point so it stays inside the room as walls change.
  */
-export function upsertRoomMeta(draft: Plan, room: Room, patch: Partial<Pick<RoomMeta, 'name' | 'floorColor' | 'wallColor'>>): void {
+export function upsertRoomMeta(draft: Plan, room: Room, patch: RoomPatch): void {
   let meta = room.meta ? draft.rooms.find((m) => m.id === room.meta!.id) : undefined;
   if (!meta) {
     meta = { id: newId('r'), anchor: room.label, name: room.name, floorColor: room.floorColor, wallColor: room.wallColor };

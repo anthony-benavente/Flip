@@ -69,7 +69,7 @@ Tracker for the interior design feature (colors, art, verticality) on branch `fe
   - Done when: `npm run build` and `npm run e2e` pass.
 
 ### Milestone 2: Colors
-- [ ] **T12: Room finish data and palettes.**
+- [x] **T12: Room finish data and palettes.**
   - `RoomMeta` optional fields: `ceilingColor`, `trimColor`, `floorMaterial: 'solid'|'wood'|'tile'|'carpet'|'concrete'` and `crownMolding?`.
   - Resolve their defaults on `Room` in `attachRoomMeta`.
   - Widen the `upsertRoomMeta` patch (`plan-operations.ts:84`).
