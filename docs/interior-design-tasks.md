@@ -144,7 +144,7 @@ Tracker for the interior design feature (colors, art, verticality) on branch `fe
     - floor and ceiling furniture within 60 cm as silhouettes;
     - guides (floor, ceiling, eye level 145 cm, furniture tops, art-above-furniture band) and dimensions.
   - Done when: the spec passes.
-- [ ] **T25: Elevation snapping and the move operation.**
+- [x] **T25: Elevation snapping and the move operation.**
   - `geometry/elevation-snap.ts`: eye level, centered over the furniture below, edges and centers of other items, grid.
   - `moveOnWall(draft, id, seg, side, along, elevation)` in `plan-operations.ts`, which keeps the item flush and clamped.
   - Done when: the specs pass.

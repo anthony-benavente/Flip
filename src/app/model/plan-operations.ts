@@ -6,7 +6,8 @@
  */
 import { ceilingHeightAt } from '../geometry/elevation';
 import { attachRoomMeta, detectRooms, Room } from '../geometry/room-detection';
-import { clampOpeningOffset, nodeMap, reclampOpenings, wallSegment } from '../geometry/wall-geometry';
+import { add, angleDeg, scale } from '../geometry/vec';
+import { clampOpeningOffset, nodeMap, reclampOpenings, WallSegment, wallSegment } from '../geometry/wall-geometry';
 import { catalogItem, mountOf } from './catalog';
 import { FurnitureItem, newId, Opening, Plan, RoomMeta, Wall, WallSide } from './plan.model';
 
@@ -61,6 +62,24 @@ function clampElevation(draft: Plan, f: FurnitureItem): void {
   const e = Number.isFinite(f.elevation) ? f.elevation! : 0;
   f.elevation = Math.min(Math.max(0, e), Math.max(0, ceiling - f.height));
   if (f.elevation === 0 && mountOf(catalogItem(f.catalogId)) === 'floor') delete f.elevation;
+}
+
+/**
+ * Hangs an item flush on one face of a wall: centered `along` from node `a` (kept on the wall),
+ * back against the face, with its bottom at `elevation` (kept below the ceiling).
+ */
+export function moveOnWall(draft: Plan, id: string, seg: WallSegment, side: WallSide, along: number, elevation: number): void {
+  const f = draft.furniture.find((x) => x.id === id);
+  if (!f) return;
+  const outward = scale(seg.normal, side === 'front' ? 1 : -1);
+  const half = Math.min(f.width / 2, seg.length / 2);
+  const at = Math.min(Math.max(along, half), seg.length - half);
+  const p = add(add(seg.a, scale(seg.dir, at)), scale(outward, seg.wall.thickness / 2 + f.depth / 2));
+  f.x = Math.round(p.x * 10) / 10;
+  f.y = Math.round(p.y * 10) / 10;
+  f.rotation = normalizeRotation(Math.round(angleDeg(outward) - 90));
+  f.elevation = elevation;
+  clampElevation(draft, f);
 }
 
 /** Sets the height of every wall around a room. Walls shared with a neighboring room change for it too. */

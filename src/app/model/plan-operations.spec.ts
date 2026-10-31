@@ -1,9 +1,11 @@
+import { mountedWall } from '../geometry/elevation';
 import { attachRoomMeta, detectRooms } from '../geometry/room-detection';
 import { wallSegments } from '../geometry/wall-geometry';
 import { squareRoom } from '../testing/fixtures';
 import { catalogItem } from './catalog';
 import { createEmptyPlan, createFurniture } from './defaults';
 import {
+  moveOnWall,
   normalizeRotation,
   remapFurnitureModels,
   resetFurnitureSize,
@@ -51,6 +53,23 @@ describe('plan operations', () => {
     expect(art.artImageId).toBe('i_2');
     setFurnitureArt(plan, 'art', undefined);
     expect('artImageId' in art).toBe(false);
+  });
+
+  it('hangs an item flush on a wall face, kept on the wall and under the ceiling', () => {
+    const { plan, walls } = setup();
+    plan.furniture.push({ ...createFurniture('art-small', { x: 0, y: 0 }), id: 'art' });
+    const art = plan.furniture[1];
+    const top = wallSegments(plan).find((s) => s.wall.id === walls[0])!;
+    moveOnWall(plan, 'art', top, 'front', 100, 130);
+    const mount = mountedWall(art, wallSegments(plan));
+    expect(mount).toMatchObject({ side: 'front' });
+    expect(mount!.seg.wall.id).toBe(walls[0]);
+    expect(mount!.along).toBeCloseTo(top.dir.x > 0 ? 100 : 300, 0);
+    expect(art.elevation).toBe(130);
+
+    moveOnWall(plan, 'art', top, 'front', -50, 1000);
+    expect(mountedWall(art, wallSegments(plan))!.along).toBeCloseTo(art.width / 2, 0);
+    expect(art.elevation).toBeCloseTo(240 - art.height, 5);
   });
 
   it('keeps elevations between the floor and the ceiling', () => {
