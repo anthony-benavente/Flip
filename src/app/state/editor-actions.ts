@@ -1,9 +1,11 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
+import { viewCenter } from '../geometry/viewport';
 import { snapFurnitureToWall } from '../geometry/furniture-geometry';
 import { gridSize } from '../geometry/units';
 import { removeNodes, removeWalls } from '../geometry/wall-geometry';
 import { catalogItem } from '../model/catalog';
 import { createFurniture } from '../model/defaults';
+import { normalizeRotation } from '../model/plan-operations';
 import { newId, Point } from '../model/plan.model';
 import { EditorStore, SelectionItem } from './editor.store';
 import { PlanStore } from './plan.store';
@@ -13,17 +15,7 @@ import { PlanStore } from './plan.store';
 export class EditorActions {
   private readonly plan = inject(PlanStore);
   private readonly editor = inject(EditorStore);
-  /** Size of the canvas in px, published by the canvas component. */
-  readonly canvasSize = signal({ width: 800, height: 600 });
-
-  /** World point at the center of the visible canvas. */
-  viewCenter(): Point {
-    const v = this.editor.viewport();
-    const s = this.canvasSize();
-    return { x: (s.width / 2 - v.x) / v.zoom, y: (s.height / 2 - v.y) / v.zoom };
-  }
-
-  placeFurniture(catalogId: string, at: Point = this.viewCenter()): void {
+  placeFurniture(catalogId: string, at: Point = viewCenter(this.editor.viewport(), this.editor.canvasSize())): void {
     const item = createFurniture(catalogId, at);
     if (!catalogItem(catalogId).noWallSnap) {
       // Snap when dropped within ~1.5 ft of a wall face (or 24px when zoomed far out).
@@ -77,8 +69,7 @@ export class EditorActions {
     this.plan.update((draft) => {
       for (const f of draft.furniture) {
         if (!ids.has(f.id)) continue;
-        let r = (((f.rotation + degrees) % 360) + 360) % 360;
-        f.rotation = r > 180 ? r - 360 : r;
+        f.rotation = normalizeRotation(f.rotation + degrees);
       }
     });
   }

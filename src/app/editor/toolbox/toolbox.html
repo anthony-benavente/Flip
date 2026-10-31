@@ -37,24 +37,7 @@
               <li>
                 <button class="item" draggable="true" (dragstart)="onDragStart($event, item.id)" (click)="place(item.id)" [title]="'Add ' + item.name">
                   <svg [attr.viewBox]="item.viewBox" preserveAspectRatio="xMidYMid meet">
-                    @if (item.round) {
-                      <ellipse [attr.rx]="item.w / 2" [attr.ry]="item.d / 2" [attr.fill]="item.fill" [attr.stroke]="item.stroke" vector-effect="non-scaling-stroke" />
-                    } @else {
-                      <rect [attr.x]="-item.w / 2" [attr.y]="-item.d / 2" [attr.width]="item.w" [attr.height]="item.d" [attr.fill]="item.fill" [attr.stroke]="item.stroke" vector-effect="non-scaling-stroke" />
-                    }
-                    @for (p of item.parts; track $index) {
-                      @switch (p.t) {
-                        @case ('rect') {
-                          <rect [attr.x]="p.x" [attr.y]="p.y" [attr.width]="p.w" [attr.height]="p.h" [attr.rx]="p.r ?? 0" [attr.fill]="p.fill" [attr.stroke]="item.stroke" vector-effect="non-scaling-stroke" />
-                        }
-                        @case ('circle') {
-                          <circle [attr.cx]="p.cx" [attr.cy]="p.cy" [attr.r]="p.r" [attr.fill]="p.fill" [attr.stroke]="item.stroke" vector-effect="non-scaling-stroke" />
-                        }
-                        @case ('line') {
-                          <line [attr.x1]="p.x1" [attr.y1]="p.y1" [attr.x2]="p.x2" [attr.y2]="p.y2" [attr.stroke]="item.stroke" vector-effect="non-scaling-stroke" />
-                        }
-                      }
-                    }
+                    <g appFurnitureSymbol [shape]="item.shape" [width]="item.w" [depth]="item.d" [color]="item.color" />
                   </svg>
                   <span class="item-text">
                     <span class="item-name">{{ item.name }}</span>

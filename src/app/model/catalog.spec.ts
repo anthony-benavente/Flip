@@ -1,4 +1,6 @@
-import { CATALOG, CATALOG_CATEGORIES, catalogItem, shade, symbolParts } from './catalog';
+import { shade } from '../shared/color';
+import { CATALOG, CATALOG_CATEGORIES, catalogItem } from './catalog';
+import { symbolParts } from './furniture-symbols';
 
 describe('furniture catalog', () => {
   it('has unique ids and sensible dimensions and colors', () => {

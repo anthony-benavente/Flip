@@ -26,7 +26,7 @@ describe('EditorActions', () => {
     plan.load(p);
     editor.clearSelection();
     editor.viewport.set({ x: 0, y: 0, zoom: 1 });
-    actions.canvasSize.set({ width: 800, height: 600 });
+    editor.canvasSize.set({ width: 800, height: 600 });
   });
 
   describe('placeFurniture', () => {

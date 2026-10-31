@@ -3,7 +3,8 @@ import { createFurniture, createStarterPlan } from '../../model/defaults';
 import { EditorStore } from '../../state/editor.store';
 import { PlanStore } from '../../state/plan.store';
 import { installResizeObserver } from '../../testing/fixtures';
-import { FURNITURE_DRAG_MIME, PlanCanvas } from './plan-canvas';
+import { FURNITURE_DRAG_MIME } from '../drag-drop';
+import { PlanCanvas } from './plan-canvas';
 
 describe('PlanCanvas', () => {
   let fixture: ComponentFixture<PlanCanvas>;

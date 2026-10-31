@@ -1,6 +1,6 @@
 import { createStarterPlan } from '../model/defaults';
 import { LocalPlanRepository } from './local-plan.repository';
-import { migratePlan, PlanFormatError } from './plan-repository';
+import { migratePlan, PlanFormatError } from './plan-migration';
 import { MemoryStorage } from '../testing/fixtures';
 
 describe('LocalPlanRepository', () => {

@@ -138,17 +138,7 @@
   cursor: move;
 }
 
-.furniture .base,
-.furniture .part {
-  stroke-width: 1;
-  vector-effect: non-scaling-stroke;
-}
-
-.furniture .part {
-  pointer-events: none;
-}
-
-.furniture:hover .base {
+.furniture:hover {
   filter: brightness(1.06);
 }
 

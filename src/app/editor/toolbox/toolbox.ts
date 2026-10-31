@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { formatLength } from '../../geometry/units';
-import { CATALOG, CATALOG_CATEGORIES, CatalogItem, isRoundShape, shade, symbolParts } from '../../model/catalog';
+import { CATALOG, CATALOG_CATEGORIES, CatalogItem } from '../../model/catalog';
+import { FurnitureSymbol } from '../../shared/furniture-symbol';
 import { EditorActions } from '../../state/editor-actions';
 import { EditorStore, ToolId } from '../../state/editor.store';
 import { PlanStore } from '../../state/plan.store';
 import { Icon } from '../../shared/icon';
-import { FURNITURE_DRAG_MIME } from '../canvas/plan-canvas';
+import { FURNITURE_DRAG_MIME } from '../drag-drop';
 
 interface ToolButton {
   id: ToolId;
@@ -16,7 +17,7 @@ interface ToolButton {
 
 @Component({
   selector: 'app-toolbox',
-  imports: [Icon],
+  imports: [Icon, FurnitureSymbol],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './toolbox.html',
   styleUrl: './toolbox.css',
@@ -55,15 +56,10 @@ export class Toolbox {
       name: c.name,
       size: `${formatLength(c.width, units)} × ${formatLength(c.depth, units)}`,
       viewBox: `${-c.width / 2 - pad} ${-c.depth / 2 - pad} ${c.width + pad * 2} ${c.depth + pad * 2}`,
+      shape: c.shape,
       w: c.width,
       d: c.depth,
-      round: isRoundShape(c.shape),
-      fill: c.color,
-      stroke: shade(c.color, -0.45),
-      parts: symbolParts(c.shape, c.width, c.depth).map((p) => ({
-        ...p,
-        fill: 'tone' in p && p.tone !== undefined ? shade(c.color, p.tone) : 'none',
-      })),
+      color: c.color,
     };
   }
 

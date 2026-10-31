@@ -6,7 +6,7 @@ Room layout planner. Users redraw their room as a 2D floor plan, place furniture
 
 ```bash
 npm start              # dev server, http://localhost:4200
-npm test               # Vitest unit + component tests (jsdom), ~275 tests, ~5 s
+npm test               # Vitest unit + component tests (jsdom), ~350 tests, ~6 s
 npm run e2e            # Playwright against installed Chrome; starts its own server on :4321
 npm run build          # production build to dist/flip
 ```
@@ -17,27 +17,33 @@ Run a single Vitest file with `npx ng test --watch=false --include src/app/geome
 
 | Folder | Role |
 | --- | --- |
-| `src/app/model` | `plan.model.ts` holds the document types. `catalog.ts` holds the furniture definitions and their 2D symbol parts. `defaults.ts` holds the starter plan and default sizes. |
-| `src/app/geometry` | Pure functions with no Angular: units, vector math, snapping, wall editing, room detection, furniture snapping and overlap. Most logic lives here and is unit-tested. |
-| `src/app/state` | `PlanStore` holds the document plus undo/redo. `EditorStore` holds UI state: tool, selection, viewport, overlay. `EditorActions` holds commands shared by the keyboard, toolbox and panel. |
-| `src/app/persistence` | The `PlanRepository` interface and `PLAN_REPOSITORY` token, `LocalPlanRepository` (localStorage), `migratePlan`, and JSON import/export. |
-| `src/app/editor` | The editor page, the SVG canvas, tools (`select`, `wall`, `opening`, `pan`), the toolbox and the properties panel. |
-| `src/app/preview3d` | The three.js preview. `preview-engine.ts` is loaded with dynamic `import()` only. `wall-pieces.ts` holds the pure wall-splitting math. `furniture-meshes.ts` holds the primitive models. |
+| `src/app/model` | Document types (`plan.model.ts`), furniture catalog data (`catalog.ts`), 2D furniture drawings (`furniture-symbols.ts`), paint swatches and default colors (`palettes.ts`), starter plans (`defaults.ts`), and **`plan-operations.ts`**: the pure edits UI code applies to a plan draft. |
+| `src/app/geometry` | Pure math with no Angular: units, vectors, snapping, the wall graph (`wall-geometry.ts`), room detection and wall faces, furniture snapping and overlap, and 2D viewport math (`viewport.ts`). |
+| `src/app/state` | `PlanStore` holds the document, undo/redo and derived rooms and segments. `EditorStore` holds UI state: tool, selection, viewport, canvas size, overlay and view mode. `EditorActions` holds selection-aware commands: place, delete, duplicate, rotate and nudge. |
+| `src/app/persistence` | `plan-repository.ts` holds only the `PlanRepository` contract and the `PLAN_REPOSITORY` token. `LocalPlanRepository` uses localStorage. `plan-migration.ts` validates and upgrades documents. `PlanFileService` handles JSON import/export. |
+| `src/app/editor` | `editor-page/` is the page shell. `canvas/` holds `PlanCanvas` (input and wiring) and `view-models.ts` (pure template data). `tools/` holds the tools plus `createTools`. `properties/` holds a thin `PropertiesPanel` and one component per selection kind. `toolbox/`. `shortcuts.ts` is the keymap and help, `autosave.ts` is the page-scoped saver, `drag-drop.ts` is the catalog drag type. |
+| `src/app/preview3d` | `Preview3d` is the component. `preview-engine.ts` (renderer, camera, controls; loaded by dynamic `import()` only). `scene-builder.ts` builds the plan's three.js objects, renderer-free and testable. `cutaway.ts`, `wall-pieces.ts` and `furniture-meshes.ts` hold the rest. |
+| `src/app/shared` | Reusable UI and helpers: `FurnitureSymbol` (SVG `g[appFurnitureSymbol]`), `ColorSwatches`, `LengthInput`, `Icon`, `PlanThumbnail`, `color.ts` (`shade`) and `dom.ts` (`isTypingTarget`). |
 | `src/app/projects` | The project list page. |
 | `src/app/testing` | Test-only fixtures. App code must never import them. |
+
+Dependency direction: `model` and `geometry` (pure) ← `state` ← `editor`, `projects` and `preview3d`. Lower layers never import from `editor`.
 
 Routes: `/` shows the projects page and `/plan/:id` opens the editor. Both are lazy.
 
 ## Conventions and invariants
 
 - **Units:** store all lengths in centimeters and all angles in degrees. Feet and inches are display only, through `formatLength`, `parseLength` and `formatArea` in `geometry/units.ts`. Plan coordinates are y-down. In 3D, plan (x, y) maps to (X, Z) in meters.
-- **Editing the document:** always go through `PlanStore.update(draft => ...)`. It deep-clones the plan, so mutating the draft is fine. Pass `{ coalesceKey }` for continuous gestures such as drags and nudges, then call `commit()` when the gesture ends, so the whole gesture is one undo step.
+- **Editing the document:** always go through `PlanStore.update(draft => ...)`. It deep-clones the plan, so mutating the draft is fine. Put any edit that has rules, such as clamping, normalizing or creating metadata, in `model/plan-operations.ts` (or `wall-geometry.ts` for wall-graph changes), and call it from the UI. Do not write the rule inline in a component. Pass `{ coalesceKey }` for continuous gestures such as drags and nudges, then call `commit()` when the gesture ends, so the whole gesture is one undo step.
 - **Walls:** walls share `WallNode`s, so use the helpers in `wall-geometry.ts`: `addWall`, `splitWall`, `mergeNodes`, `removeWalls` and `reclampOpenings`. `addWall` splits existing walls at T-junctions and crossings. Room detection assumes walls meet only at shared nodes.
 - **Accent walls:** each face of a wall can carry its own paint in the optional `Wall.colors` field (`{ front?, back? }`). `front` is the face on the side the wall's normal (`perp(b - a)`) points to. A face without an accent uses the wall color of the room on that side. Use `roomsBesideWall` and `wallFaceColor` from `geometry/room-detection.ts` instead of re-deriving sides. `splitWall` copies the colors onto both pieces.
 - **Rooms:** rooms are derived from the wall graph and never stored. `RoomMeta` (name and colors) attaches by an anchor point inside the room. A selected room is identified by its `key`, which is the sorted wall ids, so the key changes when its walls are split.
+- **Thin components:** `PlanCanvas` only wires signals to the builders in `canvas/view-models.ts` and handles input. Each properties section is its own component. New canvas visuals get a pure builder plus a spec. New panel sections get their own component that uses `properties.css`.
+- **Shortcuts:** add or change keys only in `editor/shortcuts.ts`. The help dialog renders from the same table, and `shortcuts.spec.ts` rejects duplicate bindings.
+- **Furniture drawing:** use `<g appFurnitureSymbol>` anywhere a furniture symbol appears. Do not re-implement `symbolParts` rendering. Colors and swatches come from `model/palettes.ts`. Use `ColorSwatches` for any swatch row.
 - **Tools:** tools implement `Tool` in `editor/tools/tool.ts`. They receive world coordinates and a `hit`, which the canvas reads from `data-kind`, `data-id` and `data-handle` attributes on SVG elements. A tool's `onKeyDown` runs before the global shortcuts in `EditorPage.onKeyDown`, and returning true consumes the key.
-- **Storage:** keep storage behind `PLAN_REPOSITORY`. User accounts are planned, and a server repository should be a drop-in replacement. Bump `CURRENT_SCHEMA_VERSION` and extend `migratePlan` for any change to the document format.
-- **Bundle size:** three.js must stay in a lazy chunk. Never import `preview-engine`, `furniture-meshes` or `three` statically from code reachable without the 3D view. The initial bundle is about 250 kB.
+- **Storage:** keep storage behind `PLAN_REPOSITORY`. User accounts are planned, and a server repository should be a drop-in replacement. Bump `CURRENT_SCHEMA_VERSION` and extend `migratePlan` in `plan-migration.ts` for any incompatible change to the document format. Optional new fields need no bump.
+- **Bundle size:** three.js must stay in a lazy chunk. Never import `preview-engine`, `scene-builder`, `furniture-meshes` or `three` statically from code reachable without the 3D view. The initial bundle is about 250 kB.
 - **Styles:** the component style budget is 10 kB (warning) and 20 kB (error). Shared button, input and segmented styles live in `src/styles.css`.
 
 ## Testing notes

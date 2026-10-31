@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { FurnitureShape, shade } from '../model/catalog';
+import { FurnitureShape } from '../model/catalog';
+import { shade } from '../shared/color';
 
 /**
  * Builds simple primitive models for furniture. Units are meters. The model is centered on x/z,

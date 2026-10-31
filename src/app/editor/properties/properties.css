@@ -1,0 +1,119 @@
+/* Shared styles for every properties section component. */
+:host {
+  display: block;
+}
+
+h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+h3 {
+  margin: 18px 0 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.field > span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.row.three {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.rotation {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rotation .input {
+  width: 80px;
+}
+
+.rotation .unit {
+  margin-right: auto;
+  color: var(--text-muted);
+}
+
+.side-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.side-chip {
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgb(0 0 0 / 20%);
+  border-radius: 3px;
+}
+
+.side-label {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.badge {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.wall-side .reset {
+  align-self: flex-start;
+  height: 26px;
+  padding: 0 6px;
+  font-size: 12px;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0 0 12px;
+}
+
+.stats dt {
+  color: var(--text-muted);
+}
+
+.stats dd {
+  margin: 0;
+  font-weight: 600;
+  text-align: right;
+}
+
+.tip {
+  margin: 0 0 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 16px;
+}

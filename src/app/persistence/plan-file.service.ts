@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { newId, Plan } from '../model/plan.model';
-import { migratePlan, PLAN_REPOSITORY, PlanFormatError } from './plan-repository';
+import { PLAN_REPOSITORY } from './plan-repository';
+import { migratePlan, PlanFormatError } from './plan-migration';
 
 export const PLAN_FILE_EXTENSION = '.flip.json';
 

@@ -97,9 +97,9 @@
             <button class="btn ghost icon" aria-label="Close" (click)="editor.showHelp.set(false)"><app-icon name="close" /></button>
           </div>
           <dl>
-            @for (s of shortcuts; track s[0]) {
-              <dt><kbd>{{ s[0] }}</kbd></dt>
-              <dd>{{ s[1] }}</dd>
+            @for (s of helpRows; track s.keys) {
+              <dt><kbd>{{ s.keys }}</kbd></dt>
+              <dd>{{ s.label }}</dd>
             }
           </dl>
         </div>

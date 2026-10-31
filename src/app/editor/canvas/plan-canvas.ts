@@ -12,24 +12,37 @@ import {
   viewChild,
 } from '@angular/core';
 import { findOverlaps } from '../../geometry/furniture-geometry';
-import { formatArea, formatLength, gridSize, majorGridSize } from '../../geometry/units';
-import { add, angleDeg, dist, pointInPolygon, rectCorners, scale } from '../../geometry/vec';
-import { CATALOG, catalogItem, isRoundShape, shade, symbolParts } from '../../model/catalog';
+import { gridSize } from '../../geometry/units';
+import { rectCorners } from '../../geometry/vec';
+import { fitViewport, screenToWorld, worldToScreen, zoomAt } from '../../geometry/viewport';
+import { CATALOG } from '../../model/catalog';
 import { Point } from '../../model/plan.model';
+import { FurnitureSymbol } from '../../shared/furniture-symbol';
+import { isTypingTarget } from '../../shared/dom';
 import { EditorActions } from '../../state/editor-actions';
-import { EditorStore, MAX_ZOOM, MIN_ZOOM, ToolId } from '../../state/editor.store';
+import { EditorStore, ToolId } from '../../state/editor.store';
 import { PlanStore } from '../../state/plan.store';
-import { OpeningTool } from '../tools/opening.tool';
-import { PanTool } from '../tools/pan.tool';
-import { SelectTool } from '../tools/select.tool';
+import { FURNITURE_DRAG_MIME } from '../drag-drop';
+import { createTools } from '../tools';
 import { Hit, HitKind, Tool, ToolContext, ToolPointerEvent } from '../tools/tool';
-import { WallTool } from '../tools/wall.tool';
+import {
+  accentViews,
+  dimensionViews,
+  furnitureViews,
+  gridPaths,
+  handleView,
+  openingViews,
+  overlayView,
+  roomViews,
+  wallViews,
+} from './view-models';
 
-export const FURNITURE_DRAG_MIME = 'application/x-flip-furniture';
+/** Snap distance in screen pixels. */
 const SNAP_PX = 10;
 
 @Component({
   selector: 'app-plan-canvas',
+  imports: [FurnitureSymbol],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './plan-canvas.html',
   styleUrl: './plan-canvas.css',
@@ -45,6 +58,7 @@ export class PlanCanvas {
   private readonly actions = inject(EditorActions);
   private readonly svgRef = viewChild.required<ElementRef<SVGSVGElement>>('svg');
 
+  /** Canvas size in px; 0 until the first layout. */
   protected readonly size = signal({ width: 0, height: 0 });
   protected readonly spaceDown = signal(false);
   protected readonly panning = signal(false);
@@ -59,13 +73,7 @@ export class PlanCanvas {
     setTool: (id) => this.editor.tool.set(id),
   };
 
-  private readonly tools: Record<ToolId, Tool> = {
-    select: new SelectTool(this.ctx),
-    wall: new WallTool(this.ctx),
-    door: new OpeningTool(this.ctx, 'door'),
-    window: new OpeningTool(this.ctx, 'window'),
-    pan: new PanTool(this.ctx),
-  };
+  private readonly tools: Record<ToolId, Tool> = createTools(this.ctx);
 
   protected readonly activeTool = computed(() => this.tools[this.editor.tool()]);
   readonly hint = computed(() => this.activeTool().hint);
@@ -76,9 +84,7 @@ export class PlanCanvas {
     return this.activeTool().cursor;
   });
 
-  // ---------------------------------------------------------------------------
-  // View models
-  // ---------------------------------------------------------------------------
+  // View models (built by the pure functions in ./view-models).
 
   protected readonly zoom = computed(() => this.editor.viewport().zoom);
   /** One screen pixel in world units. */
@@ -88,235 +94,43 @@ export class PlanCanvas {
     return `translate(${v.x} ${v.y}) scale(${v.zoom})`;
   });
   protected readonly units = this.planStore.units;
-
-  protected readonly grid = computed(() => {
-    const v = this.editor.viewport();
-    const { width, height } = this.size();
-    const units = this.units();
-    const x0 = -v.x / v.zoom;
-    const y0 = -v.y / v.zoom;
-    const x1 = (width - v.x) / v.zoom;
-    const y1 = (height - v.y) / v.zoom;
-    const lines = (step: number) => {
-      if (step * v.zoom < 6) return '';
-      let d = '';
-      for (let x = Math.floor(x0 / step) * step; x <= x1; x += step) d += `M${x} ${y0}V${y1}`;
-      for (let y = Math.floor(y0 / step) * step; y <= y1; y += step) d += `M${x0} ${y}H${x1}`;
-      return d;
-    };
-    let major = majorGridSize(units);
-    while (major * v.zoom < 12) major *= units === 'imperial' ? 5 : 10;
-    return { minor: lines(gridSize(units)), major: lines(major) };
-  });
-
-  protected readonly rooms = computed(() => {
-    const units = this.units();
-    const sel = this.editor.selectedIds();
-    return this.planStore.rooms().map((r) => ({
-      key: r.key,
-      points: r.polygon.map((p) => `${p.x},${p.y}`).join(' '),
-      fill: r.floorColor,
-      selected: sel.has(`room:${r.key}`),
-      label: r.label,
-      name: r.name,
-      area: formatArea(r.area, units),
-    }));
-  });
-
-  protected readonly walls = computed(() => {
-    const sel = this.editor.selectedIds();
-    const hover = this.editor.hover();
-    return this.planStore.segments().map((s) => ({
-      id: s.wall.id,
-      x1: s.a.x,
-      y1: s.a.y,
-      x2: s.b.x,
-      y2: s.b.y,
-      t: s.wall.thickness,
-      selected: sel.has(`wall:${s.wall.id}`),
-      hovered: hover?.kind === 'wall' && hover.id === s.wall.id,
-    }));
-  });
-
-  /** Accent wall faces, drawn as a colored band along the inside of that face. */
-  protected readonly accents = computed(() => {
-    const px = this.px();
-    const result: { key: string; x1: number; y1: number; x2: number; y2: number; width: number; color: string }[] = [];
-    for (const s of this.planStore.segments()) {
-      const colors = s.wall.colors;
-      if (!colors) continue;
-      for (const side of ['front', 'back'] as const) {
-        const color = colors[side];
-        if (!color) continue;
-        const width = s.wall.thickness * 0.38;
-        const off = scale(s.normal, (side === 'front' ? 1 : -1) * (s.wall.thickness / 2 - width / 2 - 1.5 * px));
-        result.push({ key: `${s.wall.id}:${side}`, x1: s.a.x + off.x, y1: s.a.y + off.y, x2: s.b.x + off.x, y2: s.b.y + off.y, width, color });
-      }
-    }
-    return result;
-  });
-
-  protected readonly openings = computed(() => {
-    const segs = this.planStore.segmentById();
-    const sel = this.editor.selectedIds();
-    const px = this.px();
-    const result = [];
-    for (const o of this.planStore.plan().openings) {
-      const seg = segs.get(o.wallId);
-      if (!seg) continue;
-      const c = add(seg.a, scale(seg.dir, o.offset));
-      const t = seg.wall.thickness;
-      const w = o.width;
-      const hingeX = o.swing === 'right' ? w / 2 : -w / 2;
-      const sgn = o.flip ? -1 : 1;
-      const tipY = sgn * (t / 2 + w);
-      const otherX = -hingeX;
-      const sweep = -sgn * w * (otherX - hingeX) > 0 ? 1 : 0;
-      result.push({
-        id: o.id,
-        kind: o.kind,
-        transform: `translate(${c.x} ${c.y}) rotate(${angleDeg(seg.dir)})`,
-        w,
-        t,
-        gapH: t + 2 * px,
-        leaf: `M${hingeX} ${(sgn * t) / 2}L${hingeX} ${tipY}`,
-        arc: `M${hingeX} ${tipY}A${w} ${w} 0 0 ${sweep} ${otherX} ${(sgn * t) / 2}`,
-        selected: sel.has(`opening:${o.id}`),
-      });
-    }
-    return result;
-  });
-
   private readonly overlaps = computed(() => findOverlaps(this.planStore.plan().furniture, this.planStore.segments()));
 
-  protected readonly furniture = computed(() => {
-    const sel = this.editor.selectedIds();
-    const overlaps = this.overlaps();
-    const zoom = this.zoom();
-    const items = this.planStore.plan().furniture.map((f) => {
-      const c = catalogItem(f.catalogId);
-      const label = f.label || c.name;
-      return {
-        id: f.id,
-        transform: `translate(${f.x} ${f.y}) rotate(${f.rotation})`,
-        w: f.width,
-        d: f.depth,
-        fill: f.color,
-        stroke: shade(f.color, -0.45),
-        round: isRoundShape(c.shape),
-        floor: !!c.floorLayer,
-        parts: symbolParts(c.shape, f.width, f.depth).map((p) => ({
-          ...p,
-          fill: 'tone' in p && p.tone !== undefined ? shade(f.color, p.tone) : 'none',
-        })),
-        label,
-        showLabel: f.width * zoom > label.length * 6.5 + 8 && f.depth * zoom > 16,
-        // Keep text upright regardless of item rotation.
-        labelRotate: -f.rotation,
-        selected: sel.has(`furniture:${f.id}`),
-        overlap: overlaps.has(f.id),
-      };
-    });
-    // Rugs first so other furniture draws on top of them.
-    return [...items.filter((i) => i.floor), ...items.filter((i) => !i.floor)];
-  });
+  protected readonly grid = computed(() => gridPaths(this.editor.viewport(), this.size(), this.units()));
+  protected readonly rooms = computed(() => roomViews(this.planStore.rooms(), this.editor.selectedIds(), this.units()));
+  protected readonly walls = computed(() => wallViews(this.planStore.segments(), this.editor.selectedIds(), this.editor.hover()));
+  protected readonly accents = computed(() => accentViews(this.planStore.segments(), this.px()));
+  protected readonly openings = computed(() =>
+    openingViews(this.planStore.plan().openings, this.planStore.segmentById(), this.editor.selectedIds(), this.px()),
+  );
+  protected readonly furniture = computed(() =>
+    furnitureViews(this.planStore.plan().furniture, this.overlaps(), this.editor.selectedIds(), this.zoom()),
+  );
+  protected readonly dimensions = computed(() => dimensionViews(this.planStore.segments(), this.planStore.rooms(), this.units(), this.zoom()));
+  protected readonly overlay = computed(() =>
+    overlayView(this.editor.overlay(), this.planStore.segmentById(), this.units(), this.px(), this.editor.tool()),
+  );
 
+  /** Corner handles, shown only while selecting. */
   protected readonly nodes = computed(() => {
     if (this.editor.tool() !== 'select') return [];
     const sel = this.editor.selectedIds();
     return this.planStore.plan().nodes.map((n) => ({ id: n.id, x: n.x, y: n.y, selected: sel.has(`node:${n.id}`) }));
   });
 
-  protected readonly dimensions = computed(() => {
-    const units = this.units();
-    const zoom = this.zoom();
-    const px = this.px();
-    const rooms = this.planStore.rooms();
-    return this.planStore
-      .segments()
-      .filter((s) => s.length * zoom > 48)
-      .map((s) => {
-        const mid = scale(add(s.a, s.b), 0.5);
-        const probe = add(mid, scale(s.normal, s.wall.thickness / 2 + 4));
-        const inside = rooms.some((r) => pointInPolygon(probe, r.polygon));
-        const side = inside ? -1 : 1;
-        const pos = add(mid, scale(s.normal, side * (s.wall.thickness / 2 + 11 * px)));
-        let angle = angleDeg(s.dir);
-        if (angle > 90 || angle <= -90) angle += 180;
-        return { id: s.wall.id, x: pos.x, y: pos.y, angle, text: formatLength(s.length, units) };
-      });
-  });
-
   protected readonly handles = computed(() => {
     const single = this.editor.singleSelection();
     if (single?.kind !== 'furniture' || this.editor.tool() !== 'select') return null;
     const f = this.planStore.plan().furniture.find((x) => x.id === single.id);
-    if (!f) return null;
-    const px = this.px();
-    return {
-      id: f.id,
-      transform: `translate(${f.x} ${f.y}) rotate(${f.rotation})`,
-      w: f.width,
-      d: f.depth,
-      size: 8 * px,
-      rotateY: -f.depth / 2 - 26 * px,
-      text: `${formatLength(f.width, this.units())} × ${formatLength(f.depth, this.units())}`,
-      textY: f.depth / 2 + 16 * px,
-      textRotate: -f.rotation,
-    };
-  });
-
-  protected readonly overlay = computed(() => {
-    const o = this.editor.overlay();
-    const units = this.units();
-    const px = this.px();
-    const chain = o.wallChain ?? [];
-    const cursor = o.wallCursor ?? null;
-    const last = chain.at(-1);
-    let live: { x1: number; y1: number; x2: number; y2: number; label: string; lx: number; ly: number } | null = null;
-    if (last && cursor && dist(last, cursor) > 0.5) {
-      const mid = scale(add(last, cursor), 0.5);
-      live = { x1: last.x, y1: last.y, x2: cursor.x, y2: cursor.y, label: formatLength(dist(last, cursor), units), lx: mid.x, ly: mid.y - 10 * px };
-    }
-    let preview: { transform: string; w: number; t: number } | null = null;
-    if (o.openingPreview) {
-      const seg = this.planStore.segmentById().get(o.openingPreview.wallId);
-      if (seg) {
-        const c = add(seg.a, scale(seg.dir, o.openingPreview.offset));
-        preview = { transform: `translate(${c.x} ${c.y}) rotate(${angleDeg(seg.dir)})`, w: o.openingPreview.width, t: seg.wall.thickness };
-      }
-    }
-    const box = o.box
-      ? {
-          x: Math.min(o.box.a.x, o.box.b.x),
-          y: Math.min(o.box.a.y, o.box.b.y),
-          w: Math.abs(o.box.a.x - o.box.b.x),
-          h: Math.abs(o.box.a.y - o.box.b.y),
-        }
-      : null;
-    const measures = (o.measures ?? []).map((m) => {
-      const mid = scale(add(m.from, m.to), 0.5);
-      return { ...m, text: formatLength(dist(m.from, m.to), units), mx: mid.x, my: mid.y };
-    });
-    return {
-      chain: chain.length > 1 ? 'M' + chain.map((p) => `${p.x} ${p.y}`).join('L') : '',
-      chainStart: chain[0] ?? null,
-      live,
-      cursor: this.editor.tool() === 'wall' ? cursor : null,
-      snap: o.snapPoint ?? null,
-      guides: o.guides ?? [],
-      preview,
-      box,
-      measures,
-    };
+    return f ? handleView(f, this.units(), this.px()) : null;
   });
 
   /** Typed wall length bubble, positioned in screen space next to the cursor. */
   protected readonly typedBubble = computed(() => {
     const o = this.editor.overlay();
     if (!o.typedLength || !o.wallCursor) return null;
-    const v = this.editor.viewport();
-    return { text: o.typedLength, x: o.wallCursor.x * v.zoom + v.x + 16, y: o.wallCursor.y * v.zoom + v.y + 16 };
+    const p = worldToScreen(this.editor.viewport(), o.wallCursor);
+    return { text: o.typedLength, x: p.x + 16, y: p.y + 16 };
   });
 
   protected readonly isEmpty = computed(() => {
@@ -332,7 +146,7 @@ export class PlanCanvas {
       const ro = new ResizeObserver(([entry]) => {
         const { width, height } = entry.contentRect;
         this.size.set({ width, height });
-        this.actions.canvasSize.set({ width, height });
+        this.editor.canvasSize.set({ width, height });
         if (!this.fitted && width > 0) {
           this.fitted = true;
           this.fitToContent();
@@ -379,8 +193,7 @@ export class PlanCanvas {
   }
 
   private screenToWorld(p: Point): Point {
-    const v = this.editor.viewport();
-    return { x: (p.x - v.x) / v.zoom, y: (p.y - v.y) / v.zoom };
+    return screenToWorld(this.editor.viewport(), p);
   }
 
   protected onPointerDown(e: PointerEvent): void {
@@ -448,36 +261,15 @@ export class PlanCanvas {
   }
 
   private zoomAt(anchor: Point, factor: number): void {
-    this.editor.viewport.update((v) => {
-      const zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.zoom * factor));
-      const world = { x: (anchor.x - v.x) / v.zoom, y: (anchor.y - v.y) / v.zoom };
-      return { zoom, x: anchor.x - world.x * zoom, y: anchor.y - world.y * zoom };
-    });
+    this.editor.viewport.update((v) => zoomAt(v, anchor, factor));
   }
 
   fitToContent(): void {
-    const { width, height } = this.size();
-    if (!width || !height) return;
+    const size = this.size();
+    if (!size.width || !size.height) return;
     const plan = this.planStore.plan();
-    const pts: Point[] = [
-      ...plan.nodes,
-      ...plan.furniture.flatMap((f) => rectCorners(f, f.width, f.depth, f.rotation)),
-    ];
-    if (!pts.length) {
-      // Empty plan: show about 30 ft / 9 m around the origin.
-      const zoom = Math.min(width, height) / 900;
-      this.editor.viewport.set({ zoom, x: width / 2 - 450 * zoom, y: height / 2 - 450 * zoom });
-      return;
-    }
-    const xs = pts.map((p) => p.x);
-    const ys = pts.map((p) => p.y);
-    const minX = Math.min(...xs);
-    const minY = Math.min(...ys);
-    const w = Math.max(...xs) - minX || 100;
-    const h = Math.max(...ys) - minY || 100;
-    const pad = 64;
-    const zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.min((width - pad * 2) / w, (height - pad * 2) / h)));
-    this.editor.viewport.set({ zoom, x: width / 2 - (minX + w / 2) * zoom, y: height / 2 - (minY + h / 2) * zoom });
+    const points = [...plan.nodes, ...plan.furniture.flatMap((f) => rectCorners(f, f.width, f.depth, f.rotation))];
+    this.editor.viewport.set(fitViewport(points, size));
   }
 
   protected onWindowKey(e: KeyboardEvent, down: boolean): void {
@@ -515,10 +307,3 @@ function readHit(target: EventTarget | null): Hit | null {
     handle: el.getAttribute('data-handle') ?? undefined,
   };
 }
-
-export function isTypingTarget(target: EventTarget | null): boolean {
-  const el = target as HTMLElement | null;
-  if (!el) return false;
-  return el.isContentEditable || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT';
-}
-

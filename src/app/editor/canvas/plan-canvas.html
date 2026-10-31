@@ -34,11 +34,9 @@
     @for (f of furniture(); track f.id) {
       @if (f.floor) {
         <g class="furniture" [class.selected]="f.selected" [attr.transform]="f.transform" data-kind="furniture" [attr.data-id]="f.id">
-          <rect [attr.x]="-f.w / 2" [attr.y]="-f.d / 2" [attr.width]="f.w" [attr.height]="f.d" [attr.fill]="f.fill" [attr.stroke]="f.stroke" class="base" />
-          @for (p of f.parts; track $index) {
-            @if (p.t === 'rect') {
-              <rect [attr.x]="p.x" [attr.y]="p.y" [attr.width]="p.w" [attr.height]="p.h" [attr.fill]="p.fill" [attr.stroke]="f.stroke" class="part" />
-            }
+          <g appFurnitureSymbol [shape]="f.shape" [width]="f.w" [depth]="f.d" [color]="f.color" />
+          @if (f.selected) {
+            <rect class="selection-outline" [attr.x]="-f.w / 2" [attr.y]="-f.d / 2" [attr.width]="f.w" [attr.height]="f.d" />
           }
         </g>
       }
@@ -124,24 +122,7 @@
           data-kind="furniture"
           [attr.data-id]="f.id"
         >
-          @if (f.round) {
-            <ellipse class="base" [attr.rx]="f.w / 2" [attr.ry]="f.d / 2" [attr.fill]="f.fill" [attr.stroke]="f.stroke" />
-          } @else {
-            <rect class="base" [attr.x]="-f.w / 2" [attr.y]="-f.d / 2" [attr.width]="f.w" [attr.height]="f.d" rx="2" [attr.fill]="f.fill" [attr.stroke]="f.stroke" />
-          }
-          @for (p of f.parts; track $index) {
-            @switch (p.t) {
-              @case ('rect') {
-                <rect class="part" [attr.x]="p.x" [attr.y]="p.y" [attr.width]="p.w" [attr.height]="p.h" [attr.rx]="p.r ?? 0" [attr.fill]="p.fill" [attr.stroke]="f.stroke" />
-              }
-              @case ('circle') {
-                <circle class="part" [attr.cx]="p.cx" [attr.cy]="p.cy" [attr.r]="p.r" [attr.fill]="p.fill" [attr.stroke]="f.stroke" />
-              }
-              @case ('line') {
-                <line class="part" [attr.x1]="p.x1" [attr.y1]="p.y1" [attr.x2]="p.x2" [attr.y2]="p.y2" [attr.stroke]="f.stroke" />
-              }
-            }
-          }
+          <g appFurnitureSymbol [shape]="f.shape" [width]="f.w" [depth]="f.d" [color]="f.color" />
           @if (f.overlap) {
             <rect class="overlap-outline" [attr.x]="-f.w / 2" [attr.y]="-f.d / 2" [attr.width]="f.w" [attr.height]="f.d" />
           }

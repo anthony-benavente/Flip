@@ -1,5 +1,6 @@
 import { Plan, PlanSummary } from '../model/plan.model';
-import { migratePlan, PlanRepository } from './plan-repository';
+import { PlanRepository } from './plan-repository';
+import { migratePlan } from './plan-migration';
 
 const INDEX_KEY = 'flip.index';
 const planKey = (id: string) => `flip.plan.${id}`;

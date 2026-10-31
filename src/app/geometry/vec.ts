@@ -55,6 +55,12 @@ export function polygonArea(poly: Point[]): number {
   return s / 2;
 }
 
+export function polygonPerimeter(poly: Point[]): number {
+  let p = 0;
+  for (let i = 0; i < poly.length; i++) p += dist(poly[i], poly[(i + 1) % poly.length]);
+  return p;
+}
+
 export function polygonCentroid(poly: Point[]): Point {
   const area = polygonArea(poly);
   if (Math.abs(area) < EPS) {

@@ -1,6 +1,7 @@
 import { computed, Injectable, signal } from '@angular/core';
 import { SnapGuide, SnapKind } from '../geometry/snapping';
 import { DEFAULT_WALL_HEIGHT, DEFAULT_WALL_THICKNESS } from '../model/defaults';
+import { Size, Viewport } from '../geometry/viewport';
 import { Point } from '../model/plan.model';
 
 export type ToolId = 'select' | 'wall' | 'door' | 'window' | 'pan';
@@ -11,14 +12,6 @@ export interface SelectionItem {
   kind: SelectableKind;
   /** Element id; for rooms, the room key. */
   id: string;
-}
-
-export interface Viewport {
-  /** Screen-space translation in px. */
-  x: number;
-  y: number;
-  /** Screen px per cm. */
-  zoom: number;
 }
 
 /** Transient drawing state shown by the canvas overlay layer. */
@@ -40,15 +33,14 @@ export interface ToolOverlay {
   measures?: { from: Point; to: Point }[];
 }
 
-export const MIN_ZOOM = 0.05;
-export const MAX_ZOOM = 12;
-
 @Injectable({ providedIn: 'root' })
 export class EditorStore {
   readonly tool = signal<ToolId>('select');
   readonly selection = signal<SelectionItem[]>([]);
   readonly hover = signal<SelectionItem | null>(null);
   readonly viewport = signal<Viewport>({ x: 0, y: 0, zoom: 1 });
+  /** Size of the 2D canvas in px, published by the canvas component. */
+  readonly canvasSize = signal<Size>({ width: 800, height: 600 });
   readonly viewMode = signal<ViewMode>('2d');
   readonly overlay = signal<ToolOverlay>({});
   readonly cursorWorld = signal<Point | null>(null);
@@ -86,6 +78,12 @@ export class EditorStore {
 
   clearOverlay(): void {
     this.overlay.set({});
+  }
+
+  /** Plan → split → 3D → plan. */
+  cycleViewMode(): void {
+    const order: ViewMode[] = ['2d', 'split', '3d'];
+    this.viewMode.update((m) => order[(order.indexOf(m) + 1) % order.length]);
   }
 
   requestFit(): void {

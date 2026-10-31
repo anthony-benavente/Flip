@@ -3,6 +3,7 @@ import { snapPoint, SnapResult } from '../../geometry/snapping';
 import { add, angleDeg, dot, projectToSegment, rotate, scale, sub } from '../../geometry/vec';
 import { clampOpeningOffset, mergeNodes, reclampOpenings, splitWall, wallSegment } from '../../geometry/wall-geometry';
 import { catalogItem } from '../../model/catalog';
+import { normalizeRotation } from '../../model/plan-operations';
 import { FurnitureItem, Point } from '../../model/plan.model';
 import { SelectionItem } from '../../state/editor.store';
 import { Tool, ToolContext, ToolPointerEvent } from './tool';
@@ -298,11 +299,10 @@ export class SelectTool implements Tool {
   private rotateFurniture(mode: Extract<Mode, { kind: 'rotate' }>, e: ToolPointerEvent): void {
     let angle = angleDeg(sub(e.world, mode.center)) + 90;
     if (!e.alt) angle = Math.round(angle / 15) * 15;
-    angle = ((angle % 360) + 360) % 360;
     this.ctx.plan.update(
       (draft) => {
         const f = draft.furniture.find((x) => x.id === mode.id);
-        if (f) f.rotation = angle > 180 ? angle - 360 : angle;
+        if (f) f.rotation = normalizeRotation(angle);
       },
       { coalesceKey: DRAG_KEY },
     );

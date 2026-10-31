@@ -1,3 +1,4 @@
+import { DEFAULT_FLOOR_COLOR, DEFAULT_WALL_COLOR } from '../model/palettes';
 import { Plan, Point, RoomMeta, WallSide } from '../model/plan.model';
 import { add, labelPoint, pointInPolygon, polygonArea, scale } from './vec';
 import type { WallSegment } from './wall-geometry';
@@ -20,10 +21,6 @@ export interface Room extends DetectedRoom {
   wallColor: string;
 }
 
-export const DEFAULT_FLOOR_COLOR = '#d9c3a0';
-export const DEFAULT_WALL_COLOR = '#f2efe9';
-/** Paint of wall faces that are outside every room. */
-export const EXTERIOR_WALL_COLOR = '#e4dfd6';
 
 /** Faces smaller than this (about 1 sq ft) are ignored. */
 const MIN_ROOM_AREA = 900;

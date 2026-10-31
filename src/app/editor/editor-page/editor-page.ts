@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { formatLength, gridSize } from '../../geometry/units';
+import { formatLength } from '../../geometry/units';
 import { DisplayUnits } from '../../model/plan.model';
 import { PlanFileService } from '../../persistence/plan-file.service';
 import { PLAN_REPOSITORY } from '../../persistence/plan-repository';
@@ -9,13 +9,12 @@ import { Icon } from '../../shared/icon';
 import { EditorActions } from '../../state/editor-actions';
 import { EditorStore, ViewMode } from '../../state/editor.store';
 import { PlanStore } from '../../state/plan.store';
-import { isTypingTarget, PlanCanvas } from '../canvas/plan-canvas';
+import { isTypingTarget } from '../../shared/dom';
+import { Autosave } from '../autosave';
+import { PlanCanvas } from '../canvas/plan-canvas';
 import { PropertiesPanel } from '../properties/properties-panel';
+import { findShortcut, HELP_ROWS } from '../shortcuts';
 import { Toolbox } from '../toolbox/toolbox';
-
-const AUTOSAVE_DELAY_MS = 1000;
-
-type SaveStatus = 'saved' | 'pending' | 'saving' | 'error';
 
 @Component({
   selector: 'app-editor-page',
@@ -23,6 +22,7 @@ type SaveStatus = 'saved' | 'pending' | 'saving' | 'error';
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './editor-page.html',
   styleUrl: './editor-page.css',
+  providers: [Autosave],
   host: {
     '(window:keydown)': 'onKeyDown($event)',
     '(window:beforeunload)': 'flushSave()',
@@ -39,13 +39,12 @@ export class EditorPage {
   private readonly files = inject(PlanFileService);
   private readonly router = inject(Router);
   private readonly canvas = viewChild(PlanCanvas);
+  private readonly autosave = inject(Autosave);
 
   protected readonly state = signal<'loading' | 'ready' | 'missing' | 'error'>('loading');
   protected readonly loadError = signal('');
-  protected readonly saveStatus = signal<SaveStatus>('saved');
+  protected readonly saveStatus = this.autosave.status;
   protected readonly importError = signal<string | null>(null);
-  private saveTimer: ReturnType<typeof setTimeout> | null = null;
-  private loadedRevision = -1;
 
   protected readonly hint = computed(() => this.canvas()?.hint() ?? '');
   protected readonly cursorText = computed(() => {
@@ -65,26 +64,7 @@ export class EditorPage {
     { id: '3d', label: '3D', icon: 'cube' },
   ];
 
-  protected readonly shortcuts: [string, string][] = [
-    ['V', 'Select tool'],
-    ['W', 'Wall tool'],
-    ['D', 'Door tool'],
-    ['N', 'Window tool'],
-    ['H / hold Space', 'Pan'],
-    ['Scroll', 'Zoom'],
-    ['F', 'Fit plan to screen'],
-    ['3', 'Cycle plan / split / 3D'],
-    ['Ctrl+Z / Ctrl+Y', 'Undo / redo'],
-    ['Delete', 'Delete selection'],
-    ['Ctrl+D', 'Duplicate furniture'],
-    ['R / Shift+R', 'Rotate furniture 90°'],
-    ['Arrows', 'Nudge furniture (Shift for larger steps)'],
-    ['Ctrl+A', 'Select all'],
-    ['Shift (drawing)', 'Lock walls to 90°'],
-    ['Alt (dragging)', 'Turn off snapping'],
-    ['Type a number', 'Set exact wall length while drawing, then Enter'],
-    ['Esc', 'Finish wall / cancel / deselect'],
-  ];
+  protected readonly helpRows = HELP_ROWS;
 
   constructor() {
     effect(() => {
@@ -92,22 +72,14 @@ export class EditorPage {
       untracked(() => void this.load(id));
     });
 
-    effect(() => {
-      const rev = this.planStore.revision();
-      untracked(() => {
-        if (this.state() === 'ready' && rev !== this.loadedRevision) this.scheduleSave();
-      });
-    });
-
     inject(DestroyRef).onDestroy(() => {
-      this.flushSave();
       this.editor.clearSelection();
       this.editor.clearOverlay();
     });
   }
 
   private async load(id: string): Promise<void> {
-    this.flushSave();
+    this.autosave.stop();
     this.state.set('loading');
     try {
       const plan = await this.repo.get(id);
@@ -116,11 +88,10 @@ export class EditorPage {
         return;
       }
       this.planStore.load(plan);
-      this.loadedRevision = this.planStore.revision();
+      this.autosave.start();
       this.editor.clearSelection();
       this.editor.clearOverlay();
       this.editor.tool.set(plan.walls.length ? 'select' : 'wall');
-      this.saveStatus.set('saved');
       this.state.set('ready');
       this.editor.requestFit();
     } catch (e) {
@@ -129,29 +100,9 @@ export class EditorPage {
     }
   }
 
-  private scheduleSave(): void {
-    this.saveStatus.set('pending');
-    if (this.saveTimer) clearTimeout(this.saveTimer);
-    this.saveTimer = setTimeout(() => void this.save(), AUTOSAVE_DELAY_MS);
-  }
-
-  private async save(): Promise<void> {
-    this.saveTimer = null;
-    this.saveStatus.set('saving');
-    try {
-      await this.repo.save(this.planStore.plan());
-      if (!this.saveTimer) this.saveStatus.set('saved');
-    } catch (e) {
-      console.error(e);
-      this.saveStatus.set('error');
-    }
-  }
-
+  /** Saves any pending change now (leaving the page, importing another plan). */
   protected flushSave(): void {
-    if (this.saveTimer) {
-      clearTimeout(this.saveTimer);
-      void this.save();
-    }
+    this.autosave.flush();
   }
 
   protected rename(name: string): void {
@@ -199,40 +150,10 @@ export class EditorPage {
       e.preventDefault();
       return;
     }
-    const ctrl = e.ctrlKey || e.metaKey;
-    const key = e.key.toLowerCase();
-    const step = e.shiftKey ? gridSize(this.planStore.units()) * 4 : gridSize(this.planStore.units()) / 6;
-    let handled = true;
-
-    if (ctrl && key === 'z' && !e.shiftKey) this.planStore.undo();
-    else if (ctrl && (key === 'y' || (key === 'z' && e.shiftKey))) this.planStore.redo();
-    else if (ctrl && key === 'd') this.actions.duplicateSelection();
-    else if (ctrl && key === 'a') this.actions.selectAll();
-    else if (ctrl) handled = false;
-    else if (e.altKey) handled = false;
-    else if (key === 'v') this.editor.tool.set('select');
-    else if (key === 'w') this.editor.tool.set('wall');
-    else if (key === 'd') this.editor.tool.set('door');
-    else if (key === 'n') this.editor.tool.set('window');
-    else if (key === 'h') this.editor.tool.set('pan');
-    else if (key === 'f') this.editor.requestFit();
-    else if (key === '3') this.cycleView();
-    else if (key === 'r') this.actions.rotateSelection(e.shiftKey ? -90 : 90);
-    else if (key === 'delete' || key === 'backspace') this.actions.deleteSelection();
-    else if (key === 'escape') this.editor.clearSelection();
-    else if (key === '?') this.editor.showHelp.update((v) => !v);
-    else if (key === 'arrowleft') this.actions.nudgeSelection(-step, 0);
-    else if (key === 'arrowright') this.actions.nudgeSelection(step, 0);
-    else if (key === 'arrowup') this.actions.nudgeSelection(0, -step);
-    else if (key === 'arrowdown') this.actions.nudgeSelection(0, step);
-    else handled = false;
-
-    if (handled) e.preventDefault();
-  }
-
-  private cycleView(): void {
-    const order: ViewMode[] = ['2d', 'split', '3d'];
-    this.editor.viewMode.update((m) => order[(order.indexOf(m) + 1) % order.length]);
+    const shortcut = findShortcut(e);
+    if (!shortcut) return;
+    shortcut.run({ plan: this.planStore, editor: this.editor, actions: this.actions }, e);
+    e.preventDefault();
   }
 
   protected inputValue(e: Event): string {

@@ -3,7 +3,8 @@ import { createStarterPlan } from '../model/defaults';
 import { MemoryStorage } from '../testing/fixtures';
 import { LocalPlanRepository } from './local-plan.repository';
 import { PlanFileService } from './plan-file.service';
-import { PLAN_REPOSITORY, PlanFormatError } from './plan-repository';
+import { PLAN_REPOSITORY } from './plan-repository';
+import { PlanFormatError } from './plan-migration';
 
 describe('PlanFileService', () => {
   let repo: LocalPlanRepository;
