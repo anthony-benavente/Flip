@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import { catalogItem } from '../../model/catalog';
+import { ceilingHeightAt, itemElevation } from '../../geometry/elevation';
+import { catalogItem, mountOf } from '../../model/catalog';
 import { modelDisplayName } from '../../model/custom-model';
 import { FURNITURE_SWATCHES } from '../../model/palettes';
 import { resetFurnitureSize, setFurnitureModel, updateFurniture } from '../../model/plan-operations';
@@ -11,7 +12,7 @@ import { LengthInput } from '../../shared/length-input';
 import { EditorActions } from '../../state/editor-actions';
 import { PlanStore } from '../../state/plan.store';
 
-/** Label, size, rotation and color of one furniture item. */
+/** Label, size, rotation, height off the floor and color of one furniture item. */
 @Component({
   selector: 'app-furniture-properties',
   imports: [ColorSwatches, Icon, LengthInput],
@@ -47,6 +48,21 @@ import { PlanStore } from '../../state/plan.store';
         <button class="btn icon" title="Rotate 90° clockwise (R)" (click)="actions.rotateSelection(90)">↻</button>
       </div>
     </div>
+    @if (mount() === 'ceiling') {
+      <p class="tip">Hangs from the ceiling. Height sets how far it drops.</p>
+    } @else {
+      <label class="field">
+        <span>Off the floor</span>
+        <app-length-input
+          [value]="elevation()"
+          [units]="units()"
+          [min]="0"
+          [max]="maxElevation()"
+          label="Height off the floor"
+          (valueChange)="update({ elevation: $event })"
+        />
+      </label>
+    }
     <label class="field">
       <span>3D model</span>
       <select class="input" (change)="setModel($any($event.target).value)" aria-label="3D model">
@@ -93,6 +109,11 @@ export class FurnitureProperties {
     const models = this.library.forTemplate(f.catalogId);
     return current && !models.includes(current) ? [...models, current] : models;
   });
+  protected readonly mount = computed(() => mountOf(catalogItem(this.item().catalogId)));
+  protected readonly elevation = computed(() => itemElevation(this.item(), this.plan.rooms()));
+  protected readonly maxElevation = computed(() =>
+    Math.max(0, ceilingHeightAt(this.plan.rooms(), this.item()) - this.item().height),
+  );
   protected readonly modelMissing = computed(() => !!this.item().modelId && !this.library.model(this.item().modelId));
 
   protected update(patch: Partial<Omit<FurnitureItem, 'id'>>, coalesceKey?: string): void {

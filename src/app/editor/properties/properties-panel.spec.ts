@@ -145,6 +145,22 @@ describe('PropertiesPanel', () => {
     expect(plan.plan().furniture[0].depth).toBeCloseTo(40 * 2.54);
   });
 
+  it('raises furniture off the floor, up to the ceiling', async () => {
+    editor.select([{ kind: 'furniture', id: 'f1' }]);
+    await render();
+    await enterLength(3, '30"');
+    expect(plan.plan().furniture[0].elevation).toBeCloseTo(30 * 2.54);
+    expect(el.querySelectorAll('app-length-input')).toHaveLength(4);
+  });
+
+  it('explains that ceiling items hang instead of offering a height off the floor', async () => {
+    plan.update((d) => d.furniture.push({ ...createFurniture('pendant', { x: 200, y: 150 }), id: 'p1' }));
+    editor.select([{ kind: 'furniture', id: 'p1' }]);
+    await render();
+    expect(el.querySelectorAll('app-length-input')).toHaveLength(3);
+    expect(el.textContent).toContain('Hangs from the ceiling');
+  });
+
   it('changes furniture color from a swatch', async () => {
     editor.select([{ kind: 'furniture', id: 'f1' }]);
     await render();

@@ -61,7 +61,7 @@ Tracker for the interior design feature (colors, art, verticality) on branch `fe
   - `scene-builder.ts:71` sets y from `itemElevation`. The bounds at `:81` include the top.
   - `SceneWall.attached` comes from `mountedWall`, and `PreviewEngine.updateCutaway` hides attached items on cut walls.
   - Done when: `scene-builder.spec` passes.
-- [ ] **T10: Properties.**
+- [x] **T10: Properties.**
   - `furniture-properties.ts` gets an Elevation `LengthInput` for floor and wall items (following the sill pattern in `opening-properties.ts:31-35`), and a "Hangs from ceiling" tip for ceiling items.
   - Done when: specs pass.
 - [ ] **T11: M1 e2e.**
