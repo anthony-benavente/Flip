@@ -14,7 +14,7 @@ import { EXTERIOR_WALL_COLOR } from '../model/palettes';
 import { FloorMaterial, Opening, Plan, WallSide } from '../model/plan.model';
 import { FurnitureMeshFactory } from './furniture-meshes';
 import { fitModelToBox, SHARED_MODEL } from './model-fit';
-import { WallPieces, wallPieces } from '../geometry/wall-pieces';
+import { BASEBOARD, CASING, CROWN, WallPieces, wallPieces } from '../geometry/wall-pieces';
 
 /** cm → m */
 export const M = 0.01;
@@ -181,10 +181,6 @@ function buildWall(seg: WallSegment, openings: Opening[], rooms: Room[], factory
     attached: [],
   };
 }
-
-export const BASEBOARD = { height: 10, depth: 1.5 };
-export const CROWN = { height: 8, depth: 4 };
-export const CASING = { width: 7, depth: 1.5 };
 
 /**
  * Baseboards, crown molding and door and window casings on each face of a wall that borders a

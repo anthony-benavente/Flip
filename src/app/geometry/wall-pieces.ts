@@ -21,6 +21,11 @@ export interface WallPieces {
   openings: OpeningSpan[];
 }
 
+/** Trim sizes in centimeters, shared by the 3D view and the elevation drawing. */
+export const BASEBOARD = { height: 10, depth: 1.5 };
+export const CROWN = { height: 8, depth: 4 };
+export const CASING = { width: 7, depth: 1.5 };
+
 const MIN_SIZE = 0.01;
 
 /**

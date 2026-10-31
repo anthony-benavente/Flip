@@ -135,7 +135,7 @@ Tracker for the interior design feature (colors, art, verticality) on branch `fe
   - An "Elevation" button per face in `WallProperties.sides()`.
   - Shortcut `E` in `shortcuts.ts`.
   - Done when: specs for the editor store and shortcuts pass.
-- [ ] **T24: Elevation view models.**
+- [x] **T24: Elevation view models.**
   - `editor/elevation/elevation-view-models.ts`:
     - `faceFrame(seg, side)`, which isn't mirrored (a test proves it);
     - the wall, trim and ceiling band;
@@ -181,7 +181,7 @@ Tracker for the interior design feature (colors, art, verticality) on branch `fe
 - **Ceiling visibility:** it faces down, so it's culled from the overhead and corner cameras and never blocks the view. It's seen from below and in the elevation view.
 - **Cutaway:** cut walls scale their group's y, so wall art lives at scene level and is hidden with its wall instead.
 - **Trim** goes in a `trim` sub-group so `scene-builder.spec`'s solid-count assertions hold.
-- **Face frame:** viewed from the room, `u` runs along `−dir` for the front face and `+dir` for the back face, so the elevation isn't mirrored.
+- **Face frame:** viewed from the room, x runs along `+dir` (a → b) for the front face and `−dir` for the back face, so the elevation isn't mirrored (proved in `elevation-view-models.spec.ts`).
 - **Bundle:** `texture-cache`, `floor-textures` and `furniture-meshes` are imported only by the engine and scene builder. `ImageLibrary` doesn't import three.
 - **Image database:** a separate `flip-images` database, so the models database's upgrade logic stays untouched.
 
