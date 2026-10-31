@@ -4,6 +4,7 @@ import {
   Component,
   computed,
   DestroyRef,
+  DOCUMENT,
   effect,
   ElementRef,
   inject,
@@ -57,6 +58,7 @@ export class PlanCanvas {
   protected readonly planStore = inject(PlanStore);
   protected readonly editor = inject(EditorStore);
   private readonly actions = inject(EditorActions);
+  private readonly document = inject(DOCUMENT);
   private readonly svgRef = viewChild.required<ElementRef<SVGSVGElement>>('svg');
 
   /** Canvas size in px; 0 until the first layout. */
@@ -101,6 +103,15 @@ export class PlanCanvas {
   });
 
   protected readonly grid = computed(() => gridPaths(this.editor.viewport(), this.size(), this.units()));
+  /**
+   * Fill for a floor pattern. The URL includes the page path because `<base href>` would otherwise
+   * resolve `url(#id)` against the site root instead of this page.
+   */
+  protected patternFill(pattern: string): string {
+    const { pathname, search } = this.document.location;
+    return `url(${pathname}${search}#floor-${pattern})`;
+  }
+
   protected readonly rooms = computed(() => roomViews(this.planStore.rooms(), this.editor.selectedIds(), this.units()));
   protected readonly walls = computed(() => wallViews(this.planStore.segments(), this.editor.selectedIds(), this.editor.hover()));
   protected readonly accents = computed(() => accentViews(this.planStore.segments(), this.px()));

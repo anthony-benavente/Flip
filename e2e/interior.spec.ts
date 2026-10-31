@@ -1,5 +1,5 @@
 import { Page } from '@playwright/test';
-import { expect, IN, newStarterRoom, savedPlan, test } from './helpers';
+import { clickAt, expect, FT, IN, newStarterRoom, panelHeading, savedPlan, test } from './helpers';
 
 /** Places a catalog item at the middle of the view by clicking it in the toolbox. */
 async function place(page: Page, name: string) {
@@ -33,5 +33,21 @@ test.describe('interior design', () => {
     await page.locator('.view-modes button', { hasText: 'Split' }).click();
     await expect(page.locator('app-preview3d canvas')).toBeVisible();
     await expect(page.getByText('Loading 3D view…')).toHaveCount(0);
+  });
+
+  test('applies a room color scheme with a patterned floor', async ({ page }) => {
+    await newStarterRoom(page);
+    await clickAt(page, 3 * FT, 10 * FT);
+    await expect(panelHeading(page)).toHaveText('Room');
+    await page.locator('.scheme', { hasText: 'Coastal' }).click();
+    await expect(page.locator('.scheme.active')).toHaveText(/Coastal/);
+
+    const plan = await savedPlan(page, (p) => p.rooms[0]?.floorMaterial === 'wood');
+    expect(plan.rooms[0]).toMatchObject({ floorColor: '#e8dcc4', wallColor: '#e7eef0', ceilingColor: '#f7f6f3', trimColor: '#fbfbf9' });
+    await expect(page.locator('.room-pattern')).toHaveAttribute('fill', /\/plan\/.+#floor-wood\)$/);
+
+    await page.getByLabel('Ceiling height').fill(`9'`);
+    await page.getByLabel('Ceiling height').press('Enter');
+    await savedPlan(page, (p) => p.walls.every((w: any) => Math.abs(w.height - 9 * FT) < 0.01));
   });
 });

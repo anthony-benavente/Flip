@@ -88,6 +88,12 @@ describe('canvas view models', () => {
     });
   });
 
+  it('gives patterned floors their pattern and plain floors none', () => {
+    const { rooms } = room();
+    expect(roomViews(rooms, new Set(), 'metric')[0].pattern).toBeNull();
+    expect(roomViews([{ ...rooms[0], floorMaterial: 'wood' }], new Set(), 'metric')[0].pattern).toBe('wood');
+  });
+
   it('draws rugs first and hides labels that would not fit', () => {
     const sofa = { ...createFurniture('sofa-3', { x: 0, y: 0 }), id: 'sofa' };
     const rug = { ...createFurniture('rug-large', { x: 0, y: 0 }), id: 'rug' };

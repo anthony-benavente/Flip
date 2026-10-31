@@ -35,6 +35,20 @@
   stroke: none;
 }
 
+.room-pattern {
+  pointer-events: none;
+}
+
+.floor-pattern path {
+  fill: none;
+  stroke: rgb(0 0 0 / 16%);
+  stroke-width: 0.8;
+}
+
+.floor-pattern.dots circle {
+  fill: rgb(0 0 0 / 14%);
+}
+
 .room:hover {
   fill-opacity: 0.5;
 }

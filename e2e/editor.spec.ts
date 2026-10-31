@@ -86,7 +86,7 @@ test.describe('floor plan editor', () => {
     const name = page.locator('app-properties-panel input.input').first();
     await name.fill('Den');
     await name.press('Enter');
-    await page.locator('.swatch[title="Walnut"]').click();
+    await page.getByRole('button', { name: 'Walnut floor' }).click();
     await expect(roomLabels(page)).toHaveText(['Den168 sq ft']);
     await expect(page.locator('polygon.room')).toHaveAttribute('fill', '#7d5a3c');
 

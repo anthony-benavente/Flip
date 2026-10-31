@@ -57,15 +57,15 @@ type ColorField = 'floorColor' | 'wallColor' | 'ceilingColor' | 'trimColor';
           <button [class.active]="r.floorMaterial === m.id" (click)="update({ floorMaterial: m.id })">{{ m.name }}</button>
         }
       </div>
-      <app-color-swatches [swatches]="floorSwatches" [selected]="r.floorColor" [pickerValue]="r.floorColor" customLabel="Custom floor color" (pick)="pickColor('floorColor', $event)" />
+      <app-color-swatches [swatches]="floorSwatches" [selected]="r.floorColor" [pickerValue]="r.floorColor" customLabel="Custom floor color" ariaSuffix=" floor" (pick)="pickColor('floorColor', $event)" />
     </div>
     <div class="field">
       <span>Walls</span>
-      <app-color-swatches [swatches]="wallSwatches" [selected]="r.wallColor" [pickerValue]="r.wallColor" customLabel="Custom wall color" (pick)="pickColor('wallColor', $event)" />
+      <app-color-swatches [swatches]="wallSwatches" [selected]="r.wallColor" [pickerValue]="r.wallColor" customLabel="Custom wall color" ariaSuffix=" walls" (pick)="pickColor('wallColor', $event)" />
     </div>
     <div class="field">
       <span>Ceiling</span>
-      <app-color-swatches [swatches]="ceilingSwatches" [selected]="r.ceilingColor" [pickerValue]="r.ceilingColor" customLabel="Custom ceiling color" (pick)="pickColor('ceilingColor', $event)" />
+      <app-color-swatches [swatches]="ceilingSwatches" [selected]="r.ceilingColor" [pickerValue]="r.ceilingColor" customLabel="Custom ceiling color" ariaSuffix=" ceiling" (pick)="pickColor('ceilingColor', $event)" />
     </div>
     <label class="field">
       <span>Ceiling height</span>
@@ -73,7 +73,7 @@ type ColorField = 'floorColor' | 'wallColor' | 'ceilingColor' | 'trimColor';
     </label>
     <div class="field">
       <span>Trim</span>
-      <app-color-swatches [swatches]="trimSwatches" [selected]="r.trimColor" [pickerValue]="r.trimColor" customLabel="Custom trim color" (pick)="pickColor('trimColor', $event)" />
+      <app-color-swatches [swatches]="trimSwatches" [selected]="r.trimColor" [pickerValue]="r.trimColor" customLabel="Custom trim color" ariaSuffix=" trim" (pick)="pickColor('trimColor', $event)" />
       <label class="check">
         <input type="checkbox" [checked]="r.crownMolding" (change)="update({ crownMolding: $any($event.target).checked })" />
         Crown molding

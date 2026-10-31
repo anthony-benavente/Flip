@@ -45,6 +45,8 @@ export function roomViews(rooms: Room[], selected: SelectedIds, units: DisplayUn
     key: r.key,
     points: r.polygon.map((p) => `${p.x},${p.y}`).join(' '),
     fill: r.floorColor,
+    /** Floor pattern drawn over the fill (`<pattern id="floor-…">` in the canvas), or null for a plain floor. */
+    pattern: r.floorMaterial === 'solid' ? null : r.floorMaterial,
     selected: selected.has(`room:${r.key}`),
     label: r.label,
     name: r.name,

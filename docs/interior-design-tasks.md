@@ -97,7 +97,7 @@ Tracker for the interior design feature (colors, art, verticality) on branch `fe
     - casings around openings.
   - Colors come from `roomsBesideWall` → `trimColor`.
   - Done when: `scene-builder.spec` passes and the solid-count test is unchanged.
-- [ ] **T16: 2D floor patterns.**
+- [x] **T16: 2D floor patterns.**
   - `roomViews` gets `pattern`, and `plan-canvas.html` `<defs>` holds an SVG pattern per material.
   - Done when: the e2e scheme test (saved room meta has all its fields) passes, along with `npm run build` and `npm run e2e`.
 
