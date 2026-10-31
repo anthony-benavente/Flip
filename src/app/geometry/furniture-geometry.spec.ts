@@ -71,4 +71,22 @@ describe('findOverlaps', () => {
     const hits = findOverlaps([a, b, c, rug, free], segs);
     expect([...hits].sort()).toEqual(['a', 'b', 'c']);
   });
+
+  it('lets items at different heights share a footprint', () => {
+    const segs = wallSegments(room());
+    const dresser = { ...createFurniture('dresser', { x: 200, y: 200 }), id: 'dresser' };
+    const lamp = { ...createFurniture('table-lamp', { x: 200, y: 200 }), id: 'lamp', elevation: dresser.height };
+    const sunk = { ...createFurniture('vase', { x: 240, y: 200 }), id: 'sunk', elevation: dresser.height - 10 };
+    const elevationOf = (f: { elevation?: number }) => f.elevation ?? 0;
+    expect(findOverlaps([dresser, lamp], segs, elevationOf).size).toBe(0);
+    expect([...findOverlaps([dresser, lamp, sunk], segs, elevationOf)].sort()).toEqual(['dresser', 'sunk']);
+  });
+
+  it('lets wall-mounted items touch their wall', () => {
+    const segs = wallSegments(room());
+    const art = { ...createFurniture('art-small', { x: 200, y: 0 }), id: 'art' };
+    art.y = 5 + art.depth / 2;
+    const box = { ...createFurniture('box', { x: 10, y: 300 }), id: 'box' };
+    expect([...findOverlaps([art, box], segs, (f) => f.elevation ?? 0)]).toEqual(['box']);
+  });
 });

@@ -11,6 +11,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
+import { itemElevation } from '../../geometry/elevation';
 import { findOverlaps } from '../../geometry/furniture-geometry';
 import { gridSize } from '../../geometry/units';
 import { rectCorners } from '../../geometry/vec';
@@ -94,7 +95,10 @@ export class PlanCanvas {
     return `translate(${v.x} ${v.y}) scale(${v.zoom})`;
   });
   protected readonly units = this.planStore.units;
-  private readonly overlaps = computed(() => findOverlaps(this.planStore.plan().furniture, this.planStore.segments()));
+  private readonly overlaps = computed(() => {
+    const rooms = this.planStore.rooms();
+    return findOverlaps(this.planStore.plan().furniture, this.planStore.segments(), (f) => itemElevation(f, rooms));
+  });
 
   protected readonly grid = computed(() => gridPaths(this.editor.viewport(), this.size(), this.units()));
   protected readonly rooms = computed(() => roomViews(this.planStore.rooms(), this.editor.selectedIds(), this.units()));

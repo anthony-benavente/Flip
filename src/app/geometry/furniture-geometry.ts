@@ -1,7 +1,10 @@
-import { catalogItem } from '../model/catalog';
+import { catalogItem, mountOf } from '../model/catalog';
 import { FurnitureItem, Point } from '../model/plan.model';
 import { add, angleDeg, convexOverlap, cross, dot, rectCorners, rotate, scale, sub } from './vec';
 import { WallSegment, wallOutline } from './wall-geometry';
+
+/** Items whose vertical ranges overlap by less than this are stacked, not colliding (cm). */
+const VERTICAL_TOLERANCE = 0.5;
 
 export interface Placement {
   x: number;
@@ -126,20 +129,30 @@ function raySegment(o: Point, d: Point, a: Point, b: Point): number | null {
   return t >= 0 && u >= 0 && u <= 1 ? t : null;
 }
 
-/** Ids of furniture items that overlap another item or a wall. Floor-layer items (rugs) are ignored. */
-export function findOverlaps(furniture: FurnitureItem[], segs: WallSegment[]): Set<string> {
+/** Height of an item's bottom above the floor (see `itemElevation`). */
+export type ElevationOf = (f: FurnitureItem) => number;
+
+/**
+ * Ids of furniture items that overlap another item or a wall. Floor-layer items (rugs) are ignored,
+ * items at different heights (art above a sofa, a lamp on a dresser) don't overlap, and wall-mounted
+ * items may touch their wall.
+ */
+export function findOverlaps(furniture: FurnitureItem[], segs: WallSegment[], elevationOf: ElevationOf = () => 0): Set<string> {
   const solid = furniture.filter((f) => !catalogItem(f.catalogId).floorLayer);
   const corners = solid.map((f) => rectCorners(f, f.width, f.depth, f.rotation));
+  const bottoms = solid.map(elevationOf);
   const walls = segs.map((s) => wallOutline(s, false));
   const out = new Set<string>();
   for (let i = 0; i < solid.length; i++) {
     for (let j = i + 1; j < solid.length; j++) {
-      if (convexOverlap(corners[i], corners[j])) {
+      const stacked =
+        bottoms[i] + solid[i].height - VERTICAL_TOLERANCE <= bottoms[j] || bottoms[j] + solid[j].height - VERTICAL_TOLERANCE <= bottoms[i];
+      if (!stacked && convexOverlap(corners[i], corners[j])) {
         out.add(solid[i].id);
         out.add(solid[j].id);
       }
     }
-    if (walls.some((w) => convexOverlap(corners[i], w))) out.add(solid[i].id);
+    if (mountOf(catalogItem(solid[i].catalogId)) !== 'wall' && walls.some((w) => convexOverlap(corners[i], w))) out.add(solid[i].id);
   }
   return out;
 }

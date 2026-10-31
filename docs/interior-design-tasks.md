@@ -39,7 +39,7 @@ Tracker for the interior design feature (colors, art, verticality) on branch `fe
     - `mountedWall(item, segments)`: a back within 5 cm of a face, aligned, returns `{ seg, side, along }`
   - Add `Room.ceilingHeight` (the max height of the room's walls) in `room-detection.ts` `attachRoomMeta`.
   - Done when: `elevation.spec.ts` and `room-detection.spec` pass.
-- [ ] **T5: Vertical-aware overlaps.**
+- [x] **T5: Vertical-aware overlaps.**
   - `findOverlaps` (`furniture-geometry.ts:130`) takes an elevation resolver.
   - Items whose vertical ranges don't overlap aren't flagged.
   - Wall-mounted items skip the wall-outline check.
