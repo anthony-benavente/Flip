@@ -5,7 +5,9 @@ import { catalogItem } from './catalog';
 import { createEmptyPlan, createFurniture } from './defaults';
 import {
   normalizeRotation,
+  remapFurnitureModels,
   resetFurnitureSize,
+  setFurnitureModel,
   setWallColor,
   updateFurniture,
   updateOpening,
@@ -122,5 +124,22 @@ describe('plan operations', () => {
       expect(plan.rooms[0].anchor).toEqual(r.label);
       expect(wallSegments(plan)).toHaveLength(4);
     });
+  });
+
+  it("sets and clears an item's uploaded model", () => {
+    const { plan } = setup();
+    setFurnitureModel(plan, 'f1', 'm_1');
+    expect(plan.furniture[0].modelId).toBe('m_1');
+    setFurnitureModel(plan, 'f1', undefined);
+    expect('modelId' in plan.furniture[0]).toBe(false);
+  });
+
+  it('remaps model ids and leaves other items alone', () => {
+    const { plan } = setup();
+    plan.furniture[0].modelId = 'old';
+    plan.furniture.push({ ...createFurniture('desk', { x: 0, y: 0 }), id: 'f2', modelId: 'keep' });
+    plan.furniture.push({ ...createFurniture('desk', { x: 0, y: 0 }), id: 'f3' });
+    remapFurnitureModels(plan, new Map([['old', 'new']]));
+    expect(plan.furniture.map((f) => f.modelId)).toEqual(['new', 'keep', undefined]);
   });
 });

@@ -60,6 +60,8 @@ export interface FurnitureItem {
   height: number;
   color: string;
   label?: string;
+  /** Uploaded 3D model (`CustomModel.id`) drawn instead of the catalog's built-in model. */
+  modelId?: string;
 }
 
 export interface RoomMeta {

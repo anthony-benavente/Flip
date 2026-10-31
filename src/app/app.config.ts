@@ -2,6 +2,7 @@ import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { routes } from './app.routes';
 import { LocalPlanRepository } from './persistence/local-plan.repository';
+import { defaultModelRepository, MODEL_REPOSITORY } from './persistence/model-repository';
 import { PLAN_REPOSITORY } from './persistence/plan-repository';
 
 export const appConfig: ApplicationConfig = {
@@ -10,5 +11,6 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes, withComponentInputBinding()),
     // Swap for a server-backed repository when user accounts arrive.
     { provide: PLAN_REPOSITORY, useFactory: () => new LocalPlanRepository() },
+    { provide: MODEL_REPOSITORY, useFactory: defaultModelRepository },
   ],
 };

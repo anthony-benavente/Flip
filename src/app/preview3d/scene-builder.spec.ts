@@ -6,19 +6,19 @@ import { EXTERIOR_WALL_COLOR } from '../model/palettes';
 import { Plan } from '../model/plan.model';
 import { squareRoom } from '../testing/fixtures';
 import { FurnitureMeshFactory } from './furniture-meshes';
-import { buildPlanScene, disposePlanScene, M } from './scene-builder';
+import { buildPlanScene, disposePlanScene, M, ModelResolver } from './scene-builder';
 
 describe('buildPlanScene', () => {
   const factory = new FurnitureMeshFactory();
   afterAll(() => factory.dispose());
 
-  function build(edit: (plan: Plan, walls: string[]) => void = () => {}) {
+  function build(edit: (plan: Plan, walls: string[]) => void = () => {}, models?: ModelResolver) {
     const plan = createEmptyPlan();
     const walls = squareRoom(plan, 400, 300);
     plan.rooms.push({ id: 'r', anchor: { x: 200, y: 150 }, name: 'Den', floorColor: '#112233', wallColor: '#445566' });
     edit(plan, walls);
     const rooms = attachRoomMeta(detectRooms(plan), plan.rooms);
-    return { plan, walls, scene: buildPlanScene(plan, rooms, wallSegments(plan), factory) };
+    return { plan, walls, scene: buildPlanScene(plan, rooms, wallSegments(plan), factory, models) };
   }
 
   /** Materials of the first solid box in a wall, in BoxGeometry face order (+x, -x, +y, -y, +z, -z). */
@@ -100,5 +100,43 @@ describe('buildPlanScene', () => {
     disposePlanScene(scene);
     expect(ownedSpy).toHaveBeenCalled();
     expect(sharedSpy).not.toHaveBeenCalled();
+  });
+
+  describe('uploaded models', () => {
+    const source = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshStandardMaterial());
+    const resolver: ModelResolver = (id) => (id === 'm1' ? { object: source, orientation: { x: 0, y: 0, z: 0 } } : undefined);
+    const chair = (modelId?: string) => ({ ...createFurniture('office-chair', { x: 200, y: 150 }), id: 'f', modelId });
+    const meshesOf = (o: THREE.Object3D) => {
+      const meshes: THREE.Mesh[] = [];
+      o.traverse((c) => c instanceof THREE.Mesh && meshes.push(c));
+      return meshes;
+    };
+
+    it('draws an item with a loaded model, fitted to its size', () => {
+      const { scene, plan } = build((p) => p.furniture.push(chair('m1')), resolver);
+      const f = scene.group.getObjectByName('furniture:f')!;
+      expect(meshesOf(f).map((m) => m.geometry)).toEqual([source.geometry]);
+      f.updateMatrixWorld(true);
+      const size = new THREE.Box3().setFromObject(f).getSize(new THREE.Vector3());
+      const item = plan.furniture[0];
+      expect(size.x).toBeCloseTo(item.width * M);
+      expect(size.y).toBeCloseTo(item.height * M);
+      expect(size.z).toBeCloseTo(item.depth * M);
+    });
+
+    it('falls back to the built-in model when the model is not available', () => {
+      const { scene } = build((p) => p.furniture.push(chair('unknown')), resolver);
+      const meshes = meshesOf(scene.group.getObjectByName('furniture:f')!);
+      expect(meshes.length).toBeGreaterThan(1);
+      expect(meshes.some((m) => m.geometry === source.geometry)).toBe(false);
+    });
+
+    it('leaves the shared model geometry alive when the scene is disposed', () => {
+      const { scene } = build((p) => p.furniture.push(chair('m1')), resolver);
+      const spy = vi.fn();
+      source.geometry.addEventListener('dispose', spy);
+      disposePlanScene(scene);
+      expect(spy).not.toHaveBeenCalled();
+    });
   });
 });

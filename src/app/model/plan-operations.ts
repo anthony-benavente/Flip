@@ -53,6 +53,22 @@ export function updateFurniture(draft: Plan, id: string, patch: Partial<Omit<Fur
   if (patch.label !== undefined && !patch.label.trim()) delete f.label;
 }
 
+/** Draws an item with an uploaded model, or with the catalog's built-in model for `undefined`. */
+export function setFurnitureModel(draft: Plan, id: string, modelId: string | undefined): void {
+  const f = draft.furniture.find((x) => x.id === id);
+  if (!f) return;
+  if (modelId) f.modelId = modelId;
+  else delete f.modelId;
+}
+
+/** Points furniture at renamed model ids, for example after an import resolved an id clash. */
+export function remapFurnitureModels(draft: Plan, ids: ReadonlyMap<string, string>): void {
+  for (const f of draft.furniture) {
+    const next = f.modelId && ids.get(f.modelId);
+    if (next) f.modelId = next;
+  }
+}
+
 /** Restores an item's catalog width, depth and height. */
 export function resetFurnitureSize(draft: Plan, id: string): void {
   const f = draft.furniture.find((x) => x.id === id);

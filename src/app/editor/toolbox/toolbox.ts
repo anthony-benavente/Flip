@@ -1,12 +1,16 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { formatLength } from '../../geometry/units';
-import { CATALOG, CATALOG_CATEGORIES, CatalogItem } from '../../model/catalog';
+import { CATALOG, CATALOG_CATEGORIES, CatalogItem, catalogItem } from '../../model/catalog';
+import { CustomModel, modelDisplayName } from '../../model/custom-model';
+import { ModelLibrary } from '../../persistence/model-library';
 import { FurnitureSymbol } from '../../shared/furniture-symbol';
 import { EditorActions } from '../../state/editor-actions';
 import { EditorStore, ToolId } from '../../state/editor.store';
 import { PlanStore } from '../../state/plan.store';
 import { Icon } from '../../shared/icon';
-import { FURNITURE_DRAG_MIME } from '../drag-drop';
+import { encodeFurnitureDrag, FURNITURE_DRAG_MIME, FurnitureDragData } from '../drag-drop';
+import { ModelLibraryDialog } from '../model-library/model-library-dialog';
+import { ModelUploadDialog } from '../model-upload/model-upload-dialog';
 
 interface ToolButton {
   id: ToolId;
@@ -17,7 +21,7 @@ interface ToolButton {
 
 @Component({
   selector: 'app-toolbox',
-  imports: [Icon, FurnitureSymbol],
+  imports: [Icon, FurnitureSymbol, ModelLibraryDialog, ModelUploadDialog],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './toolbox.html',
   styleUrl: './toolbox.css',
@@ -26,6 +30,7 @@ export class Toolbox {
   protected readonly editor = inject(EditorStore);
   private readonly planStore = inject(PlanStore);
   private readonly actions = inject(EditorActions);
+  private readonly library = inject(ModelLibrary);
 
   protected readonly tools: ToolButton[] = [
     { id: 'select', label: 'Select', icon: 'select', key: 'V' },
@@ -38,22 +43,33 @@ export class Toolbox {
   protected readonly query = signal('');
   protected readonly collapsed = signal<Set<string>>(new Set());
 
+  protected readonly showLibrary = signal(false);
+  /** The upload dialog, either uploading a new model (`editing: null`) or editing one. */
+  protected readonly modelDialog = signal<{ editing: CustomModel | null } | null>(null);
+  /** Model entry awaiting delete confirmation. */
+  protected readonly confirmingDelete = signal<string | null>(null);
+
+  /** Catalog items by category, each followed by the uploaded models that stand in for it. */
   protected readonly groups = computed(() => {
     const q = this.query().trim().toLowerCase();
     const units = this.planStore.units();
+    const models = this.library.models();
     return CATALOG_CATEGORIES.map((category) => ({
       category,
-      items: CATALOG.filter((c) => c.category === category && (!q || c.name.toLowerCase().includes(q))).map((c) =>
-        this.view(c, units),
-      ),
+      items: CATALOG.filter((c) => c.category === category)
+        .flatMap((c) => [this.view(c, units), ...models.filter((m) => m.catalogId === c.id).map((m) => this.view(c, units, m))])
+        .filter((item) => !q || item.name.toLowerCase().includes(q)),
     })).filter((g) => g.items.length);
   });
 
-  private view(c: CatalogItem, units: 'imperial' | 'metric') {
+  private view(c: CatalogItem, units: 'imperial' | 'metric', model?: CustomModel) {
     const pad = Math.max(c.width, c.depth) * 0.06;
+    const drag: FurnitureDragData = model ? { catalogId: c.id, modelId: model.id } : { catalogId: c.id };
     return {
-      id: c.id,
-      name: c.name,
+      key: encodeFurnitureDrag(drag),
+      drag,
+      model,
+      name: model ? modelDisplayName(model, c) : c.name,
       size: `${formatLength(c.width, units)} × ${formatLength(c.depth, units)}`,
       viewBox: `${-c.width / 2 - pad} ${-c.depth / 2 - pad} ${c.width + pad * 2} ${c.depth + pad * 2}`,
       shape: c.shape,
@@ -72,13 +88,36 @@ export class Toolbox {
     });
   }
 
-  protected onDragStart(e: DragEvent, id: string): void {
-    e.dataTransfer?.setData(FURNITURE_DRAG_MIME, id);
-    e.dataTransfer?.setData('text/plain', id);
+  protected onDragStart(e: DragEvent, drag: FurnitureDragData): void {
+    const value = encodeFurnitureDrag(drag);
+    e.dataTransfer?.setData(FURNITURE_DRAG_MIME, value);
+    e.dataTransfer?.setData('text/plain', value);
     if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy';
   }
 
-  protected place(id: string): void {
-    this.actions.placeFurniture(id);
+  protected place(drag: FurnitureDragData): void {
+    this.actions.placeFurniture(drag.catalogId, undefined, drag.modelId);
+  }
+
+  /** Template preselected in the upload dialog: the selected item's, else the office chair. */
+  protected readonly uploadTemplate = computed(() => {
+    const sel = this.editor.selection();
+    const item = sel.length === 1 && sel[0].kind === 'furniture' ? this.planStore.plan().furniture.find((f) => f.id === sel[0].id) : undefined;
+    return item ? catalogItem(item.catalogId).id : 'office-chair';
+  });
+
+  protected onModelDialogClosed(model: CustomModel | null): void {
+    const uploaded = model && !this.modelDialog()?.editing;
+    this.modelDialog.set(null);
+    // A new upload shows up in the catalog; close the library so it can be seen.
+    if (uploaded) {
+      this.query.set('');
+      this.showLibrary.set(false);
+    }
+  }
+
+  protected async remove(model: CustomModel): Promise<void> {
+    this.confirmingDelete.set(null);
+    await this.library.remove(model.id);
   }
 }

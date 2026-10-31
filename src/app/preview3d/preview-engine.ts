@@ -2,12 +2,22 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Room } from '../geometry/room-detection';
 import { WallSegment } from '../geometry/wall-geometry';
+import { CustomModel } from '../model/custom-model';
 import { Plan } from '../model/plan.model';
 import { CUTAWAY_SCALE, isWallCut } from './cutaway';
 import { FurnitureMeshFactory } from './furniture-meshes';
-import { buildPlanScene, disposePlanScene, PlanScene, SceneWall } from './scene-builder';
+import { ModelCache } from './model-cache';
+import { buildPlanScene, disposePlanScene, ModelResolver, PlanScene, SceneWall } from './scene-builder';
 
 export type CameraPreset = 'perspective' | 'top';
+
+/** Where the engine finds uploaded models: metadata (orientation, and whether it still exists) and file bytes. */
+export interface ModelSource {
+  model(id: string): CustomModel | undefined;
+  bytes(id: string): Promise<ArrayBuffer | null>;
+}
+
+const NO_MODELS: ModelSource = { model: () => undefined, bytes: async () => null };
 
 /**
  * Renders the 3D preview: renderer, lights, camera presets, orbit controls and the wall cutaway.
@@ -21,7 +31,10 @@ export class PreviewEngine {
   private readonly sun = new THREE.DirectionalLight(0xffffff, 1.6);
   private readonly ground: THREE.Mesh;
   private readonly factory = new FurnitureMeshFactory();
+  private readonly models = new ModelCache();
   private content: PlanScene | null = null;
+  private lastUpdate: Parameters<PreviewEngine['update']> | null = null;
+  private disposed = false;
   private walls: (SceneWall & { cut: boolean })[] = [];
   private center = new THREE.Vector3();
   private radius = 5;
@@ -70,9 +83,19 @@ export class PreviewEngine {
     this.resize();
   }
 
-  update(plan: Plan, rooms: Room[], segs: WallSegment[]): void {
+  /**
+   * Rebuilds the plan's objects. Uploaded models that are not loaded yet draw as built-in models
+   * at first; once they load, the scene is rebuilt with them.
+   */
+  update(plan: Plan, rooms: Room[], segs: WallSegment[], source: ModelSource = NO_MODELS): void {
+    this.lastUpdate = [plan, rooms, segs, source];
+    const resolve: ModelResolver = (id) => {
+      const meta = source.model(id);
+      const object = meta && this.models.get(id);
+      return object ? { object, orientation: meta.orientation } : undefined;
+    };
     this.clearContent();
-    this.content = buildPlanScene(plan, rooms, segs, this.factory);
+    this.content = buildPlanScene(plan, rooms, segs, this.factory, resolve);
     this.scene.add(this.content.group);
     this.walls = this.content.walls.map((w) => ({ ...w, cut: false }));
 
@@ -84,6 +107,13 @@ export class PreviewEngine {
       this.setCamera(this.preset, false);
     }
     this.requestRender();
+
+    const missing = plan.furniture.flatMap((f) => (f.modelId && source.model(f.modelId) && !this.models.has(f.modelId) ? [f.modelId] : []));
+    if (missing.length) {
+      this.models.load(missing, (id) => source.bytes(id)).then((loaded) => {
+        if (loaded && !this.disposed && this.lastUpdate) this.update(...this.lastUpdate);
+      });
+    }
   }
 
   setCamera(preset: CameraPreset, fromUser = true): void {
@@ -114,11 +144,14 @@ export class PreviewEngine {
   }
 
   dispose(): void {
+    this.disposed = true;
+    this.lastUpdate = null;
     cancelAnimationFrame(this.frame);
     this.resizeObserver.disconnect();
     this.controls.dispose();
     this.clearContent();
     this.factory.dispose();
+    this.models.dispose();
     this.ground.geometry.dispose();
     (this.ground.material as THREE.Material).dispose();
     this.renderer.dispose();

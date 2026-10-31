@@ -66,6 +66,19 @@ h2 {
   letter-spacing: 0.04em;
 }
 
+.catalog-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.models {
+  height: 26px;
+  padding: 0 8px;
+  font-size: 12px;
+  --icon-size: 14px;
+}
+
 .hint {
   display: block;
   margin: 2px 0 8px;
@@ -165,6 +178,47 @@ ul {
 .item-size {
   color: var(--text-muted);
   font-size: 11px;
+}
+
+li.has-model {
+  position: relative;
+}
+
+.badge {
+  margin-left: auto;
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.model-actions {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  display: none;
+  gap: 2px;
+  transform: translateY(-50%);
+  padding: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  --icon-size: 15px;
+}
+
+.model-actions .btn {
+  height: 26px;
+}
+
+.model-actions .btn.icon {
+  width: 26px;
+}
+
+li.has-model:hover .model-actions,
+.model-actions:focus-within,
+.model-actions:has(.danger) {
+  display: flex;
 }
 
 .none {

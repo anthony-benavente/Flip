@@ -15,8 +15,10 @@ import { PlanStore } from './plan.store';
 export class EditorActions {
   private readonly plan = inject(PlanStore);
   private readonly editor = inject(EditorStore);
-  placeFurniture(catalogId: string, at: Point = viewCenter(this.editor.viewport(), this.editor.canvasSize())): void {
+  /** Adds a catalog item, drawn in 3D with the uploaded model `modelId` when given. */
+  placeFurniture(catalogId: string, at: Point = viewCenter(this.editor.viewport(), this.editor.canvasSize()), modelId?: string): void {
     const item = createFurniture(catalogId, at);
+    if (modelId) item.modelId = modelId;
     if (!catalogItem(catalogId).noWallSnap) {
       // Snap when dropped within ~1.5 ft of a wall face (or 24px when zoomed far out).
       const tolerance = Math.max(45, 24 / this.editor.viewport().zoom);

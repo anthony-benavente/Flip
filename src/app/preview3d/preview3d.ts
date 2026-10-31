@@ -10,6 +10,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
+import { ModelLibrary } from '../persistence/model-library';
 import { PlanStore } from '../state/plan.store';
 import { Icon } from '../shared/icon';
 import type { CameraPreset, PreviewEngine } from './preview-engine';
@@ -60,6 +61,7 @@ const REBUILD_DEBOUNCE_MS = 150;
 })
 export class Preview3d {
   private readonly store = inject(PlanStore);
+  private readonly library = inject(ModelLibrary);
   private readonly hostRef = viewChild.required<ElementRef<HTMLElement>>('host');
   private engine: PreviewEngine | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
@@ -75,6 +77,7 @@ export class Preview3d {
       this.store.plan();
       this.store.rooms();
       this.store.segments();
+      this.library.models();
       untracked(() => this.scheduleRebuild());
     });
 
@@ -118,6 +121,6 @@ export class Preview3d {
 
   private rebuild(): void {
     this.timer = null;
-    this.engine?.update(this.store.plan(), this.store.rooms(), this.store.segments());
+    this.engine?.update(this.store.plan(), this.store.rooms(), this.store.segments(), this.library);
   }
 }

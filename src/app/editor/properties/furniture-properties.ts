@@ -1,8 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { catalogItem } from '../../model/catalog';
+import { modelDisplayName } from '../../model/custom-model';
 import { FURNITURE_SWATCHES } from '../../model/palettes';
-import { resetFurnitureSize, updateFurniture } from '../../model/plan-operations';
+import { resetFurnitureSize, setFurnitureModel, updateFurniture } from '../../model/plan-operations';
 import { FurnitureItem } from '../../model/plan.model';
+import { ModelLibrary } from '../../persistence/model-library';
 import { ColorPick, ColorSwatches } from '../../shared/color-swatches';
 import { Icon } from '../../shared/icon';
 import { LengthInput } from '../../shared/length-input';
@@ -45,6 +47,21 @@ import { PlanStore } from '../../state/plan.store';
         <button class="btn icon" title="Rotate 90° clockwise (R)" (click)="actions.rotateSelection(90)">↻</button>
       </div>
     </div>
+    <label class="field">
+      <span>3D model</span>
+      <select class="input" (change)="setModel($any($event.target).value)" aria-label="3D model">
+        <option value="" [selected]="!f.modelId">Default</option>
+        @for (m of modelOptions(); track m.id) {
+          <option [value]="m.id" [selected]="m.id === f.modelId">{{ m.name }}</option>
+        }
+        @if (modelMissing()) {
+          <option [value]="f.modelId" selected disabled>Missing model</option>
+        }
+      </select>
+      @if (modelMissing()) {
+        <small class="note">This item's uploaded model was deleted or is not in this browser. It shows the default model in 3D.</small>
+      }
+    </label>
     <div class="field">
       <span>Color</span>
       <app-color-swatches [swatches]="swatches" [selected]="f.color" [pickerValue]="f.color" (pick)="setColor($event)" />
@@ -63,11 +80,29 @@ export class FurnitureProperties {
   protected readonly actions = inject(EditorActions);
   protected readonly units = this.plan.units;
   protected readonly swatches = FURNITURE_SWATCHES;
-  protected readonly typeName = computed(() => catalogItem(this.item().catalogId).name);
+  private readonly library = inject(ModelLibrary);
+  protected readonly typeName = computed(() => {
+    const template = catalogItem(this.item().catalogId);
+    const model = this.library.model(this.item().modelId);
+    return model ? modelDisplayName(model, template) : template.name;
+  });
+  /** Models made for this item's template, plus the current one if it was made for another. */
+  protected readonly modelOptions = computed(() => {
+    const f = this.item();
+    const current = this.library.model(f.modelId);
+    const models = this.library.forTemplate(f.catalogId);
+    return current && !models.includes(current) ? [...models, current] : models;
+  });
+  protected readonly modelMissing = computed(() => !!this.item().modelId && !this.library.model(this.item().modelId));
 
   protected update(patch: Partial<Omit<FurnitureItem, 'id'>>, coalesceKey?: string): void {
     const id = this.item().id;
     this.plan.update((d) => updateFurniture(d, id, patch), { coalesceKey });
+  }
+
+  protected setModel(modelId: string): void {
+    const id = this.item().id;
+    this.plan.update((d) => setFurnitureModel(d, id, modelId || undefined));
   }
 
   protected setRotation(value: string): void {

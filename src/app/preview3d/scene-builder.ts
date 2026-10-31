@@ -8,9 +8,11 @@ import { Room, roomsBesideWall, wallFaceColor } from '../geometry/room-detection
 import { add, scale } from '../geometry/vec';
 import { WallSegment } from '../geometry/wall-geometry';
 import { catalogItem } from '../model/catalog';
+import { ModelOrientation } from '../model/custom-model';
 import { EXTERIOR_WALL_COLOR } from '../model/palettes';
 import { Opening, Plan, WallSide } from '../model/plan.model';
 import { FurnitureMeshFactory } from './furniture-meshes';
+import { fitModelToBox, SHARED_MODEL } from './model-fit';
 import { wallPieces } from './wall-pieces';
 
 /** cm → m */
@@ -36,7 +38,16 @@ export interface PlanScene {
   materials: THREE.Material[];
 }
 
-export function buildPlanScene(plan: Plan, rooms: Room[], segments: WallSegment[], factory: FurnitureMeshFactory): PlanScene {
+/** A loaded uploaded model and how to turn it, or `undefined` to use the built-in model. */
+export type ModelResolver = (modelId: string) => { object: THREE.Object3D; orientation: ModelOrientation } | undefined;
+
+export function buildPlanScene(
+  plan: Plan,
+  rooms: Room[],
+  segments: WallSegment[],
+  factory: FurnitureMeshFactory,
+  models: ModelResolver = () => undefined,
+): PlanScene {
   const group = new THREE.Group();
   const materials: THREE.Material[] = [];
   const own = <T extends THREE.Material>(m: T): T => (materials.push(m), m);
@@ -52,7 +63,10 @@ export function buildPlanScene(plan: Plan, rooms: Room[], segments: WallSegment[
   });
 
   for (const f of plan.furniture) {
-    const model = factory.build(catalogItem(f.catalogId).shape, f.width * M, f.depth * M, f.height * M, f.color);
+    const custom = f.modelId ? models(f.modelId) : undefined;
+    const model = custom
+      ? fitModelToBox(custom.object, custom.orientation, f.width * M, f.depth * M, f.height * M)
+      : factory.build(catalogItem(f.catalogId).shape, f.width * M, f.depth * M, f.height * M, f.color);
     model.name = `furniture:${f.id}`;
     model.position.set(f.x * M, 0, f.y * M);
     model.rotation.y = (-f.rotation * Math.PI) / 180;
@@ -69,10 +83,10 @@ export function buildPlanScene(plan: Plan, rooms: Room[], segments: WallSegment[
   return { group, walls, bounds, materials };
 }
 
-/** Frees the geometry and scene-owned materials of a built scene. */
+/** Frees the geometry and scene-owned materials of a built scene. Uploaded models stay with their cache. */
 export function disposePlanScene(scene: PlanScene): void {
   scene.group.traverse((o) => {
-    if (o instanceof THREE.Mesh) o.geometry.dispose();
+    if (o instanceof THREE.Mesh && !o.userData[SHARED_MODEL]) o.geometry.dispose();
   });
   for (const m of scene.materials) m.dispose();
 }

@@ -22,7 +22,7 @@ import { isTypingTarget } from '../../shared/dom';
 import { EditorActions } from '../../state/editor-actions';
 import { EditorStore, ToolId } from '../../state/editor.store';
 import { PlanStore } from '../../state/plan.store';
-import { FURNITURE_DRAG_MIME } from '../drag-drop';
+import { decodeFurnitureDrag, FURNITURE_DRAG_MIME } from '../drag-drop';
 import { createTools } from '../tools';
 import { Hit, HitKind, Tool, ToolContext, ToolPointerEvent } from '../tools/tool';
 import {
@@ -291,10 +291,12 @@ export class PlanCanvas {
   }
 
   protected onDrop(e: DragEvent): void {
-    const id = e.dataTransfer?.getData(FURNITURE_DRAG_MIME);
-    if (!id || !CATALOG.some((c) => c.id === id)) return;
+    const value = e.dataTransfer?.getData(FURNITURE_DRAG_MIME);
+    if (!value) return;
+    const { catalogId, modelId } = decodeFurnitureDrag(value);
+    if (!CATALOG.some((c) => c.id === catalogId)) return;
     e.preventDefault();
-    this.actions.placeFurniture(id, this.toToolEvent(e, false).world);
+    this.actions.placeFurniture(catalogId, this.toToolEvent(e, false).world, modelId);
   }
 }
 

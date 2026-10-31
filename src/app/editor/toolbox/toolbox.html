@@ -16,34 +16,99 @@
 
 <section class="catalog" aria-label="Furniture">
   <div class="catalog-head">
-    <h2>Furniture</h2>
+    <div class="catalog-title">
+      <h2>Furniture</h2>
+      <button
+        class="btn ghost models"
+        (click)="showLibrary.set(true)"
+        title="Upload and edit 3D models for catalog items"
+      >
+        <app-icon name="cube" /> 3D models
+      </button>
+    </div>
     <span class="hint">Drag onto the plan, or click to add</span>
     <div class="search">
       <app-icon name="search" />
-      <input class="input" type="search" placeholder="Search furniture" [value]="query()" (input)="query.set($any($event.target).value)" />
+      <input
+        class="input"
+        type="search"
+        placeholder="Search furniture"
+        [value]="query()"
+        (input)="query.set($any($event.target).value)"
+      />
     </div>
   </div>
 
   <div class="groups">
     @for (g of groups(); track g.category) {
       <div class="group">
-        <button class="group-title" (click)="toggleGroup(g.category)" [attr.aria-expanded]="!collapsed().has(g.category) || !!query()">
+        <button
+          class="group-title"
+          (click)="toggleGroup(g.category)"
+          [attr.aria-expanded]="!collapsed().has(g.category) || !!query()"
+        >
           <span class="chev" [class.closed]="collapsed().has(g.category) && !query()">▾</span>
           {{ g.category }}
         </button>
         @if (!collapsed().has(g.category) || query()) {
           <ul>
-            @for (item of g.items; track item.id) {
-              <li>
-                <button class="item" draggable="true" (dragstart)="onDragStart($event, item.id)" (click)="place(item.id)" [title]="'Add ' + item.name">
+            @for (item of g.items; track item.key) {
+              <li [class.has-model]="!!item.model">
+                <button
+                  class="item"
+                  draggable="true"
+                  (dragstart)="onDragStart($event, item.drag)"
+                  (click)="place(item.drag)"
+                  [title]="'Add ' + item.name"
+                >
                   <svg [attr.viewBox]="item.viewBox" preserveAspectRatio="xMidYMid meet">
-                    <g appFurnitureSymbol [shape]="item.shape" [width]="item.w" [depth]="item.d" [color]="item.color" />
+                    <g
+                      appFurnitureSymbol
+                      [shape]="item.shape"
+                      [width]="item.w"
+                      [depth]="item.d"
+                      [color]="item.color"
+                    />
                   </svg>
                   <span class="item-text">
                     <span class="item-name">{{ item.name }}</span>
                     <span class="item-size">{{ item.size }}</span>
                   </span>
+                  @if (item.model) {
+                    <span class="badge" title="Uploaded 3D model">3D</span>
+                  }
                 </button>
+                @if (item.model; as model) {
+                  <span class="model-actions">
+                    @if (confirmingDelete() === model.id) {
+                      <button class="btn danger" (click)="remove(model)">Delete</button>
+                      <button
+                        class="btn ghost icon"
+                        aria-label="Keep model"
+                        (click)="confirmingDelete.set(null)"
+                      >
+                        <app-icon name="close" />
+                      </button>
+                    } @else {
+                      <button
+                        class="btn ghost icon"
+                        title="Edit model"
+                        aria-label="Edit model"
+                        (click)="modelDialog.set({ editing: model })"
+                      >
+                        <app-icon name="edit" />
+                      </button>
+                      <button
+                        class="btn ghost icon"
+                        title="Delete model"
+                        aria-label="Delete model"
+                        (click)="confirmingDelete.set(model.id)"
+                      >
+                        <app-icon name="trash" />
+                      </button>
+                    }
+                  </span>
+                }
               </li>
             }
           </ul>
@@ -54,3 +119,18 @@
     }
   </div>
 </section>
+
+@if (showLibrary()) {
+  <app-model-library-dialog
+    (closed)="showLibrary.set(false)"
+    (edit)="modelDialog.set({ editing: $event })"
+    (upload)="modelDialog.set({ editing: null })"
+  />
+}
+@if (modelDialog(); as d) {
+  <app-model-upload-dialog
+    [editing]="d.editing"
+    [initialCatalogId]="uploadTemplate()"
+    (closed)="onModelDialogClosed($event)"
+  />
+}
