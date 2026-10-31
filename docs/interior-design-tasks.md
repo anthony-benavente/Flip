@@ -53,9 +53,9 @@ Tracker for the interior design feature (colors, art, verticality) on branch `fe
   - `EditorActions.placeFurniture`: stackable items get `restingElevation`; wall items keep the back-to-wall snap.
   - `select.tool.ts` `dragFurniture`: stackable items re-rest on each move, and dragging a base also moves `itemsRestingOn` it.
   - Done when: specs for the select tool and editor-actions pass.
-- [ ] **T8: 2D plan rendering.**
+- [x] **T8: 2D plan rendering.**
   - `furnitureViews` sorts by `itemElevation` (floor-layer items first).
-  - It adds `mounted: 'wall'|'ceiling'`, drawn dashed at reduced opacity in CSS, and `elevated`, a height badge.
+  - It adds `mount`; ceiling items draw at reduced opacity. (Height badge dropped: the Elevation field in T10 covers it.)
   - Done when: `view-models.spec` passes.
 - [ ] **T9: 3D elevation and cutaway.**
   - `scene-builder.ts:71` sets y from `itemElevation`. The bounds at `:81` include the top.

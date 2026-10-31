@@ -99,6 +99,16 @@ describe('canvas view models', () => {
     expect(furnitureViews([sofa], new Set(), new Set(), 0.05)[0].showLabel).toBe(false);
   });
 
+  it('draws higher items over lower ones and marks ceiling items', () => {
+    const lamp = { ...createFurniture('table-lamp', { x: 0, y: 0 }), id: 'lamp', elevation: 80 };
+    const dresser = { ...createFurniture('dresser', { x: 0, y: 0 }), id: 'dresser' };
+    const pendant = { ...createFurniture('pendant', { x: 0, y: 0 }), id: 'pendant' };
+    const elevationOf = (f: { id: string; elevation?: number }) => (f.id === 'pendant' ? 200 : (f.elevation ?? 0));
+    const views = furnitureViews([pendant, lamp, dresser], new Set(), new Set(), 1, elevationOf);
+    expect(views.map((v) => v.id)).toEqual(['dresser', 'lamp', 'pendant']);
+    expect(views.map((v) => v.mount)).toEqual(['floor', 'floor', 'ceiling']);
+  });
+
   describe('dimensionViews', () => {
     it('labels each wall on the outside of the room, upright', () => {
       const { segments, rooms } = room();

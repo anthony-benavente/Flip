@@ -7,7 +7,7 @@ import { formatArea, formatLength, gridSize, majorGridSize } from '../../geometr
 import { add, angleDeg, dist, pointInPolygon, scale } from '../../geometry/vec';
 import { Size, Viewport } from '../../geometry/viewport';
 import { WallSegment } from '../../geometry/wall-geometry';
-import { catalogItem } from '../../model/catalog';
+import { catalogItem, mountOf } from '../../model/catalog';
 import { DisplayUnits, FurnitureItem, Opening } from '../../model/plan.model';
 import { SelectionItem, ToolId, ToolOverlay } from '../../state/editor.store';
 
@@ -110,8 +110,17 @@ export function openingViews(openings: Opening[], segmentById: ReadonlyMap<strin
   return result;
 }
 
-/** Furniture, with floor-layer items (rugs) first so everything else draws on top. */
-export function furnitureViews(furniture: FurnitureItem[], overlaps: ReadonlySet<string>, selected: SelectedIds, zoom: number) {
+/**
+ * Furniture in draw order: floor-layer items (rugs) first, then everything else from low to high,
+ * so stacked and wall-mounted items draw over what is beneath them.
+ */
+export function furnitureViews(
+  furniture: FurnitureItem[],
+  overlaps: ReadonlySet<string>,
+  selected: SelectedIds,
+  zoom: number,
+  elevationOf: (f: FurnitureItem) => number = () => 0,
+) {
   const items = furniture.map((f) => {
     const c = catalogItem(f.catalogId);
     const label = f.label || c.name;
@@ -123,6 +132,8 @@ export function furnitureViews(furniture: FurnitureItem[], overlaps: ReadonlySet
       d: f.depth,
       color: f.color,
       floor: !!c.floorLayer,
+      mount: mountOf(c),
+      elevation: elevationOf(f),
       label,
       showLabel: f.width * zoom > label.length * 6.5 + 8 && f.depth * zoom > 16,
       // Keep text upright regardless of item rotation.
@@ -131,7 +142,7 @@ export function furnitureViews(furniture: FurnitureItem[], overlaps: ReadonlySet
       overlap: overlaps.has(f.id),
     };
   });
-  return [...items.filter((i) => i.floor), ...items.filter((i) => !i.floor)];
+  return [...items.filter((i) => i.floor), ...items.filter((i) => !i.floor).sort((a, b) => a.elevation - b.elevation)];
 }
 
 /** Wall length labels, placed on the side of the wall that is outside any room and kept upright. */

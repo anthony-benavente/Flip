@@ -108,7 +108,9 @@ export class PlanCanvas {
     openingViews(this.planStore.plan().openings, this.planStore.segmentById(), this.editor.selectedIds(), this.px()),
   );
   protected readonly furniture = computed(() =>
-    furnitureViews(this.planStore.plan().furniture, this.overlaps(), this.editor.selectedIds(), this.zoom()),
+    furnitureViews(this.planStore.plan().furniture, this.overlaps(), this.editor.selectedIds(), this.zoom(), (f) =>
+      itemElevation(f, this.planStore.rooms()),
+    ),
   );
   protected readonly dimensions = computed(() => dimensionViews(this.planStore.segments(), this.planStore.rooms(), this.units(), this.zoom()));
   protected readonly overlay = computed(() =>

@@ -142,6 +142,11 @@
   filter: brightness(1.06);
 }
 
+/* Hangs from the ceiling: seen through, so what stands below stays visible. */
+.furniture.ceiling {
+  opacity: 0.55;
+}
+
 .overlap-outline {
   fill: none;
   stroke: var(--danger);
