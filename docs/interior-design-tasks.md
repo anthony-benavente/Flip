@@ -102,7 +102,7 @@ Tracker for the interior design feature (colors, art, verticality) on branch `fe
   - Done when: the e2e scheme test (saved room meta has all its fields) passes, along with `npm run build` and `npm run e2e`.
 
 ### Milestone 3: Art images
-- [ ] **T17: Shared IndexedDB helper.**
+- [x] **T17: Shared IndexedDB helper.**
   - Extract `open`/`run`/`request` from `indexed-db-model.repository.ts` into `persistence/idb.ts`. No behavior change.
   - Done when: existing tests pass.
 - [ ] **T18: Image storage.**
