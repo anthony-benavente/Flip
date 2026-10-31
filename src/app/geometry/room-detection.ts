@@ -12,6 +12,8 @@ export interface DetectedRoom {
   /** Area in square centimeters (measured on wall centerlines). */
   area: number;
   label: Point;
+  /** Height of the tallest wall around the room. */
+  ceilingHeight: number;
 }
 
 export interface Room extends DetectedRoom {
@@ -31,6 +33,7 @@ const MIN_ROOM_AREA = 900;
  */
 export function detectRooms(plan: Pick<Plan, 'nodes' | 'walls'>): DetectedRoom[] {
   const pos = new Map(plan.nodes.map((n) => [n.id, n]));
+  const wallHeight = new Map(plan.walls.map((w) => [w.id, w.height]));
   // Adjacency: node -> neighbors sorted by angle, plus the wall id for each edge.
   const adj = new Map<string, { to: string; wall: string; angle: number }[]>();
   const seenEdges = new Set<string>();
@@ -86,6 +89,7 @@ export function detectRooms(plan: Pick<Plan, 'nodes' | 'walls'>): DetectedRoom[]
         wallIds: uniqueWalls,
         area,
         label: labelPoint(polygon),
+        ceilingHeight: Math.max(...uniqueWalls.map((id) => wallHeight.get(id) ?? 0)),
       });
     }
   }

@@ -30,7 +30,7 @@ Tracker for the interior design feature (colors, art, verticality) on branch `fe
   - Add `build(..., opts?: { map?: Texture })` now. The `art` picture plane uses `map` if given, otherwise a tint of the color.
   - Lights use `emissive`.
   - Done when: `furniture-meshes.spec` passes.
-- [ ] **T4: Elevation geometry.**
+- [x] **T4: Elevation geometry.**
   - New `geometry/elevation.ts`:
     - `ceilingHeightAt(rooms, p)`
     - `itemElevation(item, rooms)`: ceiling items hang at ceiling − height; others use `elevation ?? 0`
