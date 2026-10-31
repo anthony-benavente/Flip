@@ -163,7 +163,7 @@ Tracker for the interior design feature (colors, art, verticality) on branch `fe
   - Done when: `npm run build` and `npm run e2e` pass.
 
 ### Wrap-up
-- [ ] **T28: Docs and final checks.**
+- [x] **T28: Docs and final checks.**
   - `CLAUDE.md`:
     - conventions: mounts and elevation with `itemElevation` as the single source; ceiling height = wall heights; art images live in `IMAGE_REPOSITORY`, never in the plan; the elevation frame;
     - folder table and status;
