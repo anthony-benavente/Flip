@@ -48,5 +48,12 @@ describe('createFurniture', () => {
     const f = createFurniture('bed-queen', { x: 10, y: 20 }, 90);
     const c = catalogItem('bed-queen');
     expect(f).toMatchObject({ catalogId: 'bed-queen', x: 10, y: 20, rotation: 90, width: c.width, depth: c.depth, height: c.height, color: c.color });
+    expect(f.elevation).toBeUndefined();
+  });
+
+  it('hangs wall items centered at their default height', () => {
+    const f = createFurniture('art-medium', { x: 0, y: 0 });
+    const c = catalogItem('art-medium');
+    expect(f.elevation! + f.height / 2).toBeCloseTo(c.defaultElevation!, 5);
   });
 });

@@ -128,7 +128,46 @@ export function symbolParts(shape: FurnitureShape, w: number, d: number): Symbol
         { t: 'circle', cx: -m * 0.05, cy: m * 0.18, r: m * 0.16, tone: 0.25 },
       ];
     case 'lamp':
+    case 'table-lamp':
+    case 'pendant':
       return [{ t: 'circle', cx: 0, cy: 0, r: m * 0.15, tone: -0.4 }];
+    case 'vase':
+      return [{ t: 'circle', cx: 0, cy: 0, r: m * 0.25, tone: 0.3 }];
+    case 'books':
+      return [
+        { t: 'line', x1: x0, y1: y0 + d / 3, x2: -x0, y2: y0 + d / 3 },
+        { t: 'line', x1: x0, y1: y0 + (2 * d) / 3, x2: -x0, y2: y0 + (2 * d) / 3 },
+      ];
+    case 'art':
+    case 'canvas-art':
+    case 'mirror':
+    case 'round-mirror':
+    case 'tv-wall':
+      // Seen from above these are thin slabs; mark the face that shows.
+      return [{ t: 'line', x1: x0, y1: -y0, x2: -x0, y2: -y0 }];
+    case 'shelf':
+      return [{ t: 'line', x1: x0, y1: y0 + d * 0.15, x2: -x0, y2: y0 + d * 0.15 }];
+    case 'sconce':
+      return [{ t: 'circle', cx: 0, cy: d * 0.1, r: Math.min(w, d) * 0.3, tone: 0.3 }];
+    case 'chandelier': {
+      const r = m * 0.08;
+      const ring = m / 2 - r;
+      const parts: SymbolPart[] = [{ t: 'circle', cx: 0, cy: 0, r: m * 0.12, tone: -0.2 }];
+      for (let i = 0; i < 6; i++) {
+        const a = (i * Math.PI) / 3;
+        parts.push({ t: 'circle', cx: Math.cos(a) * ring, cy: Math.sin(a) * ring, r, tone: 0.35 });
+      }
+      return parts;
+    }
+    case 'ceiling-fan': {
+      const parts: SymbolPart[] = [];
+      for (let i = 0; i < 5; i++) {
+        const a = (i * 2 * Math.PI) / 5 - Math.PI / 2;
+        parts.push({ t: 'line', x1: 0, y1: 0, x2: (Math.cos(a) * m) / 2, y2: (Math.sin(a) * m) / 2 });
+      }
+      parts.push({ t: 'circle', cx: 0, cy: 0, r: m * 0.1, tone: -0.3 });
+      return parts;
+    }
     case 'stool':
     case 'round-table':
     case 'ottoman':
@@ -139,8 +178,20 @@ export function symbolParts(shape: FurnitureShape, w: number, d: number): Symbol
   }
 }
 
+const ROUND_SHAPES = new Set<FurnitureShape>([
+  'round-table',
+  'stool',
+  'plant',
+  'lamp',
+  'table-lamp',
+  'vase',
+  'pendant',
+  'chandelier',
+  'ceiling-fan',
+]);
+
 /** Shapes drawn with an elliptical base outline instead of a rectangle. */
 export function isRoundShape(shape: FurnitureShape): boolean {
-  return shape === 'round-table' || shape === 'stool' || shape === 'plant' || shape === 'lamp';
+  return ROUND_SHAPES.has(shape);
 }
 

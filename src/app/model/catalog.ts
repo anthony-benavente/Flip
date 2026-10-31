@@ -28,9 +28,25 @@ export type FurnitureShape =
   | 'rug'
   | 'plant'
   | 'lamp'
+  | 'table-lamp'
+  | 'vase'
+  | 'books'
+  | 'art'
+  | 'canvas-art'
+  | 'mirror'
+  | 'round-mirror'
+  | 'shelf'
+  | 'tv-wall'
+  | 'sconce'
+  | 'pendant'
+  | 'chandelier'
+  | 'ceiling-fan'
   | 'box';
 
-export type FurnitureCategory = 'Seating' | 'Tables' | 'Bedroom' | 'Storage' | 'Kitchen & Bath' | 'Decor';
+export type FurnitureCategory = 'Seating' | 'Tables' | 'Bedroom' | 'Storage' | 'Kitchen & Bath' | 'Decor' | 'Wall decor' | 'Lighting';
+
+/** Where an item attaches: standing on the floor, hung on a wall face, or hanging from the ceiling. */
+export type MountKind = 'floor' | 'wall' | 'ceiling';
 
 export interface CatalogItem {
   id: string;
@@ -45,9 +61,21 @@ export interface CatalogItem {
   floorLayer?: boolean;
   /** Not pushed against walls when dropped near one. */
   noWallSnap?: boolean;
+  /** Defaults to 'floor'. Ceiling items hang so their top touches the ceiling. */
+  mount?: MountKind;
+  /** Wall items: height of the item's center above the floor when placed. */
+  defaultElevation?: number;
+  /** Small items that rest on top of the furniture they are dropped onto. */
+  stackable?: boolean;
+}
+
+export function mountOf(c: CatalogItem): MountKind {
+  return c.mount ?? 'floor';
 }
 
 const IN = 2.54;
+/** Gallery hanging height: art is centered 57" above the floor. */
+export const EYE_LEVEL = 57 * IN;
 
 export const CATALOG: CatalogItem[] = [
   { id: 'sofa-3', name: 'Sofa', category: 'Seating', shape: 'sofa', width: 84 * IN, depth: 36 * IN, height: 34 * IN, color: '#7a8ca3' },
@@ -76,7 +104,7 @@ export const CATALOG: CatalogItem[] = [
   { id: 'wardrobe', name: 'Wardrobe', category: 'Storage', shape: 'wardrobe', width: 48 * IN, depth: 24 * IN, height: 78 * IN, color: '#a88a68' },
   { id: 'bookshelf', name: 'Bookshelf', category: 'Storage', shape: 'bookshelf', width: 36 * IN, depth: 12 * IN, height: 72 * IN, color: '#a88a68' },
   { id: 'tv-stand', name: 'TV stand', category: 'Storage', shape: 'tv-stand', width: 60 * IN, depth: 16 * IN, height: 22 * IN, color: '#4a4440' },
-  { id: 'tv', name: 'TV (65")', category: 'Storage', shape: 'tv', width: 57 * IN, depth: 10 * IN, height: 35 * IN, color: '#1e1f22' },
+  { id: 'tv', name: 'TV (65")', category: 'Storage', shape: 'tv', width: 57 * IN, depth: 10 * IN, height: 35 * IN, color: '#1e1f22', stackable: true },
 
   { id: 'counter', name: 'Counter', category: 'Kitchen & Bath', shape: 'counter', width: 72 * IN, depth: 25 * IN, height: 36 * IN, color: '#d8d4cc' },
   { id: 'island', name: 'Kitchen island', category: 'Kitchen & Bath', shape: 'counter', width: 72 * IN, depth: 36 * IN, height: 36 * IN, color: '#d8d4cc', noWallSnap: true },
@@ -89,12 +117,29 @@ export const CATALOG: CatalogItem[] = [
 
   { id: 'rug-large', name: 'Rug 8×10', category: 'Decor', shape: 'rug', width: 120 * IN, depth: 96 * IN, height: 1, color: '#b5a48d', floorLayer: true, noWallSnap: true },
   { id: 'rug-small', name: 'Rug 5×8', category: 'Decor', shape: 'rug', width: 96 * IN, depth: 60 * IN, height: 1, color: '#9d7f6e', floorLayer: true, noWallSnap: true },
-  { id: 'plant', name: 'Plant', category: 'Decor', shape: 'plant', width: 20 * IN, depth: 20 * IN, height: 48 * IN, color: '#5f8a4f', noWallSnap: true },
-  { id: 'floor-lamp', name: 'Floor lamp', category: 'Decor', shape: 'lamp', width: 14 * IN, depth: 14 * IN, height: 64 * IN, color: '#d9c9a3', noWallSnap: true },
+  { id: 'plant', name: 'Plant', category: 'Decor', shape: 'plant', width: 20 * IN, depth: 20 * IN, height: 48 * IN, color: '#5f8a4f', noWallSnap: true, stackable: true },
+  { id: 'vase', name: 'Vase', category: 'Decor', shape: 'vase', width: 7 * IN, depth: 7 * IN, height: 12 * IN, color: '#2f7f80', noWallSnap: true, stackable: true },
+  { id: 'books', name: 'Book stack', category: 'Decor', shape: 'books', width: 10 * IN, depth: 7 * IN, height: 6 * IN, color: '#a83f3f', noWallSnap: true, stackable: true },
+
+  { id: 'art-small', name: 'Framed print 16×20', category: 'Wall decor', shape: 'art', width: 16 * IN, depth: 1.5 * IN, height: 20 * IN, color: '#2b2b2b', mount: 'wall', defaultElevation: EYE_LEVEL },
+  { id: 'art-medium', name: 'Framed print 24×30', category: 'Wall decor', shape: 'art', width: 24 * IN, depth: 1.5 * IN, height: 30 * IN, color: '#a07a52', mount: 'wall', defaultElevation: EYE_LEVEL },
+  { id: 'art-large', name: 'Framed print 30×40', category: 'Wall decor', shape: 'art', width: 30 * IN, depth: 1.5 * IN, height: 40 * IN, color: '#f4f4f2', mount: 'wall', defaultElevation: EYE_LEVEL },
+  { id: 'canvas-large', name: 'Canvas 36×48', category: 'Wall decor', shape: 'canvas-art', width: 36 * IN, depth: 1.5 * IN, height: 48 * IN, color: '#c98b6b', mount: 'wall', defaultElevation: EYE_LEVEL },
+  { id: 'mirror', name: 'Mirror', category: 'Wall decor', shape: 'mirror', width: 24 * IN, depth: 1.5 * IN, height: 36 * IN, color: '#3d3f44', mount: 'wall', defaultElevation: EYE_LEVEL },
+  { id: 'round-mirror', name: 'Round mirror', category: 'Wall decor', shape: 'round-mirror', width: 30 * IN, depth: 1.5 * IN, height: 30 * IN, color: '#b8955a', mount: 'wall', defaultElevation: EYE_LEVEL },
+  { id: 'shelf', name: 'Floating shelf', category: 'Wall decor', shape: 'shelf', width: 36 * IN, depth: 8 * IN, height: 2 * IN, color: '#8b6b4a', mount: 'wall', defaultElevation: 48 * IN },
+  { id: 'tv-wall', name: 'Wall TV (65")', category: 'Wall decor', shape: 'tv-wall', width: 57 * IN, depth: 2 * IN, height: 33 * IN, color: '#1e1f22', mount: 'wall', defaultElevation: 42 * IN },
+
+  { id: 'floor-lamp', name: 'Floor lamp', category: 'Lighting', shape: 'lamp', width: 14 * IN, depth: 14 * IN, height: 64 * IN, color: '#d9c9a3', noWallSnap: true },
+  { id: 'table-lamp', name: 'Table lamp', category: 'Lighting', shape: 'table-lamp', width: 14 * IN, depth: 14 * IN, height: 24 * IN, color: '#d9c9a3', noWallSnap: true, stackable: true },
+  { id: 'sconce', name: 'Wall sconce', category: 'Lighting', shape: 'sconce', width: 6 * IN, depth: 7 * IN, height: 10 * IN, color: '#d9c9a3', mount: 'wall', defaultElevation: 66 * IN },
+  { id: 'pendant', name: 'Pendant light', category: 'Lighting', shape: 'pendant', width: 14 * IN, depth: 14 * IN, height: 30 * IN, color: '#3c3f44', mount: 'ceiling', noWallSnap: true },
+  { id: 'chandelier', name: 'Chandelier', category: 'Lighting', shape: 'chandelier', width: 28 * IN, depth: 28 * IN, height: 30 * IN, color: '#b8955a', mount: 'ceiling', noWallSnap: true },
+  { id: 'ceiling-fan', name: 'Ceiling fan', category: 'Lighting', shape: 'ceiling-fan', width: 52 * IN, depth: 52 * IN, height: 14 * IN, color: '#8b6b4a', mount: 'ceiling', noWallSnap: true },
   { id: 'box', name: 'Generic box', category: 'Decor', shape: 'box', width: 24 * IN, depth: 24 * IN, height: 24 * IN, color: '#a0a0a0' },
 ];
 
-export const CATALOG_CATEGORIES: FurnitureCategory[] = ['Seating', 'Tables', 'Bedroom', 'Storage', 'Kitchen & Bath', 'Decor'];
+export const CATALOG_CATEGORIES: FurnitureCategory[] = ['Seating', 'Tables', 'Bedroom', 'Storage', 'Kitchen & Bath', 'Decor', 'Wall decor', 'Lighting'];
 
 const byId = new Map(CATALOG.map((c) => [c.id, c]));
 

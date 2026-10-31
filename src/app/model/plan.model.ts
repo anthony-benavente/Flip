@@ -62,6 +62,13 @@ export interface FurnitureItem {
   label?: string;
   /** Uploaded 3D model (`CustomModel.id`) drawn instead of the catalog's built-in model. */
   modelId?: string;
+  /**
+   * Height of the item's bottom above the floor (items on walls or stacked on furniture).
+   * Ignored for ceiling items, which hang from the ceiling; use `itemElevation` to read it.
+   */
+  elevation?: number;
+  /** Uploaded picture (`ArtImage.id`) shown on art items. */
+  artImageId?: string;
 }
 
 export interface RoomMeta {

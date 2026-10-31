@@ -18,6 +18,14 @@ describe('furniture catalog', () => {
     for (const cat of CATALOG_CATEGORIES) expect(CATALOG.some((c) => c.category === cat), cat).toBe(true);
   });
 
+  it('gives wall items a hanging height and keeps ceiling items off the walls', () => {
+    for (const c of CATALOG) {
+      if (c.mount === 'wall') expect(c.defaultElevation, c.id).toBeGreaterThan(c.height / 2);
+      else expect(c.defaultElevation, c.id).toBeUndefined();
+      if (c.mount === 'ceiling') expect(c.noWallSnap, c.id).toBe(true);
+    }
+  });
+
   it('falls back to a generic item for unknown ids', () => {
     expect(catalogItem('sofa-3').name).toBe('Sofa');
     expect(catalogItem('does-not-exist').id).toBe('box');

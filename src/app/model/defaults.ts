@@ -1,6 +1,6 @@
 import { CM_PER_FOOT, CM_PER_INCH } from '../geometry/units';
 import { addWall } from '../geometry/wall-geometry';
-import { catalogItem } from './catalog';
+import { catalogItem, mountOf } from './catalog';
 import { CURRENT_SCHEMA_VERSION, DisplayUnits, FurnitureItem, newId, Plan, Point } from './plan.model';
 
 export const DEFAULT_WALL_THICKNESS = 4.5 * CM_PER_INCH;
@@ -26,7 +26,7 @@ export function createEmptyPlan(name = 'Untitled plan', units: DisplayUnits = 'i
 
 export function createFurniture(catalogId: string, at: Point, rotation = 0): FurnitureItem {
   const c = catalogItem(catalogId);
-  return {
+  const item: FurnitureItem = {
     id: newId('f'),
     catalogId: c.id,
     x: at.x,
@@ -37,6 +37,8 @@ export function createFurniture(catalogId: string, at: Point, rotation = 0): Fur
     height: c.height,
     color: c.color,
   };
+  if (mountOf(c) === 'wall') item.elevation = Math.max(0, (c.defaultElevation ?? 0) - c.height / 2);
+  return item;
 }
 
 /** A closed 12' x 14' room with a door and a window, as a starting point. */

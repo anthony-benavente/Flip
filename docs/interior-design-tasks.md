@@ -10,13 +10,13 @@ Tracker for the interior design feature (colors, art, verticality) on branch `fe
   - Commit.
 
 ### Milestone 1: Vertical foundation
-- [ ] **T1: Data and catalog flags.**
+- [x] **T1: Data and catalog flags.**
   - `plan.model.ts`: add `FurnitureItem.elevation?` (cm, floor to the item's bottom) and `artImageId?`.
   - `catalog.ts`: add `CatalogItem.mount?: 'floor'|'wall'|'ceiling'`, `defaultElevation?` (center height for wall items) and `stackable?`.
   - Add the categories `'Wall decor'` and `'Lighting'` to the union and to `CATALOG_CATEGORIES`.
   - `defaults.ts` `createFurniture`: wall items get `elevation = defaultElevation − height/2`.
   - Done when: `catalog.spec` and `defaults.spec` pass.
-- [ ] **T2: New shapes, catalog entries and 2D symbols.**
+- [x] **T2: New shapes, catalog entries and 2D symbols.**
   - Shapes: `art`, `canvas-art`, `mirror`, `shelf`, `tv-wall`, `sconce`, `pendant`, `chandelier`, `ceiling-fan`, `table-lamp`, `vase`, `books`.
   - Catalog entries:
     - framed print S/M/L at 145 cm center, large canvas, round and rectangular mirrors, floating shelf, wall TV, sconce at 165 cm (all `mount: 'wall'`);
