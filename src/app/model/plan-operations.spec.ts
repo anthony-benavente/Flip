@@ -7,6 +7,8 @@ import {
   normalizeRotation,
   remapFurnitureModels,
   resetFurnitureSize,
+  remapFurnitureArt,
+  setFurnitureArt,
   setFurnitureModel,
   setRoomCeilingHeight,
   setWallColor,
@@ -36,6 +38,19 @@ describe('plan operations', () => {
     [720, 0],
   ])('normalizes %s° to %s°', (input, expected) => {
     expect(normalizeRotation(input)).toBe(expected);
+  });
+
+  it('sets, fits and clears an art picture, and remaps its id', () => {
+    const { plan } = setup();
+    plan.furniture.push({ ...createFurniture('art-small', { x: 200, y: 10 }), id: 'art' });
+    const art = plan.furniture[1];
+    setFurnitureArt(plan, 'art', 'i_1', 0.5);
+    expect(art.artImageId).toBe('i_1');
+    expect(art.height).toBeCloseTo(art.width / 2, 1);
+    remapFurnitureArt(plan, new Map([['i_1', 'i_2']]));
+    expect(art.artImageId).toBe('i_2');
+    setFurnitureArt(plan, 'art', undefined);
+    expect('artImageId' in art).toBe(false);
   });
 
   it('keeps elevations between the floor and the ceiling', () => {

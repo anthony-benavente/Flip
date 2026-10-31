@@ -84,6 +84,26 @@ export function remapFurnitureModels(draft: Plan, ids: ReadonlyMap<string, strin
   }
 }
 
+/**
+ * Shows an uploaded picture on an art item, or clears it with `undefined`. With `aspect` (image
+ * height / width), the item's height changes so the frame keeps the picture's proportions.
+ */
+export function setFurnitureArt(draft: Plan, id: string, imageId: string | undefined, aspect?: number): void {
+  const f = draft.furniture.find((x) => x.id === id);
+  if (!f) return;
+  if (imageId) f.artImageId = imageId;
+  else delete f.artImageId;
+  if (aspect && Number.isFinite(aspect) && aspect > 0) f.height = Math.round(f.width * aspect * 10) / 10;
+}
+
+/** Points art at renamed image ids, for example after an import resolved an id clash. */
+export function remapFurnitureArt(draft: Plan, ids: ReadonlyMap<string, string>): void {
+  for (const f of draft.furniture) {
+    const next = f.artImageId && ids.get(f.artImageId);
+    if (next) f.artImageId = next;
+  }
+}
+
 /** Restores an item's catalog width, depth and height. */
 export function resetFurnitureSize(draft: Plan, id: string): void {
   const f = draft.furniture.find((x) => x.id === id);

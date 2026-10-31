@@ -10,10 +10,15 @@ import { boxGlb } from '../testing/glb';
 import { MemoryModelRepository } from './memory-model.repository';
 import { ModelLibrary } from './model-library';
 import { MODEL_REPOSITORY } from './model-repository';
+import { twoTonePng } from '../testing/png';
+import { ImageLibrary } from './image-library';
+import { IMAGE_REPOSITORY } from './image-repository';
+import { MemoryImageRepository } from './memory-image.repository';
 
 describe('PlanFileService', () => {
   let repo: LocalPlanRepository;
   let models: MemoryModelRepository;
+  let images: MemoryImageRepository;
   let service: PlanFileService;
 
   const file = (content: string, name = 'plan.flip.json') => new File([content], name, { type: 'application/json' });
@@ -21,10 +26,12 @@ describe('PlanFileService', () => {
   beforeEach(() => {
     repo = new LocalPlanRepository(new MemoryStorage());
     models = new MemoryModelRepository();
+    images = new MemoryImageRepository();
     TestBed.configureTestingModule({
       providers: [
         { provide: PLAN_REPOSITORY, useValue: repo },
         { provide: MODEL_REPOSITORY, useValue: models },
+        { provide: IMAGE_REPOSITORY, useValue: images },
       ],
     });
     service = TestBed.inject(PlanFileService);
@@ -143,6 +150,60 @@ describe('PlanFileService', () => {
           'A 3D model in this file is malformed.',
         );
         expect(await repo.list()).toEqual([]);
+      });
+    });
+
+    describe('with art images', () => {
+      const exported = async () => {
+        const blob = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock.calls.at(-1)![0] as Blob;
+        return JSON.parse(await blob.text());
+      };
+      const png = (w = 40, h = 30) => new File([twoTonePng(w, h)], 'print.png', { type: 'image/png' });
+
+      async function planWithArt() {
+        const library = TestBed.inject(ImageLibrary);
+        const image = await library.upload(png());
+        const plan = createStarterPlan('With art');
+        plan.furniture.push({ ...createFurniture('art-small', { x: 100, y: 10 }), artImageId: image.id });
+        return { plan, image, library };
+      }
+
+      it('embeds the pictures the plan uses and restores them on import', async () => {
+        const { plan, image, library } = await planWithArt();
+        await library.upload(png(8, 8));
+        await service.export(plan);
+        const doc = await exported();
+        expect(doc.images).toHaveLength(1);
+        expect(doc.images[0].meta).toEqual(image);
+        expect(doc.models).toBeUndefined();
+
+        await library.remove(image.id);
+        const imported = await service.import(file(JSON.stringify(doc)));
+        expect(imported.furniture.at(-1)!.artImageId).toBe(image.id);
+        expect('images' in (await repo.get(imported.id))!).toBe(false);
+        expect(library.image(image.id)).toEqual(image);
+        expect(new Uint8Array((await images.get(image.id))!.data)).toEqual(new Uint8Array(twoTonePng(40, 30)));
+      });
+
+      it('renames a picture whose id is taken by a different file', async () => {
+        const { plan, image, library } = await planWithArt();
+        await service.export(plan);
+        const doc = await exported();
+        await images.save({ meta: image, data: twoTonePng(2, 2) });
+        const imported = await service.import(file(JSON.stringify(doc)));
+        const newId = imported.furniture.at(-1)!.artImageId!;
+        expect(newId).not.toBe(image.id);
+        expect(newId).toMatch(/^i_/);
+        expect(library.image(newId)).toMatchObject({ name: image.name, width: 40 });
+      });
+
+      it('rejects a malformed picture before storing any model or plan', async () => {
+        const plan = createStarterPlan();
+        await expect(service.import(file(JSON.stringify({ ...plan, images: [{ meta: { id: 'x' }, data: '' }] })))).rejects.toThrow(
+          'A picture in this file is malformed.',
+        );
+        expect(await repo.list()).toEqual([]);
+        expect(await images.list()).toEqual([]);
       });
     });
   });

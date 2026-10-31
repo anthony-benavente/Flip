@@ -112,7 +112,7 @@ Tracker for the interior design feature (colors, art, verticality) on branch `fe
   - `image-library.ts`, mirroring `ModelLibrary` and adding `objectUrl(id)`, revoked on remove.
   - Add a PNG fixture in `testing/png.ts`.
   - Done when: `art-image.spec` and `image-library.spec` pass.
-- [ ] **T19: Export and import.**
+- [x] **T19: Export and import.**
   - An optional `images` key in `plan-file.service.ts`, handled like `models`: embed, restore and remap on clash.
   - `remapFurnitureArt` and `setFurnitureArt(draft, id, imageId?, fitAspect?)` in `plan-operations.ts`.
   - Done when: `plan-file.service.spec` and `plan-operations.spec` pass.
