@@ -62,6 +62,20 @@ describe('EditorActions', () => {
       expect(lastFurniture()).toMatchObject({ x: 200, y: 30 });
     });
 
+    it('sets small items on top of the furniture they are dropped on', () => {
+      actions.placeFurniture('table-lamp', { x: 200, y: 200 });
+      expect(lastFurniture().elevation).toBeCloseTo(catalogItem('box').height, 5);
+      actions.placeFurniture('table-lamp', { x: 300, y: 300 });
+      expect(lastFurniture().elevation).toBeUndefined();
+    });
+
+    it('hangs wall items at their default height', () => {
+      actions.placeFurniture('art-small', { x: 200, y: 20 });
+      const art = lastFurniture();
+      expect(art.y).toBeCloseTo(5 + art.depth / 2, 5);
+      expect(art.elevation! + art.height / 2).toBeCloseTo(catalogItem('art-small').defaultElevation!, 5);
+    });
+
     it('is a single undo step', () => {
       actions.placeFurniture('sofa-3', { x: 200, y: 200 });
       plan.undo();

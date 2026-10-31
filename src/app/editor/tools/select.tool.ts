@@ -1,3 +1,4 @@
+import { itemElevation, itemsRestingOn, restingElevation } from '../../geometry/elevation';
 import { measureToWalls, snapFurnitureToWall } from '../../geometry/furniture-geometry';
 import { snapPoint, SnapResult } from '../../geometry/snapping';
 import { add, angleDeg, dot, projectToSegment, rotate, scale, sub } from '../../geometry/vec';
@@ -18,9 +19,18 @@ type Mode =
   | { kind: 'node'; id: string; start: Point; origin: Point; lastSnap: SnapResult | null }
   | { kind: 'wall'; id: string; start: Point; a: Point; b: Point; normal: Point }
   | { kind: 'opening'; id: string; start: Point }
-  | { kind: 'furniture'; start: Point; origins: Map<string, { x: number; y: number; rotation: number }> }
+  | { kind: 'furniture'; start: Point; origins: Map<string, FurnitureOrigin> }
   | { kind: 'rotate'; id: string; center: Point }
   | { kind: 'resize'; id: string; handle: string; origin: FurnitureItem };
+
+interface FurnitureOrigin {
+  x: number;
+  y: number;
+  rotation: number;
+  elevation: number;
+  /** Set for unselected items carried along because they rest on `carriedBy`. */
+  carriedBy?: string;
+}
 
 /** Selects and directly manipulates corners, walls, openings, furniture and rooms. */
 export class SelectTool implements Tool {
@@ -81,12 +91,20 @@ export class SelectTool implements Tool {
         return;
       case 'furniture': {
         const ids = new Set(editor.selection().filter((s) => s.kind === 'furniture').map((s) => s.id));
-        const origins = new Map(
-          plan
-            .plan()
-            .furniture.filter((f) => ids.has(f.id))
-            .map((f) => [f.id, { x: f.x, y: f.y, rotation: f.rotation }]),
-        );
+        const furniture = plan.plan().furniture;
+        const rooms = plan.rooms();
+        const origin = (f: FurnitureItem, carriedBy?: string): FurnitureOrigin => ({
+          x: f.x,
+          y: f.y,
+          rotation: f.rotation,
+          elevation: itemElevation(f, rooms),
+          ...(carriedBy ? { carriedBy } : {}),
+        });
+        const origins = new Map(furniture.filter((f) => ids.has(f.id)).map((f) => [f.id, origin(f)]));
+        // Things standing on a moved item (a lamp on a dresser) travel with it.
+        for (const f of furniture.filter((x) => ids.has(x.id))) {
+          for (const above of itemsRestingOn(f, furniture, rooms)) if (!origins.has(above.id)) origins.set(above.id, origin(above, f.id));
+        }
         this.mode = { kind: 'furniture', start: e.world, origins };
         return;
       }
@@ -268,17 +286,23 @@ export class SelectTool implements Tool {
   private dragFurniture(mode: Extract<Mode, { kind: 'furniture' }>, e: ToolPointerEvent): void {
     const delta = sub(e.world, mode.start);
     const segs = this.ctx.plan.segments();
-    const single = mode.origins.size === 1;
+    const rooms = this.ctx.plan.rooms();
+    const single = [...mode.origins.values()].filter((o) => !o.carriedBy).length === 1;
     let measures: { from: Point; to: Point }[] = [];
     this.ctx.plan.update(
       (draft) => {
-        for (const f of draft.furniture) {
-          const origin = mode.origins.get(f.id);
-          if (!origin) continue;
+        const supports = draft.furniture.filter((f) => !mode.origins.has(f.id));
+        const lift = new Map<string, number>();
+        const moved = draft.furniture.filter((f) => mode.origins.has(f.id));
+        // Selected items first, so carried items can follow their base's change in height.
+        moved.sort((a, b) => Number(!!mode.origins.get(a.id)!.carriedBy) - Number(!!mode.origins.get(b.id)!.carriedBy));
+        for (const f of moved) {
+          const origin = mode.origins.get(f.id)!;
           let x = origin.x + delta.x;
           let y = origin.y + delta.y;
           f.rotation = origin.rotation;
-          if (single && !e.alt && !catalogItem(f.catalogId).noWallSnap) {
+          const c = catalogItem(f.catalogId);
+          if (single && !origin.carriedBy && !e.alt && !c.noWallSnap) {
             const snapped = snapFurnitureToWall({ x, y }, f, segs, this.ctx.tolerance());
             if (snapped) {
               x = snapped.x;
@@ -288,7 +312,16 @@ export class SelectTool implements Tool {
           }
           f.x = Math.round(x * 10) / 10;
           f.y = Math.round(y * 10) / 10;
-          if (single) measures = measureToWalls(f, segs);
+          if (origin.carriedBy) {
+            const rise = lift.get(origin.carriedBy) ?? 0;
+            lift.set(f.id, rise);
+            setElevation(f, origin.elevation + rise);
+          } else if (c.stackable) {
+            const elevation = restingElevation(f, supports, rooms);
+            lift.set(f.id, elevation - origin.elevation);
+            setElevation(f, elevation);
+          }
+          if (single && !origin.carriedBy) measures = measureToWalls(f, segs);
         }
       },
       { coalesceKey: DRAG_KEY },
@@ -370,4 +403,9 @@ export class SelectTool implements Tool {
       editor.select(items);
     }
   }
+}
+
+function setElevation(f: FurnitureItem, elevation: number): void {
+  if (elevation > 0) f.elevation = elevation;
+  else delete f.elevation;
 }

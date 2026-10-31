@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { viewCenter } from '../geometry/viewport';
+import { restingElevation } from '../geometry/elevation';
 import { snapFurnitureToWall } from '../geometry/furniture-geometry';
 import { gridSize } from '../geometry/units';
 import { removeNodes, removeWalls } from '../geometry/wall-geometry';
@@ -24,6 +25,10 @@ export class EditorActions {
       const tolerance = Math.max(45, 24 / this.editor.viewport().zoom);
       const snapped = snapFurnitureToWall(at, item, this.plan.segments(), tolerance, true);
       if (snapped) Object.assign(item, snapped);
+    }
+    if (catalogItem(catalogId).stackable) {
+      const elevation = restingElevation(item, this.plan.plan().furniture, this.plan.rooms());
+      if (elevation > 0) item.elevation = elevation;
     }
     this.plan.update((draft) => {
       draft.furniture.push(item);

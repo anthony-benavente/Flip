@@ -49,7 +49,7 @@ Tracker for the interior design feature (colors, art, verticality) on branch `fe
   - `updateFurniture` clamps `elevation` to `[0, ceiling − height]`, taking a ceiling-height argument.
   - New `setRoomCeilingHeight(draft, room, h)` sets the height of every wall in the room through `updateWall`.
   - Done when: `plan-operations.spec` passes.
-- [ ] **T7: Placement, stacking and carrying.**
+- [x] **T7: Placement, stacking and carrying.**
   - `EditorActions.placeFurniture`: stackable items get `restingElevation`; wall items keep the back-to-wall snap.
   - `select.tool.ts` `dragFurniture`: stackable items re-rest on each move, and dragging a base also moves `itemsRestingOn` it.
   - Done when: specs for the select tool and editor-actions pass.

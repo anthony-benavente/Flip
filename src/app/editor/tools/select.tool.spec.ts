@@ -73,6 +73,28 @@ describe('SelectTool', () => {
     });
   });
 
+  describe('stacking', () => {
+    it('lifts small items onto furniture they are dragged over and sets them down off it', () => {
+      plan.update((d) => d.furniture.push({ ...createFurniture('table-lamp', { x: 100, y: 300 }), id: 'lamp' }));
+      plan.commit();
+      editor.clearSelection();
+      drag({ kind: 'furniture', id: 'lamp' }, { x: 100, y: 300 }, { x: 150, y: 250 }, { x: 200, y: 200 });
+      expect(item('lamp').elevation).toBeCloseTo(item('f1').height, 5);
+      drag({ kind: 'furniture', id: 'lamp' }, { x: 200, y: 200 }, { x: 150, y: 150 }, { x: 120, y: 150 });
+      expect(item('lamp').elevation).toBeUndefined();
+    });
+
+    it('carries what rests on a dragged item', () => {
+      const top = item('f1').height;
+      plan.update((d) => d.furniture.push({ ...createFurniture('vase', { x: 210, y: 200 }), id: 'vase', elevation: top }));
+      plan.commit();
+      editor.clearSelection();
+      drag({ kind: 'furniture', id: 'f1' }, { x: 200, y: 200 }, { x: 230, y: 220 }, { x: 250, y: 210 });
+      expect(item('vase')).toMatchObject({ x: 260, y: 210, elevation: top });
+      expect(item('f2')).toMatchObject({ x: 300, y: 300 });
+    });
+  });
+
   describe('moving furniture', () => {
     it('moves with the pointer as a single undo step', () => {
       drag({ kind: 'furniture', id: 'f1' }, { x: 200, y: 200 }, { x: 210, y: 200 }, { x: 230, y: 220 }, { x: 250, y: 210 });
