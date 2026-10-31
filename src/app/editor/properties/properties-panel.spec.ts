@@ -168,6 +168,54 @@ describe('PropertiesPanel', () => {
     expect(plan.plan().furniture[0].color).toBe('#a83f3f');
   });
 
+  describe('room finishes', () => {
+    const scheme = (name: string) =>
+      Array.from(el.querySelectorAll<HTMLButtonElement>('.scheme')).find((b) => b.textContent?.trim() === name)!;
+
+    beforeEach(async () => {
+      editor.select([{ kind: 'room', id: plan.rooms()[0].key }]);
+      await render();
+    });
+
+    it('applies a color scheme as one undo step and marks it active', async () => {
+      scheme('Industrial').click();
+      await render();
+      expect(plan.rooms()[0]).toMatchObject({ floorMaterial: 'concrete', floorColor: '#9e9b96', ceilingColor: '#55575b', trimColor: '#3d3f44' });
+      expect(scheme('Industrial').classList).toContain('active');
+      plan.undo();
+      await render();
+      expect(plan.plan().rooms).toEqual([]);
+      expect(el.querySelector('.scheme.active')).toBeNull();
+    });
+
+    it('sets floor material, ceiling and trim colors and crown molding', async () => {
+      const buttons = Array.from(el.querySelectorAll<HTMLButtonElement>('.materials button'));
+      buttons.find((b) => b.textContent?.trim() === 'Tile')!.click();
+      await render();
+      el.querySelector<HTMLButtonElement>('.swatch[title="Pale blue"]')!.click();
+      await render();
+      el.querySelector<HTMLButtonElement>('.swatch[title="Navy"]')!.click();
+      await render();
+      el.querySelector<HTMLInputElement>('.check input')!.click();
+      await render();
+      expect(plan.plan().rooms).toHaveLength(1);
+      expect(plan.rooms()[0]).toMatchObject({ floorMaterial: 'tile', ceilingColor: '#dbe6ec', trimColor: '#2f4a6d', crownMolding: true });
+    });
+
+    it('sets the ceiling height of every wall in the room', async () => {
+      await enterLength(0, '9\'');
+      expect(plan.plan().walls.every((w) => Math.abs(w.height - 9 * CM_PER_FOOT) < 1e-6)).toBe(true);
+    });
+
+    it('suggests the scheme accent first when painting one of its walls', async () => {
+      scheme('Coastal').click();
+      editor.select([{ kind: 'wall', id: walls[0] }]);
+      await render();
+      const first = el.querySelector('.wall-side[data-side="front"] .swatch')!;
+      expect(first.getAttribute('title')).toBe('Coastal accent');
+    });
+  });
+
   it('creates room metadata when a room is first customized', async () => {
     expect(plan.plan().rooms).toEqual([]);
     editor.select([{ kind: 'room', id: plan.rooms()[0].key }]);

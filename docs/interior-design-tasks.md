@@ -75,7 +75,7 @@ Tracker for the interior design feature (colors, art, verticality) on branch `fe
   - Widen the `upsertRoomMeta` patch (`plan-operations.ts:84`).
   - `palettes.ts`: `DEFAULT_CEILING_COLOR`, `DEFAULT_TRIM_COLOR`, `CEILING_SWATCHES`, `TRIM_SWATCHES` and `ROOM_SCHEMES` (about 8, each with floor color and material, wall, ceiling, trim and accent).
   - Done when: `palettes.spec` (valid hex, unique names) and `room-detection.spec` pass.
-- [ ] **T13: Room properties UI.**
+- [x] **T13: Room properties UI.**
   - Scheme chips: one `upsertRoomMeta`, so one undo step.
   - Floor material as a segmented control.
   - Ceiling height through `setRoomCeilingHeight`, with a tip that shared walls change the neighboring room too.

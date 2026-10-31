@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import { roomsBesideWall, wallFaceColor } from '../../geometry/room-detection';
+import { Room, roomsBesideWall, wallFaceColor } from '../../geometry/room-detection';
 import { setWallLength, WallSegment } from '../../geometry/wall-geometry';
-import { ACCENT_SWATCHES, EXTERIOR_WALL_COLOR } from '../../model/palettes';
+import { ACCENT_SWATCHES, EXTERIOR_WALL_COLOR, matchingScheme, Swatch } from '../../model/palettes';
 import { setWallColor, updateWall } from '../../model/plan-operations';
 import { WallSide } from '../../model/plan.model';
 import { ColorPick, ColorSwatches } from '../../shared/color-swatches';
@@ -48,7 +48,7 @@ import { PlanStore } from '../../state/plan.store';
           }
         </div>
         <app-color-swatches
-          [swatches]="accentSwatches"
+          [swatches]="s.swatches"
           [selected]="s.accent"
           [pickerValue]="s.color"
           [ariaSuffix]="' accent for ' + s.label"
@@ -72,7 +72,6 @@ export class WallProperties {
   private readonly plan = inject(PlanStore);
   protected readonly actions = inject(EditorActions);
   protected readonly units = this.plan.units;
-  protected readonly accentSwatches = ACCENT_SWATCHES;
 
   protected readonly openingCount = computed(() => this.plan.plan().openings.filter((o) => o.wallId === this.segment().wall.id).length);
 
@@ -87,6 +86,7 @@ export class WallProperties {
         label: room ? `Facing ${room.name}` : 'Outside',
         hasRoom: !!room,
         accent: seg.wall.colors?.[side] ?? null,
+        swatches: accentSwatchesFor(room),
         color: wallFaceColor(seg, side, room) ?? EXTERIOR_WALL_COLOR,
       };
     });
@@ -119,4 +119,12 @@ export class WallProperties {
   protected clearPaint(side: WallSide): void {
     this.plan.update((d) => setWallColor(d, this.id, side, null));
   }
+}
+
+/** Accent paints, led by the suggestion of the room's color scheme when it has one. */
+function accentSwatchesFor(room: Room | null): Swatch[] {
+  const scheme = room && matchingScheme(room);
+  if (!scheme) return ACCENT_SWATCHES;
+  const same = (s: Swatch) => s.color.toLowerCase() === scheme.accent.toLowerCase();
+  return [{ name: `${scheme.name} accent`, color: scheme.accent }, ...ACCENT_SWATCHES.filter((s) => !same(s))];
 }
