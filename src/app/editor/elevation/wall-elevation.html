@@ -1,0 +1,264 @@
+@let v = view();
+@if (v) {
+  <div class="elevation-header">
+    <h2>{{ v.title }} <span class="muted">elevation</span></h2>
+    <span class="spacer"></span>
+    <button class="btn ghost" title="Show the other side of this wall" (click)="flipSide()">
+      Flip side
+    </button>
+    <button class="btn ghost" title="Fit to view" (click)="fit()">Fit</button>
+    <button
+      class="btn ghost"
+      title="Close elevation (E)"
+      aria-label="Close elevation"
+      (click)="editor.closeElevation()"
+    >
+      Close
+    </button>
+  </div>
+}
+<svg
+  #svg
+  class="elevation-canvas"
+  role="img"
+  [attr.aria-label]="(v?.title ?? 'Wall') + ' elevation'"
+  (pointerdown)="onPointerDown($event)"
+  (pointermove)="onPointerMove($event)"
+  (pointerup)="onPointerUp($event)"
+  (pointercancel)="onPointerUp($event)"
+  (wheel)="onWheel($event)"
+  (dragover)="onDragOver($event)"
+  (drop)="onDrop($event)"
+  (contextmenu)="$event.preventDefault()"
+>
+  @if (v) {
+    <g [attr.transform]="transform()">
+      @if (v.ceilingColor) {
+        <rect
+          class="ceiling"
+          x="0"
+          [attr.y]="-v.height - ceilingBand"
+          [attr.width]="v.width"
+          [attr.height]="ceilingBand"
+          [attr.fill]="v.ceilingColor"
+        />
+      }
+      <rect
+        class="wall"
+        x="0"
+        [attr.y]="-v.height"
+        [attr.width]="v.width"
+        [attr.height]="v.height"
+        [attr.fill]="v.wallColor"
+      />
+      @for (t of v.trim; track $index) {
+        <rect
+          class="trim"
+          [attr.x]="t.x"
+          [attr.y]="t.y"
+          [attr.width]="t.w"
+          [attr.height]="t.h"
+          [attr.fill]="v.trimColor"
+        />
+      }
+      @for (o of v.openings; track $index) {
+        <rect
+          class="opening"
+          [class.door]="o.kind === 'door'"
+          [class.window]="o.kind === 'window'"
+          [attr.x]="o.x"
+          [attr.y]="o.y"
+          [attr.width]="o.w"
+          [attr.height]="o.h"
+        />
+      }
+      <line class="floor" x1="-40" y1="0" [attr.x2]="v.width + 40" y2="0" />
+
+      @for (b of v.artBands; track $index) {
+        <rect
+          class="art-band"
+          [attr.x]="b.x"
+          [attr.y]="b.y"
+          [attr.width]="b.w"
+          [attr.height]="b.h"
+        />
+      }
+      @for (s of v.silhouettes; track s.id) {
+        <g class="silhouette" data-kind="furniture" [attr.data-id]="s.id">
+          <rect [attr.x]="s.x" [attr.y]="s.y" [attr.width]="s.w" [attr.height]="s.h" />
+          @if (s.w / px() > s.label.length * 6.5) {
+            <text [attr.x]="s.x + s.w / 2" [attr.y]="s.y + s.h / 2" [attr.font-size]="11 * px()">
+              {{ s.label }}
+            </text>
+          }
+        </g>
+      }
+
+      @for (g of v.guides; track $index) {
+        <g [attr.class]="'guide guide-' + g.kind">
+          <line
+            [attr.x1]="-30 * px()"
+            [attr.y1]="g.y"
+            [attr.x2]="v.width + 30 * px()"
+            [attr.y2]="g.y"
+          />
+          @if (g.kind !== 'floor') {
+            <text [attr.x]="v.width + 36 * px()" [attr.y]="g.y" [attr.font-size]="11 * px()">
+              {{ g.label }}
+            </text>
+          }
+        </g>
+      }
+
+      @for (i of v.items; track i.id) {
+        <g class="item" [class.selected]="i.selected" data-kind="furniture" [attr.data-id]="i.id">
+          @switch (i.shape) {
+            @case ('art') {
+              <rect
+                [attr.x]="i.x"
+                [attr.y]="i.y"
+                [attr.width]="i.w"
+                [attr.height]="i.h"
+                [attr.fill]="i.color"
+              />
+              <rect
+                class="mat"
+                [attr.x]="i.x + frame(i)"
+                [attr.y]="i.y + frame(i)"
+                [attr.width]="i.w - 2 * frame(i)"
+                [attr.height]="i.h - 2 * frame(i)"
+              />
+              @if (i.image) {
+                <image
+                  [attr.href]="i.image"
+                  preserveAspectRatio="xMidYMid slice"
+                  [attr.x]="i.x + inset(i)"
+                  [attr.y]="i.y + inset(i)"
+                  [attr.width]="i.w - 2 * inset(i)"
+                  [attr.height]="i.h - 2 * inset(i)"
+                />
+              } @else {
+                <rect
+                  class="placeholder"
+                  [attr.x]="i.x + inset(i)"
+                  [attr.y]="i.y + inset(i)"
+                  [attr.width]="i.w - 2 * inset(i)"
+                  [attr.height]="i.h - 2 * inset(i)"
+                />
+              }
+            }
+            @case ('canvas-art') {
+              @if (i.image) {
+                <image
+                  [attr.href]="i.image"
+                  preserveAspectRatio="xMidYMid slice"
+                  [attr.x]="i.x"
+                  [attr.y]="i.y"
+                  [attr.width]="i.w"
+                  [attr.height]="i.h"
+                />
+              } @else {
+                <rect
+                  [attr.x]="i.x"
+                  [attr.y]="i.y"
+                  [attr.width]="i.w"
+                  [attr.height]="i.h"
+                  [attr.fill]="i.color"
+                />
+              }
+            }
+            @case ('mirror') {
+              <rect
+                [attr.x]="i.x"
+                [attr.y]="i.y"
+                [attr.width]="i.w"
+                [attr.height]="i.h"
+                [attr.fill]="i.color"
+              />
+              <rect
+                class="glass"
+                [attr.x]="i.x + frame(i)"
+                [attr.y]="i.y + frame(i)"
+                [attr.width]="i.w - 2 * frame(i)"
+                [attr.height]="i.h - 2 * frame(i)"
+              />
+            }
+            @case ('round-mirror') {
+              <ellipse
+                [attr.cx]="i.x + i.w / 2"
+                [attr.cy]="i.y + i.h / 2"
+                [attr.rx]="i.w / 2"
+                [attr.ry]="i.h / 2"
+                [attr.fill]="i.color"
+              />
+              <ellipse
+                class="glass"
+                [attr.cx]="i.x + i.w / 2"
+                [attr.cy]="i.y + i.h / 2"
+                [attr.rx]="i.w * 0.44"
+                [attr.ry]="i.h * 0.44"
+              />
+            }
+            @case ('sconce') {
+              <rect
+                class="glow"
+                [attr.x]="i.x"
+                [attr.y]="i.y"
+                [attr.width]="i.w"
+                [attr.height]="i.h * 0.65"
+                rx="2"
+                [attr.fill]="i.color"
+              />
+              <rect
+                [attr.x]="i.x + i.w * 0.3"
+                [attr.y]="i.y + i.h * 0.3"
+                [attr.width]="i.w * 0.4"
+                [attr.height]="i.h * 0.7"
+                fill="#b8955a"
+              />
+            }
+            @default {
+              <rect
+                [attr.x]="i.x"
+                [attr.y]="i.y"
+                [attr.width]="i.w"
+                [attr.height]="i.h"
+                [attr.fill]="i.color"
+              />
+            }
+          }
+          <rect class="hit" [attr.x]="i.x" [attr.y]="i.y" [attr.width]="i.w" [attr.height]="i.h" />
+          @if (i.heightLabel) {
+            <text
+              class="height-label"
+              [attr.x]="i.x + i.w / 2"
+              [attr.y]="i.y - 8 * px()"
+              [attr.font-size]="11 * px()"
+            >
+              {{ i.heightLabel }}
+            </text>
+          }
+        </g>
+      }
+
+      @for (g of snapGuides(); track $index) {
+        @if (g.x !== undefined) {
+          <line class="snap" [attr.x1]="g.x" [attr.y1]="-v.height" [attr.x2]="g.x" y2="0" />
+        }
+        @if (g.height !== undefined) {
+          <line
+            class="snap"
+            x1="0"
+            [attr.y1]="-g.height"
+            [attr.x2]="v.width"
+            [attr.y2]="-g.height"
+          />
+        }
+      }
+    </g>
+  }
+</svg>
+<p class="elevation-hint">
+  Drag art, mirrors, shelves and lights to arrange them · Arrow keys nudge · Alt turns off snapping
+  · Drop items from the catalog onto the wall
+</p>

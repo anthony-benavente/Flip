@@ -59,11 +59,13 @@
       </div>
     }
 
-    <div class="workspace" [attr.data-mode]="editor.viewMode()">
+    <div class="workspace" [attr.data-mode]="editor.elevation() ? 'split' : editor.viewMode()">
       <app-toolbox class="toolbox" />
       <div class="stage">
-        <app-plan-canvas class="canvas" [hidden]="editor.viewMode() === '3d'" />
-        @if (editor.viewMode() !== '2d') {
+        <app-plan-canvas class="canvas" [hidden]="editor.viewMode() === '3d' && !editor.elevation()" />
+        @if (editor.elevation()) {
+          <app-wall-elevation class="preview" />
+        } @else if (editor.viewMode() !== '2d') {
           <app-preview3d class="preview" />
         }
       </div>

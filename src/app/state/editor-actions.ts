@@ -4,11 +4,11 @@ import { restingElevation } from '../geometry/elevation';
 import { roomsBesideWall } from '../geometry/room-detection';
 import { snapFurnitureToWall } from '../geometry/furniture-geometry';
 import { gridSize } from '../geometry/units';
-import { removeNodes, removeWalls } from '../geometry/wall-geometry';
+import { removeNodes, removeWalls, WallSegment } from '../geometry/wall-geometry';
 import { catalogItem } from '../model/catalog';
 import { createFurniture } from '../model/defaults';
-import { normalizeRotation } from '../model/plan-operations';
-import { newId, Point } from '../model/plan.model';
+import { moveOnWall, normalizeRotation } from '../model/plan-operations';
+import { newId, Point, WallSide } from '../model/plan.model';
 import { EditorStore, SelectionItem } from './editor.store';
 import { PlanStore } from './plan.store';
 
@@ -33,6 +33,18 @@ export class EditorActions {
     }
     this.plan.update((draft) => {
       draft.furniture.push(item);
+    });
+    this.editor.tool.set('select');
+    this.editor.select([{ kind: 'furniture', id: item.id }]);
+  }
+
+  /** Adds a catalog item hung on a wall face, centered `along` the wall with its bottom at `bottom`. One undo step. */
+  hangOnWall(catalogId: string, seg: WallSegment, side: WallSide, along: number, bottom: number, modelId?: string): void {
+    const item = createFurniture(catalogId, seg.a);
+    if (modelId) item.modelId = modelId;
+    this.plan.update((draft) => {
+      draft.furniture.push(item);
+      moveOnWall(draft, item.id, seg, side, along, bottom);
     });
     this.editor.tool.set('select');
     this.editor.select([{ kind: 'furniture', id: item.id }]);

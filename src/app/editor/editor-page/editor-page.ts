@@ -5,6 +5,7 @@ import { DisplayUnits } from '../../model/plan.model';
 import { PlanFileService } from '../../persistence/plan-file.service';
 import { PLAN_REPOSITORY } from '../../persistence/plan-repository';
 import { Preview3d } from '../../preview3d/preview3d';
+import { WallElevation } from '../elevation/wall-elevation';
 import { Icon } from '../../shared/icon';
 import { EditorActions } from '../../state/editor-actions';
 import { EditorStore, ViewMode } from '../../state/editor.store';
@@ -18,7 +19,7 @@ import { Toolbox } from '../toolbox/toolbox';
 
 @Component({
   selector: 'app-editor-page',
-  imports: [PlanCanvas, Toolbox, PropertiesPanel, Preview3d, Icon, RouterLink],
+  imports: [PlanCanvas, Toolbox, PropertiesPanel, Preview3d, WallElevation, Icon, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './editor-page.html',
   styleUrl: './editor-page.css',
@@ -39,6 +40,7 @@ export class EditorPage {
   private readonly files = inject(PlanFileService);
   private readonly router = inject(Router);
   private readonly canvas = viewChild(PlanCanvas);
+  private readonly elevationView = viewChild(WallElevation);
   private readonly autosave = inject(Autosave);
 
   protected readonly state = signal<'loading' | 'ready' | 'missing' | 'error'>('loading');
@@ -146,7 +148,7 @@ export class EditorPage {
       return;
     }
     if (isTypingTarget(e.target)) return;
-    if (this.canvas()?.handleToolKey(e)) {
+    if (this.elevationView()?.handleKey(e) || this.canvas()?.handleToolKey(e)) {
       e.preventDefault();
       return;
     }

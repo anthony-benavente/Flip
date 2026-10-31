@@ -148,7 +148,7 @@ Tracker for the interior design feature (colors, art, verticality) on branch `fe
   - `geometry/elevation-snap.ts`: eye level, centered over the furniture below, edges and centers of other items, grid.
   - `moveOnWall(draft, id, seg, side, along, elevation)` in `plan-operations.ts`, which keeps the item flush and clamped.
   - Done when: the specs pass.
-- [ ] **T26: Elevation component.**
+- [x] **T26: Elevation component.**
   - `editor/elevation/wall-elevation.ts/.html/.css`:
     - its own viewport (pan and zoom via `viewport.ts`);
     - drag with `coalesceKey` + `commit()`, with Alt turning off snapping;

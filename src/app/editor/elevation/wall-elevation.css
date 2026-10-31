@@ -1,0 +1,161 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--canvas, #fbfaf7);
+}
+
+.elevation-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.elevation-header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.elevation-canvas {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  touch-action: none;
+  user-select: none;
+}
+
+.wall {
+  stroke: rgb(0 0 0 / 25%);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.ceiling {
+  opacity: 0.9;
+}
+
+.trim {
+  stroke: rgb(0 0 0 / 15%);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.opening.window {
+  fill: #cfe6f2;
+  stroke: #f4f3ef;
+  stroke-width: 4;
+}
+
+.opening.door {
+  fill: #b48b5e;
+  stroke: #8d6a44;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.floor {
+  stroke: var(--text-muted);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.art-band {
+  fill: var(--accent);
+  opacity: 0.12;
+  pointer-events: none;
+}
+
+.silhouette rect {
+  fill: rgb(60 60 70 / 18%);
+  stroke: rgb(60 60 70 / 45%);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.silhouette text,
+.guide text,
+.height-label {
+  fill: var(--text-muted);
+  dominant-baseline: middle;
+  pointer-events: none;
+}
+
+.silhouette text,
+.height-label {
+  text-anchor: middle;
+}
+
+.height-label {
+  fill: var(--accent);
+  font-weight: 600;
+}
+
+.guide line {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.6;
+}
+
+.guide-eye line {
+  stroke: var(--accent);
+  opacity: 0.8;
+}
+
+.item {
+  cursor: move;
+}
+
+.item .mat {
+  fill: #f6f4ef;
+}
+
+.item .placeholder {
+  fill: #d8d0c4;
+}
+
+.item .glass {
+  fill: #dfe6ea;
+}
+
+.item .hit {
+  fill: transparent;
+  stroke: none;
+}
+
+.item.selected .hit {
+  stroke: var(--accent);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.snap {
+  stroke: var(--accent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.elevation-hint {
+  margin: 0;
+  padding: 4px 10px;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 11px;
+}
