@@ -1,0 +1,249 @@
+<svg
+  #svg
+  class="canvas"
+  [style.cursor]="cursor()"
+  (pointerdown)="onPointerDown($event)"
+  (pointermove)="onPointerMove($event)"
+  (pointerup)="onPointerUp($event)"
+  (pointercancel)="onPointerUp($event)"
+  (pointerleave)="onPointerLeave()"
+  (dblclick)="onDoubleClick($event)"
+  (wheel)="onWheel($event)"
+  (dragover)="onDragOver($event)"
+  (drop)="onDrop($event)"
+  (contextmenu)="$event.preventDefault()"
+>
+  <g [attr.transform]="transform()">
+    <!-- Grid -->
+    <path class="grid-minor" [attr.d]="grid().minor" />
+    <path class="grid-major" [attr.d]="grid().major" />
+
+    <!-- Room floors -->
+    @for (r of rooms(); track r.key) {
+      <polygon
+        class="room"
+        [class.selected]="r.selected"
+        [attr.points]="r.points"
+        [attr.fill]="r.fill"
+        data-kind="room"
+        [attr.data-id]="r.key"
+      />
+    }
+
+    <!-- Rugs (floor layer) -->
+    @for (f of furniture(); track f.id) {
+      @if (f.floor) {
+        <g class="furniture" [class.selected]="f.selected" [attr.transform]="f.transform" data-kind="furniture" [attr.data-id]="f.id">
+          <rect [attr.x]="-f.w / 2" [attr.y]="-f.d / 2" [attr.width]="f.w" [attr.height]="f.d" [attr.fill]="f.fill" [attr.stroke]="f.stroke" class="base" />
+          @for (p of f.parts; track $index) {
+            @if (p.t === 'rect') {
+              <rect [attr.x]="p.x" [attr.y]="p.y" [attr.width]="p.w" [attr.height]="p.h" [attr.fill]="p.fill" [attr.stroke]="f.stroke" class="part" />
+            }
+          }
+        </g>
+      }
+    }
+
+    <!-- Walls: dark outline pass, then lighter fill pass, which merges corners visually -->
+    <g class="walls-outline">
+      @for (w of walls(); track w.id) {
+        <line [attr.x1]="w.x1" [attr.y1]="w.y1" [attr.x2]="w.x2" [attr.y2]="w.y2" [attr.stroke-width]="w.t" />
+      }
+    </g>
+    <g class="walls-fill">
+      @for (w of walls(); track w.id) {
+        <line
+          [class.selected]="w.selected"
+          [class.hovered]="w.hovered"
+          [attr.x1]="w.x1"
+          [attr.y1]="w.y1"
+          [attr.x2]="w.x2"
+          [attr.y2]="w.y2"
+          [attr.stroke-width]="w.t - 3 * px()"
+        />
+      }
+    </g>
+
+    <!-- Doors and windows -->
+    @for (o of openings(); track o.id) {
+      <g class="opening" [class.selected]="o.selected" [attr.transform]="o.transform">
+        <rect class="gap" [attr.x]="-o.w / 2" [attr.y]="-o.gapH / 2" [attr.width]="o.w" [attr.height]="o.gapH" />
+        @if (o.kind === 'door') {
+          <path class="door-arc" [attr.d]="o.arc" />
+          <path class="door-leaf" [attr.d]="o.leaf" />
+          <line class="jamb" [attr.x1]="-o.w / 2" [attr.y1]="-o.t / 2" [attr.x2]="-o.w / 2" [attr.y2]="o.t / 2" />
+          <line class="jamb" [attr.x1]="o.w / 2" [attr.y1]="-o.t / 2" [attr.x2]="o.w / 2" [attr.y2]="o.t / 2" />
+        } @else {
+          <rect class="window-frame" [attr.x]="-o.w / 2" [attr.y]="-o.t / 2" [attr.width]="o.w" [attr.height]="o.t" />
+          <line class="window-glass" [attr.x1]="-o.w / 2" y1="0" [attr.x2]="o.w / 2" y2="0" />
+        }
+      </g>
+    }
+
+    <!-- Wall hit areas (above openings' gaps so walls stay clickable, below opening hit boxes) -->
+    <g class="walls-hit">
+      @for (w of walls(); track w.id) {
+        <line
+          [attr.x1]="w.x1"
+          [attr.y1]="w.y1"
+          [attr.x2]="w.x2"
+          [attr.y2]="w.y2"
+          [attr.stroke-width]="w.t + 8 * px()"
+          data-kind="wall"
+          [attr.data-id]="w.id"
+        />
+      }
+    </g>
+    <g class="opening-hits">
+      @for (o of openings(); track o.id) {
+        <rect
+          [attr.transform]="o.transform"
+          [attr.x]="-o.w / 2"
+          [attr.y]="-o.t / 2 - 6 * px()"
+          [attr.width]="o.w"
+          [attr.height]="o.t + 12 * px()"
+          data-kind="opening"
+          [attr.data-id]="o.id"
+        />
+      }
+    </g>
+
+    <!-- Furniture -->
+    @for (f of furniture(); track f.id) {
+      @if (!f.floor) {
+        <g
+          class="furniture"
+          [class.selected]="f.selected"
+          [class.overlap]="f.overlap"
+          [attr.transform]="f.transform"
+          data-kind="furniture"
+          [attr.data-id]="f.id"
+        >
+          @if (f.round) {
+            <ellipse class="base" [attr.rx]="f.w / 2" [attr.ry]="f.d / 2" [attr.fill]="f.fill" [attr.stroke]="f.stroke" />
+          } @else {
+            <rect class="base" [attr.x]="-f.w / 2" [attr.y]="-f.d / 2" [attr.width]="f.w" [attr.height]="f.d" rx="2" [attr.fill]="f.fill" [attr.stroke]="f.stroke" />
+          }
+          @for (p of f.parts; track $index) {
+            @switch (p.t) {
+              @case ('rect') {
+                <rect class="part" [attr.x]="p.x" [attr.y]="p.y" [attr.width]="p.w" [attr.height]="p.h" [attr.rx]="p.r ?? 0" [attr.fill]="p.fill" [attr.stroke]="f.stroke" />
+              }
+              @case ('circle') {
+                <circle class="part" [attr.cx]="p.cx" [attr.cy]="p.cy" [attr.r]="p.r" [attr.fill]="p.fill" [attr.stroke]="f.stroke" />
+              }
+              @case ('line') {
+                <line class="part" [attr.x1]="p.x1" [attr.y1]="p.y1" [attr.x2]="p.x2" [attr.y2]="p.y2" [attr.stroke]="f.stroke" />
+              }
+            }
+          }
+          @if (f.overlap) {
+            <rect class="overlap-outline" [attr.x]="-f.w / 2" [attr.y]="-f.d / 2" [attr.width]="f.w" [attr.height]="f.d" />
+          }
+          @if (f.selected) {
+            <rect class="selection-outline" [attr.x]="-f.w / 2" [attr.y]="-f.d / 2" [attr.width]="f.w" [attr.height]="f.d" />
+          }
+          @if (f.showLabel) {
+            <text class="furniture-label" [attr.transform]="'rotate(' + f.labelRotate + ')'" [attr.font-size]="11 * px()">{{ f.label }}</text>
+          }
+        </g>
+      }
+    }
+
+    <!-- Room labels -->
+    @for (r of rooms(); track r.key) {
+      <g class="room-label" [attr.transform]="'translate(' + r.label.x + ' ' + r.label.y + ')'">
+        <text class="room-name" [attr.font-size]="13 * px()" [attr.y]="-2 * px()">{{ r.name }}</text>
+        <text class="room-area" [attr.font-size]="11 * px()" [attr.y]="13 * px()">{{ r.area }}</text>
+      </g>
+    }
+
+    <!-- Wall dimensions -->
+    @for (d of dimensions(); track d.id) {
+      <text
+        class="dimension"
+        [attr.font-size]="11 * px()"
+        [attr.transform]="'translate(' + d.x + ' ' + d.y + ') rotate(' + d.angle + ')'"
+      >{{ d.text }}</text>
+    }
+
+    <!-- Corner handles -->
+    @for (n of nodes(); track n.id) {
+      <circle
+        class="node"
+        [class.selected]="n.selected"
+        [attr.cx]="n.x"
+        [attr.cy]="n.y"
+        [attr.r]="5 * px()"
+        data-kind="node"
+        [attr.data-id]="n.id"
+      />
+    }
+
+    <!-- Furniture handles -->
+    @if (handles(); as h) {
+      <g class="handles" [attr.transform]="h.transform">
+        <line class="rotate-stem" x1="0" [attr.y1]="-h.d / 2" x2="0" [attr.y2]="h.rotateY" />
+        <circle class="handle rotate" cx="0" [attr.cy]="h.rotateY" [attr.r]="h.size * 0.7" data-kind="handle" [attr.data-id]="h.id" data-handle="rotate" />
+        <rect class="handle" [attr.x]="h.w / 2 - h.size / 2" [attr.y]="-h.size / 2" [attr.width]="h.size" [attr.height]="h.size" data-kind="handle" [attr.data-id]="h.id" data-handle="e" />
+        <rect class="handle" [attr.x]="-h.w / 2 - h.size / 2" [attr.y]="-h.size / 2" [attr.width]="h.size" [attr.height]="h.size" data-kind="handle" [attr.data-id]="h.id" data-handle="w" />
+        <rect class="handle" [attr.x]="-h.size / 2" [attr.y]="h.d / 2 - h.size / 2" [attr.width]="h.size" [attr.height]="h.size" data-kind="handle" [attr.data-id]="h.id" data-handle="s" />
+        <rect class="handle" [attr.x]="-h.size / 2" [attr.y]="-h.d / 2 - h.size / 2" [attr.width]="h.size" [attr.height]="h.size" data-kind="handle" [attr.data-id]="h.id" data-handle="n" />
+        <text class="size-label" [attr.transform]="'translate(0 ' + h.textY + ') rotate(' + h.textRotate + ')'" [attr.font-size]="11 * px()">{{ h.text }}</text>
+      </g>
+    }
+
+    <!-- Tool overlay -->
+    @let ov = overlay();
+    @for (g of ov.guides; track $index) {
+      <line class="guide" [attr.x1]="g.from.x" [attr.y1]="g.from.y" [attr.x2]="g.to.x" [attr.y2]="g.to.y" />
+    }
+    @if (ov.chain) {
+      <path class="draft-wall" [attr.d]="ov.chain" [attr.stroke-width]="editor.wallThickness()" />
+    }
+    @if (ov.live; as l) {
+      <line class="draft-wall live" [attr.x1]="l.x1" [attr.y1]="l.y1" [attr.x2]="l.x2" [attr.y2]="l.y2" [attr.stroke-width]="editor.wallThickness()" />
+      <text class="live-length" [attr.x]="l.lx" [attr.y]="l.ly" [attr.font-size]="12 * px()">{{ l.label }}</text>
+    }
+    @if (ov.chainStart; as s) {
+      <circle class="chain-start" [attr.cx]="s.x" [attr.cy]="s.y" [attr.r]="6 * px()" />
+    }
+    @if (ov.cursor; as c) {
+      <g class="crosshair">
+        <line [attr.x1]="c.x - 10 * px()" [attr.y1]="c.y" [attr.x2]="c.x + 10 * px()" [attr.y2]="c.y" />
+        <line [attr.x1]="c.x" [attr.y1]="c.y - 10 * px()" [attr.x2]="c.x" [attr.y2]="c.y + 10 * px()" />
+      </g>
+    }
+    @if (ov.snap; as s) {
+      <circle class="snap" [attr.cx]="s.x" [attr.cy]="s.y" [attr.r]="7 * px()" />
+    }
+    @if (ov.preview; as p) {
+      <rect class="opening-preview" [attr.transform]="p.transform" [attr.x]="-p.w / 2" [attr.y]="-p.t / 2 - 3 * px()" [attr.width]="p.w" [attr.height]="p.t + 6 * px()" />
+    }
+    @if (ov.box; as b) {
+      <rect class="box" [attr.x]="b.x" [attr.y]="b.y" [attr.width]="b.w" [attr.height]="b.h" />
+    }
+    @for (m of ov.measures; track $index) {
+      <line class="measure" [attr.x1]="m.from.x" [attr.y1]="m.from.y" [attr.x2]="m.to.x" [attr.y2]="m.to.y" />
+      <text class="measure-label" [attr.x]="m.mx" [attr.y]="m.my" [attr.font-size]="11 * px()">{{ m.text }}</text>
+    }
+  </g>
+</svg>
+
+@if (typedBubble(); as b) {
+  <div class="typed" [style.left.px]="b.x" [style.top.px]="b.y">{{ b.text }}<span class="caret"></span> <kbd>Enter</kbd></div>
+}
+
+@if (isEmpty()) {
+  <div class="empty-hint">
+    <strong>Draw your room</strong>
+    <span>Pick the <b>Wall</b> tool (<kbd>W</kbd>) and click to place each corner. Click the first corner again to close the room.</span>
+  </div>
+}
+
+<div class="zoom-controls">
+  <button class="btn icon" title="Zoom out" (click)="zoomBy(1 / 1.25)">−</button>
+  <span class="zoom-level">{{ (zoom() * 100).toFixed(0) }}%</span>
+  <button class="btn icon" title="Zoom in" (click)="zoomBy(1.25)">+</button>
+  <button class="btn icon" title="Fit to plan (F)" (click)="fitToContent()">⤢</button>
+</div>

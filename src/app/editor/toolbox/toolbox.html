@@ -1,0 +1,73 @@
+<section class="tools" aria-label="Drawing tools">
+  @for (t of tools; track t.id) {
+    <button
+      class="tool"
+      [class.active]="editor.tool() === t.id"
+      [attr.aria-pressed]="editor.tool() === t.id"
+      [title]="t.label + ' (' + t.key + ')'"
+      (click)="editor.tool.set(t.id)"
+    >
+      <app-icon [name]="t.icon" />
+      <span>{{ t.label }}</span>
+      <kbd>{{ t.key }}</kbd>
+    </button>
+  }
+</section>
+
+<section class="catalog" aria-label="Furniture">
+  <div class="catalog-head">
+    <h2>Furniture</h2>
+    <span class="hint">Drag onto the plan, or click to add</span>
+    <div class="search">
+      <app-icon name="search" />
+      <input class="input" type="search" placeholder="Search furniture" [value]="query()" (input)="query.set($any($event.target).value)" />
+    </div>
+  </div>
+
+  <div class="groups">
+    @for (g of groups(); track g.category) {
+      <div class="group">
+        <button class="group-title" (click)="toggleGroup(g.category)" [attr.aria-expanded]="!collapsed().has(g.category) || !!query()">
+          <span class="chev" [class.closed]="collapsed().has(g.category) && !query()">▾</span>
+          {{ g.category }}
+        </button>
+        @if (!collapsed().has(g.category) || query()) {
+          <ul>
+            @for (item of g.items; track item.id) {
+              <li>
+                <button class="item" draggable="true" (dragstart)="onDragStart($event, item.id)" (click)="place(item.id)" [title]="'Add ' + item.name">
+                  <svg [attr.viewBox]="item.viewBox" preserveAspectRatio="xMidYMid meet">
+                    @if (item.round) {
+                      <ellipse [attr.rx]="item.w / 2" [attr.ry]="item.d / 2" [attr.fill]="item.fill" [attr.stroke]="item.stroke" vector-effect="non-scaling-stroke" />
+                    } @else {
+                      <rect [attr.x]="-item.w / 2" [attr.y]="-item.d / 2" [attr.width]="item.w" [attr.height]="item.d" [attr.fill]="item.fill" [attr.stroke]="item.stroke" vector-effect="non-scaling-stroke" />
+                    }
+                    @for (p of item.parts; track $index) {
+                      @switch (p.t) {
+                        @case ('rect') {
+                          <rect [attr.x]="p.x" [attr.y]="p.y" [attr.width]="p.w" [attr.height]="p.h" [attr.rx]="p.r ?? 0" [attr.fill]="p.fill" [attr.stroke]="item.stroke" vector-effect="non-scaling-stroke" />
+                        }
+                        @case ('circle') {
+                          <circle [attr.cx]="p.cx" [attr.cy]="p.cy" [attr.r]="p.r" [attr.fill]="p.fill" [attr.stroke]="item.stroke" vector-effect="non-scaling-stroke" />
+                        }
+                        @case ('line') {
+                          <line [attr.x1]="p.x1" [attr.y1]="p.y1" [attr.x2]="p.x2" [attr.y2]="p.y2" [attr.stroke]="item.stroke" vector-effect="non-scaling-stroke" />
+                        }
+                      }
+                    }
+                  </svg>
+                  <span class="item-text">
+                    <span class="item-name">{{ item.name }}</span>
+                    <span class="item-size">{{ item.size }}</span>
+                  </span>
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    } @empty {
+      <p class="none">No furniture matches “{{ query() }}”.</p>
+    }
+  </div>
+</section>

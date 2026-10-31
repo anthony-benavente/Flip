@@ -1,0 +1,402 @@
+:host {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  background: var(--canvas);
+}
+
+.canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  user-select: none;
+}
+
+.grid-minor,
+.grid-major {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.grid-minor {
+  stroke: var(--grid-minor);
+  stroke-width: 1;
+}
+
+.grid-major {
+  stroke: var(--grid-major);
+  stroke-width: 1;
+}
+
+.room {
+  fill-opacity: 0.38;
+  stroke: none;
+}
+
+.room:hover {
+  fill-opacity: 0.5;
+}
+
+.room.selected {
+  fill-opacity: 0.6;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+  vector-effect: non-scaling-stroke;
+}
+
+.walls-outline line {
+  stroke: var(--wall);
+  stroke-linecap: square;
+}
+
+.walls-fill line {
+  stroke: var(--wall-fill);
+  stroke-linecap: square;
+}
+
+.walls-fill line.hovered {
+  stroke: #a39d92;
+}
+
+.walls-fill line.selected {
+  stroke: var(--accent);
+}
+
+.walls-outline,
+.walls-fill {
+  pointer-events: none;
+}
+
+.walls-hit line {
+  stroke: transparent;
+  stroke-linecap: butt;
+  cursor: pointer;
+}
+
+.opening {
+  pointer-events: none;
+}
+
+.opening .gap {
+  fill: var(--canvas);
+}
+
+.door-leaf,
+.jamb {
+  stroke: var(--wall);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  fill: none;
+}
+
+.door-arc {
+  stroke: var(--wall);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+  fill: none;
+}
+
+.window-frame {
+  fill: #e6f1f8;
+  stroke: var(--wall);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.window-glass {
+  stroke: #5b8db3;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.opening.selected .door-leaf,
+.opening.selected .door-arc,
+.opening.selected .jamb,
+.opening.selected .window-frame {
+  stroke: var(--accent);
+}
+
+.opening-hits rect {
+  fill: transparent;
+  cursor: pointer;
+}
+
+.furniture {
+  cursor: move;
+}
+
+.furniture .base,
+.furniture .part {
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.furniture .part {
+  pointer-events: none;
+}
+
+.furniture:hover .base {
+  filter: brightness(1.06);
+}
+
+.overlap-outline {
+  fill: none;
+  stroke: var(--danger);
+  stroke-width: 2;
+  stroke-dasharray: 5 3;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.selection-outline {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.furniture-label,
+.room-label text,
+.dimension,
+.size-label,
+.live-length,
+.measure-label {
+  text-anchor: middle;
+  dominant-baseline: middle;
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: var(--canvas);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.furniture-label {
+  fill: #1f1d1b;
+  stroke: rgb(255 255 255 / 70%);
+}
+
+.room-name {
+  font-weight: 600;
+  fill: var(--text);
+}
+
+.room-area {
+  fill: var(--text-muted);
+}
+
+.dimension {
+  fill: #5e5a53;
+}
+
+.node {
+  fill: #fff;
+  stroke: var(--wall);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  cursor: move;
+  opacity: 0.85;
+}
+
+.node:hover,
+.node.selected {
+  fill: var(--accent);
+  stroke: var(--accent);
+  opacity: 1;
+}
+
+.handles .handle {
+  fill: #fff;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.handles .handle[data-handle='e'],
+.handles .handle[data-handle='w'] {
+  cursor: ew-resize;
+}
+
+.handles .handle[data-handle='n'],
+.handles .handle[data-handle='s'] {
+  cursor: ns-resize;
+}
+
+.handles .handle.rotate {
+  cursor: grab;
+}
+
+.rotate-stem {
+  stroke: var(--accent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.size-label {
+  fill: var(--accent);
+  font-weight: 600;
+}
+
+.guide {
+  stroke: #e0569a;
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.draft-wall {
+  fill: none;
+  stroke: var(--accent);
+  stroke-opacity: 0.55;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  pointer-events: none;
+}
+
+.draft-wall.live {
+  stroke-opacity: 0.35;
+}
+
+.live-length {
+  fill: var(--accent);
+  font-weight: 600;
+}
+
+.chain-start {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.crosshair line {
+  stroke: var(--accent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.snap {
+  fill: none;
+  stroke: #e0569a;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.opening-preview {
+  fill: var(--accent);
+  fill-opacity: 0.35;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.box {
+  fill: var(--accent);
+  fill-opacity: 0.08;
+  stroke: var(--accent);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.measure {
+  stroke: #e0569a;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  marker-start: none;
+  pointer-events: none;
+}
+
+.measure-label {
+  fill: #c03c7d;
+  font-weight: 600;
+}
+
+.typed {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--text);
+  color: #fff;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.typed kbd {
+  color: var(--text);
+}
+
+.caret {
+  width: 1px;
+  height: 14px;
+  margin-left: -4px;
+  background: #fff;
+  animation: blink 1s steps(1) infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.empty-hint {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 420px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  text-align: center;
+  pointer-events: none;
+}
+
+.empty-hint span {
+  color: var(--text-muted);
+}
+
+.zoom-controls {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.zoom-controls .btn {
+  border-color: transparent;
+  font-size: 16px;
+}
+
+.zoom-level {
+  min-width: 44px;
+  font-size: 12px;
+  text-align: center;
+  color: var(--text-muted);
+}

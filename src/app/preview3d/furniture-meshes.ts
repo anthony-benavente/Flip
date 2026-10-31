@@ -1,0 +1,279 @@
+import * as THREE from 'three';
+import { FurnitureShape, shade } from '../model/catalog';
+
+/**
+ * Builds simple primitive models for furniture. Units are meters. The model is centered on x/z,
+ * sits on y = 0, with its back at -z (matching the 2D plan's local -y).
+ */
+export class FurnitureMeshFactory {
+  private readonly materials = new Map<string, THREE.MeshStandardMaterial>();
+  private readonly glass = new THREE.MeshPhysicalMaterial({
+    color: 0xcfe6f2,
+    transparent: true,
+    opacity: 0.3,
+    roughness: 0.05,
+    metalness: 0,
+    depthWrite: false,
+  });
+
+  material(color: string, opts: { roughness?: number; metalness?: number; emissive?: string } = {}): THREE.MeshStandardMaterial {
+    const key = `${color}|${opts.roughness ?? 0.8}|${opts.metalness ?? 0}|${opts.emissive ?? ''}`;
+    let m = this.materials.get(key);
+    if (!m) {
+      m = new THREE.MeshStandardMaterial({
+        color,
+        roughness: opts.roughness ?? 0.8,
+        metalness: opts.metalness ?? 0,
+        ...(opts.emissive ? { emissive: new THREE.Color(opts.emissive), emissiveIntensity: 0.6 } : {}),
+      });
+      this.materials.set(key, m);
+    }
+    return m;
+  }
+
+  dispose(): void {
+    for (const m of this.materials.values()) m.dispose();
+    this.materials.clear();
+    this.glass.dispose();
+  }
+
+  build(shape: FurnitureShape, w: number, d: number, h: number, color: string): THREE.Group {
+    const g = new THREE.Group();
+    const c = color;
+    const dark = shade(color, -0.25);
+    const light = shade(color, 0.25);
+    const wood = '#7a5a3e';
+    const metal = '#8f9399';
+
+    const box = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, col: string, mat?: THREE.Material) => {
+      const m = new THREE.Mesh(
+        new THREE.BoxGeometry(Math.max(x1 - x0, 0.001), Math.max(y1 - y0, 0.001), Math.max(z1 - z0, 0.001)),
+        mat ?? this.material(col),
+      );
+      m.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
+      g.add(m);
+      return m;
+    };
+    const cyl = (cx: number, cz: number, rTop: number, rBottom: number, y0: number, y1: number, col: string, mat?: THREE.Material) => {
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBottom, Math.max(y1 - y0, 0.001), 28), mat ?? this.material(col));
+      m.position.set(cx, (y0 + y1) / 2, cz);
+      g.add(m);
+      return m;
+    };
+    const legs = (inset: number, y1: number, r: number, col: string) => {
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) cyl(sx * (w / 2 - inset), sz * (d / 2 - inset), r, r, 0, y1, col);
+    };
+
+    const X0 = -w / 2;
+    const X1 = w / 2;
+    const Z0 = -d / 2;
+    const Z1 = d / 2;
+
+    switch (shape) {
+      case 'sofa':
+      case 'armchair': {
+        const seatH = h * 0.5;
+        const back = Math.min(d * 0.25, 0.25);
+        const arm = shape === 'armchair' ? Math.min(w * 0.18, 0.2) : Math.min(w * 0.1, 0.2);
+        box(X0, X1, 0.08, seatH * 0.75, Z0, Z1, dark);
+        box(X0 + arm, X1 - arm, seatH * 0.75, seatH, Z0 + back, Z1 - 0.02, light);
+        box(X0, X1, 0.08, h, Z0, Z0 + back, c);
+        box(X0, X0 + arm, 0.08, h * 0.7, Z0, Z1, c);
+        box(X1 - arm, X1, 0.08, h * 0.7, Z0, Z1, c);
+        legs(0.06, 0.08, 0.02, wood);
+        break;
+      }
+      case 'sectional': {
+        const seatH = h * 0.5;
+        const back = Math.min(Math.min(w, d) * 0.2, 0.25);
+        const seat = Math.min(w, d) * 0.45;
+        // Recessed plinth so the sofa sits on the floor.
+        box(X0 + 0.04, X1 - 0.04, 0, 0.06, Z0 + 0.04, Z0 + back + seat - 0.04, '#3a3530');
+        box(X0 + 0.04, X0 + back + seat - 0.04, 0, 0.06, Z0 + 0.04, Z1 - 0.04, '#3a3530');
+        box(X0, X1, 0.06, seatH, Z0, Z0 + back + seat, dark);
+        box(X0, X0 + back + seat, 0.06, seatH, Z0, Z1, dark);
+        box(X0 + back, X1, seatH * 0.95, seatH + 0.02, Z0 + back, Z0 + back + seat, light);
+        box(X0 + back, X0 + back + seat, seatH * 0.95, seatH + 0.02, Z0 + back, Z1, light);
+        box(X0, X1, 0.06, h, Z0, Z0 + back, c);
+        box(X0, X0 + back, 0.06, h, Z0, Z1, c);
+        break;
+      }
+      case 'chair': {
+        const seatH = Math.min(0.46, h * 0.5);
+        box(X0, X1, seatH - 0.04, seatH, Z0, Z1, c);
+        box(X0, X1, seatH, h, Z0, Z0 + 0.04, c);
+        legs(0.03, seatH - 0.04, 0.015, dark);
+        break;
+      }
+      case 'stool':
+        cyl(0, 0, w / 2, w / 2, h - 0.05, h, c);
+        cyl(0, 0, 0.025, 0.025, 0.02, h - 0.05, metal);
+        cyl(0, 0, w * 0.35, w * 0.4, 0, 0.02, metal);
+        break;
+      case 'ottoman':
+        box(X0, X1, 0.04, h, Z0, Z1, c);
+        legs(0.04, 0.04, 0.015, wood);
+        break;
+      case 'table':
+      case 'coffee-table':
+      case 'desk': {
+        const top = shape === 'coffee-table' ? 0.04 : 0.035;
+        box(X0, X1, h - top, h, Z0, Z1, c);
+        legs(0.05, h - top, shape === 'coffee-table' ? 0.025 : 0.025, dark);
+        if (shape === 'desk') box(X1 - Math.min(0.45, w * 0.35), X1 - 0.02, h * 0.45, h - top, Z0 + 0.03, Z1 - 0.03, dark);
+        break;
+      }
+      case 'round-table':
+        cyl(0, 0, w / 2, w / 2, h - 0.035, h, c);
+        cyl(0, 0, 0.05, 0.05, 0.03, h - 0.035, dark);
+        cyl(0, 0, w * 0.25, w * 0.28, 0, 0.03, dark);
+        break;
+      case 'bed': {
+        const frameH = h * 0.45;
+        box(X0, X1, 0.05, frameH, Z0, Z1, wood);
+        box(X0 + 0.02, X1 - 0.02, frameH, h, Z0 + 0.04, Z1 - 0.02, '#f5f3ef');
+        box(X0 + 0.01, X1 - 0.01, h - 0.05, h + 0.015, Z0 + d * 0.35, Z1 - 0.01, c);
+        box(X0 - 0.02, X1 + 0.02, 0, Math.max(h * 2.3, 1), Z0 - 0.06, Z0, wood);
+        const pillows = w > 1.2 ? 2 : 1;
+        const pw = (w - 0.1 * (pillows + 1)) / pillows;
+        for (let i = 0; i < pillows; i++) {
+          const x = X0 + 0.1 + i * (pw + 0.1);
+          box(x, x + pw, h, h + 0.12, Z0 + 0.08, Z0 + 0.08 + 0.4, '#ffffff');
+        }
+        legs(0.05, 0.05, 0.025, wood);
+        break;
+      }
+      case 'nightstand':
+      case 'dresser': {
+        box(X0, X1, 0.06, h, Z0, Z1, c);
+        const rows = shape === 'dresser' ? 3 : 2;
+        for (let i = 1; i < rows; i++) {
+          const y = 0.06 + ((h - 0.06) * i) / rows;
+          box(X0 + 0.02, X1 - 0.02, y - 0.004, y + 0.004, Z1, Z1 + 0.004, dark);
+        }
+        legs(0.04, 0.06, 0.015, dark);
+        break;
+      }
+      case 'wardrobe':
+        box(X0, X1, 0, h, Z0, Z1, c);
+        box(-0.004, 0.004, 0.05, h - 0.05, Z1, Z1 + 0.004, dark);
+        cyl(-0.04, Z1 + 0.015, 0.008, 0.008, h * 0.45, h * 0.6, metal);
+        cyl(0.04, Z1 + 0.015, 0.008, 0.008, h * 0.45, h * 0.6, metal);
+        break;
+      case 'bookshelf': {
+        const t = 0.02;
+        box(X0, X1, 0, h, Z0, Z0 + t, dark);
+        box(X0, X0 + t, 0, h, Z0, Z1, c);
+        box(X1 - t, X1, 0, h, Z0, Z1, c);
+        const shelves = Math.max(3, Math.round(h / 0.35));
+        for (let i = 0; i <= shelves; i++) {
+          const y = Math.min(h - t, (h * i) / shelves);
+          box(X0 + t, X1 - t, y, y + t, Z0, Z1, c);
+          if (i < shelves) {
+            // A row of "books" on each shelf.
+            const top = (h * (i + 1)) / shelves - 0.06;
+            box(X0 + t + 0.02, X0 + w * 0.55, y + t, Math.max(y + t + 0.05, top), Z0 + 0.03, Z1 - 0.03, i % 2 ? '#8a4b3c' : '#3f5a7a');
+          }
+        }
+        break;
+      }
+      case 'tv-stand':
+        box(X0, X1, 0.08, h, Z0, Z1, c);
+        legs(0.05, 0.08, 0.015, metal);
+        break;
+      case 'tv':
+        box(X0, X1, h * 0.12, h, -0.03, 0.03, '#141414', this.material('#141414', { roughness: 0.3, metalness: 0.3 }));
+        box(-w * 0.15, w * 0.15, 0, 0.015, Z0, Z1, '#222');
+        box(-0.03, 0.03, 0.015, h * 0.12, -0.02, 0.02, '#222');
+        break;
+      case 'counter':
+        box(X0 + 0.02, X1 - 0.02, 0.1, h - 0.04, Z0, Z1 - 0.03, '#f0eee9');
+        box(X0 + 0.04, X1 - 0.04, 0, 0.1, Z0, Z1 - 0.08, '#4a4744');
+        box(X0, X1, h - 0.04, h, Z0, Z1, c, this.material(c, { roughness: 0.4 }));
+        break;
+      case 'fridge':
+        box(X0, X1, 0, h, Z0, Z1, c, this.material(c, { roughness: 0.35, metalness: 0.4 }));
+        box(X0 + 0.01, X1 - 0.01, h * 0.62, h * 0.625, Z1, Z1 + 0.003, '#555');
+        box(X1 - 0.08, X1 - 0.06, h * 0.3, h * 0.55, Z1, Z1 + 0.04, metal);
+        box(X1 - 0.08, X1 - 0.06, h * 0.68, h * 0.9, Z1, Z1 + 0.04, metal);
+        break;
+      case 'stove': {
+        box(X0, X1, 0, h - 0.01, Z0, Z1, c, this.material(c, { roughness: 0.4, metalness: 0.3 }));
+        box(X0, X1, h - 0.01, h, Z0, Z1, '#1d1d1d', this.material('#1d1d1d', { roughness: 0.2 }));
+        const r = Math.min(w, d) * 0.13;
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) cyl((sx * w) / 4, (sz * d) / 4, r, r, h, h + 0.006, '#3a3a3a');
+        box(X0 + 0.05, X1 - 0.05, h * 0.25, h * 0.75, Z1, Z1 + 0.005, '#2b2b2b');
+        break;
+      }
+      case 'sink':
+        box(X0, X1, 0.08, h - 0.03, Z0, Z1, dark);
+        box(X0, X1, h - 0.03, h, Z0, Z1, c, this.material(c, { roughness: 0.3 }));
+        box(-w * 0.3, w * 0.3, h - 0.025, h + 0.002, Z0 + d * 0.25, Z0 + d * 0.8, '#d5d9dc', this.material('#d5d9dc', { roughness: 0.2, metalness: 0.2 }));
+        cyl(0, Z0 + 0.06, 0.012, 0.012, h, h + 0.2, metal, this.material(metal, { roughness: 0.2, metalness: 0.8 }));
+        break;
+      case 'toilet': {
+        const porcelain = this.material(c, { roughness: 0.25 });
+        box(X0 + 0.02, X1 - 0.02, h * 0.45, h * 1.05, Z0, Z0 + d * 0.28, c, porcelain);
+        cyl(0, Z0 + d * 0.62, Math.min(w * 0.45, d * 0.36), Math.min(w * 0.3, d * 0.25), 0, h * 0.55, c, porcelain);
+        cyl(0, Z0 + d * 0.62, Math.min(w * 0.46, d * 0.37), Math.min(w * 0.46, d * 0.37), h * 0.55, h * 0.58, '#ffffff');
+        break;
+      }
+      case 'bathtub': {
+        const porcelain = this.material(c, { roughness: 0.25 });
+        const t = 0.07;
+        box(X0, X1, 0, 0.06, Z0, Z1, c, porcelain);
+        box(X0, X1, 0, h, Z0, Z0 + t, c, porcelain);
+        box(X0, X1, 0, h, Z1 - t, Z1, c, porcelain);
+        box(X0, X0 + t, 0, h, Z0, Z1, c, porcelain);
+        box(X1 - t, X1, 0, h, Z0, Z1, c, porcelain);
+        box(X0 + t, X1 - t, 0.06, h * 0.55, Z0 + t, Z1 - t, '#bfe0ee', this.glass);
+        break;
+      }
+      case 'shower':
+        box(X0, X1, 0, 0.06, Z0, Z1, c, this.material(c, { roughness: 0.3 }));
+        box(X0, X1, 0.06, h, Z1 - 0.01, Z1, '', this.glass);
+        box(X1 - 0.01, X1, 0.06, h, Z0, Z1, '', this.glass);
+        cyl(0, Z0 + 0.05, 0.08, 0.08, h - 0.15, h - 0.13, metal, this.material(metal, { metalness: 0.8, roughness: 0.2 }));
+        break;
+      case 'rug':
+        box(X0, X1, 0, 0.012, Z0, Z1, c);
+        box(X0 + 0.08, X1 - 0.08, 0.012, 0.014, Z0 + 0.08, Z1 - 0.08, light);
+        break;
+      case 'plant': {
+        const r = Math.min(w, d) / 2;
+        cyl(0, 0, r * 0.6, r * 0.45, 0, h * 0.3, '#a0634a');
+        const leaf = this.material(c, { roughness: 0.9 });
+        const blobs: [number, number, number, number][] = [
+          [0, h * 0.62, 0, r],
+          [r * 0.3, h * 0.8, r * 0.2, r * 0.65],
+          [-r * 0.3, h * 0.75, -r * 0.25, r * 0.65],
+          [0, h - r * 0.55, 0, r * 0.55],
+        ];
+        for (const [x, y, z, s] of blobs) {
+          const m = new THREE.Mesh(new THREE.IcosahedronGeometry(s, 1), leaf);
+          m.position.set(x, y, z);
+          g.add(m);
+        }
+        break;
+      }
+      case 'lamp': {
+        const r = Math.min(w, d) / 2;
+        cyl(0, 0, r * 0.6, r * 0.7, 0, 0.03, '#333');
+        cyl(0, 0, 0.012, 0.012, 0.03, h - 0.3, '#333');
+        cyl(0, 0, r * 0.75, r, h - 0.32, h, c, this.material(c, { emissive: '#ffe7b0' }));
+        break;
+      }
+      case 'box':
+      default:
+        box(X0, X1, 0, h, Z0, Z1, c);
+    }
+
+    g.traverse((o) => {
+      if (o instanceof THREE.Mesh) {
+        o.castShadow = o.material !== this.glass;
+        o.receiveShadow = true;
+      }
+    });
+    return g;
+  }
+}

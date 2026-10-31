@@ -1,0 +1,173 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.tools {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tool {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.tool span {
+  flex: 1;
+}
+
+.tool kbd {
+  opacity: 0.6;
+  font-size: 11px;
+}
+
+.tool:hover {
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+.tool.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.catalog {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.catalog-head {
+  padding: 12px 12px 8px;
+}
+
+h2 {
+  margin: 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.hint {
+  display: block;
+  margin: 2px 0 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.search {
+  position: relative;
+  color: var(--text-muted);
+}
+
+.search app-icon {
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  --icon-size: 16px;
+}
+
+.search .input {
+  padding-left: 30px;
+}
+
+.groups {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 8px 16px;
+}
+
+.group-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 4px 4px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chev {
+  display: inline-block;
+  transition: transform 0.15s;
+}
+
+.chev.closed {
+  transform: rotate(-90deg);
+}
+
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: grab;
+  text-align: left;
+}
+
+.item:hover {
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+.item:active {
+  cursor: grabbing;
+}
+
+.item svg {
+  flex: none;
+  width: 40px;
+  height: 32px;
+}
+
+.item-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.item-name {
+  font-weight: 500;
+}
+
+.item-size {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.none {
+  padding: 8px;
+  color: var(--text-muted);
+}

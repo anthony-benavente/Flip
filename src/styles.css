@@ -1,1 +1,179 @@
-/* You can add global styles to this file, and also import other style files */
+:root {
+  --bg: #f4f2ee;
+  --surface: #ffffff;
+  --surface-2: #f8f7f4;
+  --border: #e2ded6;
+  --border-strong: #cfc9bd;
+  --text: #24221f;
+  --text-muted: #6f6a62;
+  --accent: #2f6fde;
+  --accent-soft: #e4edfc;
+  --accent-text: #ffffff;
+  --danger: #c4372d;
+  --danger-soft: #fbe7e5;
+  --success: #2f8a4f;
+  --wall: #3a3733;
+  --wall-fill: #8d877d;
+  --canvas: #fbfaf7;
+  --grid-minor: #ece8e0;
+  --grid-major: #ddd7cc;
+  --radius: 8px;
+  --radius-sm: 5px;
+  --shadow: 0 1px 2px rgb(0 0 0 / 6%), 0 4px 16px rgb(0 0 0 / 6%);
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font);
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: var(--text-muted);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.btn.primary:hover:not(:disabled) {
+  background: #2560c4;
+}
+
+.btn.danger {
+  color: var(--danger);
+}
+
+.btn.danger:hover:not(:disabled) {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+}
+
+.btn.ghost {
+  border-color: transparent;
+  background: transparent;
+}
+
+.btn.ghost:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+.btn.icon {
+  width: 32px;
+  padding: 0;
+}
+
+.btn svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+.input {
+  height: 30px;
+  width: 100%;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.input.invalid {
+  outline: 2px solid var(--danger);
+}
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.segmented button {
+  height: 30px;
+  padding: 0 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.segmented button + button {
+  border-left: 1px solid var(--border);
+}
+
+.segmented button.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 20px;
+  padding: 1px 5px;
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 12px;
+  text-align: center;
+}
+
+[hidden] {
+  display: none !important;
+}

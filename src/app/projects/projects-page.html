@@ -1,0 +1,78 @@
+<header class="top">
+  <div class="brand">
+    <span class="logo">◧</span>
+    <span>Flip</span>
+  </div>
+  <span class="tagline">Redraw your room. Rearrange it before you lift a thing.</span>
+</header>
+
+<main>
+  <section class="actions">
+    <h1>Your projects</h1>
+    <div class="buttons">
+      <button class="btn primary" (click)="create('starter')"><app-icon name="plus" /> New room</button>
+      <button class="btn" (click)="create('blank')">Blank plan</button>
+      <label class="btn">
+        <app-icon name="upload" /> Import file
+        <input type="file" accept=".json,application/json" hidden (change)="importFile($event)" />
+      </label>
+    </div>
+  </section>
+
+  @if (error(); as err) {
+    <div class="error" role="alert">
+      {{ err }}
+      <button class="btn ghost icon" aria-label="Dismiss" (click)="error.set(null)"><app-icon name="close" /></button>
+    </div>
+  }
+
+  @if (plans(); as list) {
+    @if (list.length) {
+      <ul class="grid">
+        @for (plan of list; track plan.id) {
+          <li class="card">
+            <button class="thumb" (click)="open(plan)" [attr.aria-label]="'Open ' + plan.name">
+              <app-plan-thumbnail [plan]="plan" />
+            </button>
+            <div class="meta">
+              @if (renamingId() === plan.id) {
+                <input
+                  class="input"
+                  #nameInput
+                  [value]="plan.name"
+                  (keydown.enter)="rename(plan, nameInput.value)"
+                  (keydown.escape)="renamingId.set(null)"
+                  (blur)="rename(plan, nameInput.value)"
+                  autofocus
+                />
+              } @else {
+                <button class="name" (click)="open(plan)">{{ plan.name }}</button>
+              }
+              <div class="sub">{{ stats(plan) }} · {{ plan.updatedAt | date: 'MMM d, h:mm a' }}</div>
+            </div>
+            <div class="card-actions">
+              @if (confirmDeleteId() === plan.id) {
+                <span class="confirm">Delete this project?</span>
+                <button class="btn danger" (click)="remove(plan)">Delete</button>
+                <button class="btn ghost" (click)="confirmDeleteId.set(null)">Cancel</button>
+              } @else {
+                <button class="btn ghost icon" title="Rename" (click)="renamingId.set(plan.id)"><app-icon name="edit" /></button>
+                <button class="btn ghost icon" title="Duplicate" (click)="duplicate(plan)"><app-icon name="copy" /></button>
+                <button class="btn ghost icon" title="Delete" (click)="confirmDeleteId.set(plan.id)"><app-icon name="trash" /></button>
+              }
+            </div>
+          </li>
+        }
+      </ul>
+    } @else {
+      <div class="empty">
+        <h2>No projects yet</h2>
+        <p>Start with a 12' × 14' room you can reshape, or a blank canvas to draw your own walls.</p>
+        <div class="buttons">
+          <button class="btn primary" (click)="create('starter')">Start with a room</button>
+          <button class="btn" (click)="create('blank')">Start blank</button>
+        </div>
+      </div>
+    }
+  }
+</main>

@@ -1,0 +1,109 @@
+@switch (state()) {
+  @case ('loading') {
+    <div class="center-message">Loading plan…</div>
+  }
+  @case ('missing') {
+    <div class="center-message">
+      <h2>Plan not found</h2>
+      <p>This plan may have been deleted, or it was saved in another browser.</p>
+      <a class="btn primary" routerLink="/">Back to projects</a>
+    </div>
+  }
+  @case ('error') {
+    <div class="center-message">
+      <h2>Could not open this plan</h2>
+      <p>{{ loadError() }}</p>
+      <a class="btn primary" routerLink="/">Back to projects</a>
+    </div>
+  }
+  @case ('ready') {
+    <header class="topbar">
+      <a class="btn ghost icon" routerLink="/" title="All projects" (click)="flushSave()"><app-icon name="back" /></a>
+      <input
+        class="plan-name"
+        [value]="planStore.plan().name"
+        aria-label="Plan name"
+        (change)="rename(inputValue($event))"
+        (keydown.enter)="$any($event.target).blur()"
+      />
+
+      <div class="group">
+        <button class="btn ghost icon" title="Undo (Ctrl+Z)" [disabled]="!planStore.canUndo()" (click)="planStore.undo()"><app-icon name="undo" /></button>
+        <button class="btn ghost icon" title="Redo (Ctrl+Y)" [disabled]="!planStore.canRedo()" (click)="planStore.redo()"><app-icon name="redo" /></button>
+      </div>
+
+      <div class="segmented view-modes" role="group" aria-label="View">
+        @for (m of viewModes; track m.id) {
+          <button [class.active]="editor.viewMode() === m.id" (click)="editor.viewMode.set(m.id)"><app-icon [name]="m.icon" /> {{ m.label }}</button>
+        }
+      </div>
+
+      <div class="spacer"></div>
+
+      <div class="segmented units" role="group" aria-label="Units">
+        <button [class.active]="planStore.units() === 'imperial'" (click)="setUnits('imperial')">ft/in</button>
+        <button [class.active]="planStore.units() === 'metric'" (click)="setUnits('metric')">m</button>
+      </div>
+      <button class="btn ghost" title="Download as a .flip.json file" (click)="exportPlan()"><app-icon name="download" /> Export</button>
+      <label class="btn ghost" title="Open a .flip.json file">
+        <app-icon name="upload" /> Import
+        <input type="file" accept=".json,application/json" hidden (change)="importPlan($event)" />
+      </label>
+      <button class="btn ghost icon" title="Keyboard shortcuts (?)" (click)="editor.showHelp.set(true)"><app-icon name="help" /></button>
+    </header>
+
+    @if (importError(); as err) {
+      <div class="banner" role="alert">
+        {{ err }}
+        <button class="btn ghost icon" aria-label="Dismiss" (click)="importError.set(null)"><app-icon name="close" /></button>
+      </div>
+    }
+
+    <div class="workspace" [attr.data-mode]="editor.viewMode()">
+      <app-toolbox class="toolbox" />
+      <div class="stage">
+        <app-plan-canvas class="canvas" [hidden]="editor.viewMode() === '3d'" />
+        @if (editor.viewMode() !== '2d') {
+          <app-preview3d class="preview" />
+        }
+      </div>
+      <app-properties-panel class="properties" />
+    </div>
+
+    <footer class="statusbar">
+      <span class="hint">{{ hint() }}</span>
+      <span class="spacer"></span>
+      @if (selectionText()) {
+        <span>{{ selectionText() }}</span>
+      }
+      @if (cursorText()) {
+        <span class="mono">{{ cursorText() }}</span>
+      }
+      <span class="save" [attr.data-status]="saveStatus()">
+        @switch (saveStatus()) {
+          @case ('saved') { Saved }
+          @case ('pending') { Unsaved changes }
+          @case ('saving') { Saving… }
+          @case ('error') { Save failed: browser storage may be full }
+        }
+      </span>
+    </footer>
+
+    @if (editor.showHelp()) {
+      <div class="modal-backdrop" (click)="editor.showHelp.set(false)">
+        <div class="modal" role="dialog" aria-label="Keyboard shortcuts" (click)="$event.stopPropagation()">
+          <div class="modal-head">
+            <h2>Keyboard shortcuts</h2>
+            <button class="btn ghost icon" aria-label="Close" (click)="editor.showHelp.set(false)"><app-icon name="close" /></button>
+          </div>
+          <dl>
+            @for (s of shortcuts; track s[0]) {
+              <dt><kbd>{{ s[0] }}</kbd></dt>
+              <dd>{{ s[1] }}</dd>
+            }
+          </dl>
+        </div>
+      </div>
+    }
+  }
+}

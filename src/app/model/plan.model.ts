@@ -1,0 +1,92 @@
+/** All lengths are centimeters, all angles are degrees. */
+
+export type DisplayUnits = 'imperial' | 'metric';
+
+export interface Point {
+  x: number;
+  y: number;
+}
+
+export interface WallNode extends Point {
+  id: string;
+}
+
+export interface Wall {
+  id: string;
+  /** Start node id. */
+  a: string;
+  /** End node id. */
+  b: string;
+  thickness: number;
+  height: number;
+}
+
+export type OpeningKind = 'door' | 'window';
+
+export interface Opening {
+  id: string;
+  wallId: string;
+  kind: OpeningKind;
+  /** Distance from wall node `a` to the opening's center, along the wall. */
+  offset: number;
+  width: number;
+  height: number;
+  /** Height of the bottom edge above the floor (0 for doors). */
+  sillHeight: number;
+  /** Which side the hinge is on, seen from node `a` looking toward `b`. */
+  swing?: 'left' | 'right';
+  /** Door opens to the other side of the wall. */
+  flip?: boolean;
+}
+
+export interface FurnitureItem {
+  id: string;
+  catalogId: string;
+  /** Center position. */
+  x: number;
+  y: number;
+  rotation: number;
+  width: number;
+  depth: number;
+  height: number;
+  color: string;
+  label?: string;
+}
+
+export interface RoomMeta {
+  id: string;
+  /** Any point inside the room. The derived room containing it owns this metadata. */
+  anchor: Point;
+  name: string;
+  floorColor: string;
+  wallColor: string;
+}
+
+export interface Plan {
+  id: string;
+  name: string;
+  schemaVersion: number;
+  updatedAt: string;
+  displayUnits: DisplayUnits;
+  nodes: WallNode[];
+  walls: Wall[];
+  openings: Opening[];
+  furniture: FurnitureItem[];
+  rooms: RoomMeta[];
+}
+
+export const CURRENT_SCHEMA_VERSION = 1;
+
+export interface PlanSummary {
+  id: string;
+  name: string;
+  updatedAt: string;
+}
+
+export function newId(prefix = ''): string {
+  const rand =
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID().replace(/-/g, '').slice(0, 12)
+      : Math.random().toString(36).slice(2, 14);
+  return prefix ? `${prefix}_${rand}` : rand;
+}
