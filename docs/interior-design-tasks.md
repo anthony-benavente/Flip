@@ -105,7 +105,7 @@ Tracker for the interior design feature (colors, art, verticality) on branch `fe
 - [x] **T17: Shared IndexedDB helper.**
   - Extract `open`/`run`/`request` from `indexed-db-model.repository.ts` into `persistence/idb.ts`. No behavior change.
   - Done when: existing tests pass.
-- [ ] **T18: Image storage.**
+- [x] **T18: Image storage.**
   - `model/art-image.ts` (`ArtImage`, `isArtImage`, accepted types png/jpeg/webp, 10 MB max).
   - `image-repository.ts` (`IMAGE_REPOSITORY`).
   - `IndexedDbImageRepository` (database `flip-images` v1) and `MemoryImageRepository`.
