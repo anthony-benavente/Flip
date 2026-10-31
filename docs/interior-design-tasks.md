@@ -126,7 +126,7 @@ Tracker for the interior design feature (colors, art, verticality) on branch `fe
   - Done when: `scene-builder.spec` passes, plus e2e (upload the fixture, `artImageId` saved, export and re-import keeps it), `npm run build` and `npm run e2e`.
 
 ### Milestone 4: Wall elevation view
-- [ ] **T22: Prep refactors.**
+- [x] **T22: Prep refactors.**
   - Move `preview3d/wall-pieces.ts` (and its spec) to `geometry/`, and update imports.
   - Move `readHit` from `plan-canvas.ts` into a shared canvas helper.
   - Done when: tests pass.

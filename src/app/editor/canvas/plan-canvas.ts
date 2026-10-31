@@ -26,7 +26,8 @@ import { EditorStore, ToolId } from '../../state/editor.store';
 import { PlanStore } from '../../state/plan.store';
 import { decodeFurnitureDrag, FURNITURE_DRAG_MIME } from '../drag-drop';
 import { createTools } from '../tools';
-import { Hit, HitKind, Tool, ToolContext, ToolPointerEvent } from '../tools/tool';
+import { Tool, ToolContext, ToolPointerEvent } from '../tools/tool';
+import { readHit } from './hit';
 import {
   accentViews,
   dimensionViews,
@@ -315,14 +316,4 @@ export class PlanCanvas {
     e.preventDefault();
     this.actions.placeFurniture(catalogId, this.toToolEvent(e, false).world, modelId);
   }
-}
-
-function readHit(target: EventTarget | null): Hit | null {
-  const el = (target as Element | null)?.closest?.('[data-kind]');
-  if (!el) return null;
-  return {
-    kind: el.getAttribute('data-kind') as HitKind,
-    id: el.getAttribute('data-id') ?? '',
-    handle: el.getAttribute('data-handle') ?? undefined,
-  };
 }

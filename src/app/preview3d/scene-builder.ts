@@ -14,7 +14,7 @@ import { EXTERIOR_WALL_COLOR } from '../model/palettes';
 import { FloorMaterial, Opening, Plan, WallSide } from '../model/plan.model';
 import { FurnitureMeshFactory } from './furniture-meshes';
 import { fitModelToBox, SHARED_MODEL } from './model-fit';
-import { WallPieces, wallPieces } from './wall-pieces';
+import { WallPieces, wallPieces } from '../geometry/wall-pieces';
 
 /** cm → m */
 export const M = 0.01;
