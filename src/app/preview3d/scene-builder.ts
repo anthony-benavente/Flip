@@ -14,7 +14,7 @@ import { EXTERIOR_WALL_COLOR } from '../model/palettes';
 import { FloorMaterial, Opening, Plan, WallSide } from '../model/plan.model';
 import { FurnitureMeshFactory } from './furniture-meshes';
 import { fitModelToBox, SHARED_MODEL } from './model-fit';
-import { wallPieces } from './wall-pieces';
+import { WallPieces, wallPieces } from './wall-pieces';
 
 /** cm → m */
 export const M = 0.01;
@@ -55,7 +55,7 @@ export function buildPlanScene(
   const materials: THREE.Material[] = [];
   const own = <T extends THREE.Material>(m: T): T => (materials.push(m), m);
 
-  for (const room of rooms) group.add(buildFloor(room, factory, own));
+  for (const room of rooms) group.add(buildFloor(room, factory, own), buildCeiling(room, own));
 
   const openingsByWall = new Map<string, Opening[]>();
   for (const o of plan.openings) openingsByWall.set(o.wallId, [...(openingsByWall.get(o.wallId) ?? []), o]);
@@ -123,6 +123,17 @@ function buildFloor(room: Room, factory: FurnitureMeshFactory, own: Own): THREE.
   return mesh;
 }
 
+/** A ceiling facing down: hidden from the overhead and corner cameras, seen from below. */
+function buildCeiling(room: Room, own: Own): THREE.Mesh {
+  const shape = new THREE.Shape(room.polygon.map((p) => new THREE.Vector2(p.x * M, p.y * M)));
+  const mesh = new THREE.Mesh(new THREE.ShapeGeometry(shape), own(new THREE.MeshStandardMaterial({ color: room.ceilingColor, roughness: 0.95 })));
+  mesh.name = `ceiling:${room.key}`;
+  // Rotating +90° about X maps the shape's (x, y) to world (X, Z = y) with its face pointing down.
+  mesh.rotation.x = Math.PI / 2;
+  mesh.position.y = room.ceilingHeight * M - 0.001;
+  return mesh;
+}
+
 function buildWall(seg: WallSegment, openings: Opening[], rooms: Room[], factory: FurnitureMeshFactory, own: Own): SceneWall {
   const beside = roomsBesideWall(seg, rooms);
   const face = (side: WallSide) =>
@@ -153,6 +164,7 @@ function buildWall(seg: WallSegment, openings: Opening[], rooms: Room[], factory
         : buildDoor(s.opening, s.x0 * M, s.x1 * M, s.top * M, t, factory, own);
     group.add(fill);
   }
+  group.add(buildTrim(seg, pieces, beside, own));
 
   return {
     id: seg.wall.id,
@@ -161,6 +173,48 @@ function buildWall(seg: WallSegment, openings: Opening[], rooms: Room[], factory
     normal: new THREE.Vector2(seg.normal.x, seg.normal.y),
     attached: [],
   };
+}
+
+export const BASEBOARD = { height: 10, depth: 1.5 };
+export const CROWN = { height: 8, depth: 4 };
+export const CASING = { width: 7, depth: 1.5 };
+
+/**
+ * Baseboards, crown molding and door and window casings on each face of a wall that borders a
+ * room, in that room's trim color. Built in the wall's local frame (centimeters → meters).
+ */
+function buildTrim(seg: WallSegment, pieces: WallPieces, beside: Record<WallSide, Room | null>, own: Own): THREE.Group {
+  const trim = new THREE.Group();
+  trim.name = 'trim';
+  const t = seg.wall.thickness;
+  const height = seg.wall.height;
+  for (const side of ['front', 'back'] as const) {
+    const room = beside[side];
+    if (!room) continue;
+    const material = own(new THREE.MeshStandardMaterial({ color: room.trimColor, roughness: 0.5 }));
+    const sign = side === 'front' ? 1 : -1;
+    /** A strip on this face: x and y ranges in cm, standing `depth` cm off the wall. */
+    const strip = (x0: number, x1: number, y0: number, y1: number, depth: number) => {
+      if (x1 - x0 < 0.5 || y1 - y0 < 0.5) return;
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry((x1 - x0) * M, (y1 - y0) * M, depth * M), material);
+      mesh.position.set(((x0 + x1) / 2) * M, ((y0 + y1) / 2) * M, sign * (t / 2 + depth / 2) * M);
+      mesh.castShadow = true;
+      trim.add(mesh);
+    };
+    for (const b of pieces.solids) {
+      if (b.y0 < 0.01) strip(b.x0, b.x1, 0, Math.min(BASEBOARD.height, b.y1), BASEBOARD.depth);
+      if (room.crownMolding && b.y1 > height - 0.01) strip(b.x0, b.x1, height - CROWN.height, height, CROWN.depth);
+    }
+    for (const o of pieces.openings) {
+      const w = CASING.width;
+      const bottom = o.opening.kind === 'door' ? 0 : o.sill;
+      const top = Math.min(o.top + w, height);
+      strip(o.x0 - w, o.x0, bottom, top, CASING.depth);
+      strip(o.x1, o.x1 + w, bottom, top, CASING.depth);
+      strip(o.x0 - w, o.x1 + w, o.top, top, CASING.depth);
+    }
+  }
+  return trim;
 }
 
 function buildWindow(x0: number, x1: number, sill: number, top: number, t: number, own: Own): THREE.Group {

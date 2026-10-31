@@ -119,6 +119,54 @@ describe('buildPlanScene', () => {
     expect(material.color.getHexString()).toBe(build().plan.rooms[0].floorColor.slice(1));
   });
 
+  it('puts a downward-facing ceiling over each room in its ceiling color', () => {
+    const { scene } = build((p) => (p.rooms[0].ceilingColor = '#abcdef'));
+    const ceilings: THREE.Mesh[] = [];
+    scene.group.traverse((o) => o instanceof THREE.Mesh && o.name.startsWith('ceiling:') && ceilings.push(o));
+    expect(ceilings).toHaveLength(1);
+    const ceiling = ceilings[0];
+    expect(ceiling.position.y).toBeCloseTo(2.4, 2);
+    expect((ceiling.material as THREE.MeshStandardMaterial).color.getHexString()).toBe('abcdef');
+    expect(ceiling.castShadow).toBe(false);
+    ceiling.updateMatrixWorld();
+    const normal = new THREE.Vector3(0, 0, 1).transformDirection(ceiling.matrixWorld);
+    expect(normal.y).toBeCloseTo(-1);
+  });
+
+  describe('trim', () => {
+    const trimOf = (scene: ReturnType<typeof build>['scene'], wallId: string) => {
+      const group = scene.walls.find((w) => w.id === wallId)!.group.getObjectByName('trim')!;
+      return group.children as THREE.Mesh[];
+    };
+
+    it('runs baseboards along the room side only, in the trim color', () => {
+      const { scene, walls } = build((p) => (p.rooms[0].trimColor = '#123123'));
+      const pieces = trimOf(scene, walls[1]);
+      expect(pieces).toHaveLength(1);
+      expect((pieces[0].material as THREE.MeshStandardMaterial).color.getHexString()).toBe('123123');
+      expect(pieces[0].position.y).toBeCloseTo(0.05);
+      // The right wall's room is on its front (+z) side.
+      expect(pieces[0].position.z).toBeGreaterThan(0);
+    });
+
+    it('adds crown molding when the room asks for it', () => {
+      const { scene, walls } = build((p) => (p.rooms[0].crownMolding = true));
+      const tops = trimOf(scene, walls[1]).map((m) => m.position.y);
+      expect(tops.some((y) => Math.abs(y - (2.4 - 0.04)) < 1e-6)).toBe(true);
+    });
+
+    it('frames doors with casings and skips the baseboard across the doorway', () => {
+      const { scene, walls } = build((p, w) =>
+        p.openings.push({ id: 'd', wallId: w[1], kind: 'door', offset: 150, width: 80, height: 200, sillHeight: 0 }),
+      );
+      const pieces = trimOf(scene, walls[1]);
+      // Two baseboards beside the door, two side casings and a head casing.
+      expect(pieces).toHaveLength(5);
+      const head = pieces.find((m) => Math.abs(m.position.y - 2.035) < 1e-6);
+      expect(head).toBeDefined();
+    });
+  });
+
   it('bounds the walls at full height', () => {
     const { scene } = build();
     expect(scene.bounds.min.toArray()).toEqual([0, 0, 0]);

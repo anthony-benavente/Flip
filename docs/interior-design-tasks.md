@@ -89,7 +89,7 @@ Tracker for the interior design feature (colors, art, verticality) on branch `fe
   - The factory caches a `DataTexture` (`RepeatWrapping`, repeat in meters) and disposes it.
   - `buildFloor` uses `map` tinted by `floorColor`.
   - Done when: `floor-textures.spec` and `scene-builder.spec` pass.
-- [ ] **T15: Ceiling and trim in 3D.**
+- [x] **T15: Ceiling and trim in 3D.**
   - Per room, a downward-facing ceiling at `ceilingHeight` in `ceilingColor`, with `castShadow = false`, named `ceiling:${key}`.
   - A per-wall `trim` sub-group:
     - baseboards on room faces along pieces that touch the floor;
