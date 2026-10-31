@@ -116,7 +116,7 @@ Tracker for the interior design feature (colors, art, verticality) on branch `fe
   - An optional `images` key in `plan-file.service.ts`, handled like `models`: embed, restore and remap on clash.
   - `remapFurnitureArt` and `setFurnitureArt(draft, id, imageId?, fitAspect?)` in `plan-operations.ts`.
   - Done when: `plan-file.service.spec` and `plan-operations.spec` pass.
-- [ ] **T20: Art properties UI.**
+- [x] **T20: Art properties UI.**
   - `properties/art-properties.ts` for `art` and `canvas-art` items: a thumbnail grid, Upload, None, Match proportions, and remove with confirm.
   - Done when: a spec passes.
 - [ ] **T21: Art textures in 3D.**

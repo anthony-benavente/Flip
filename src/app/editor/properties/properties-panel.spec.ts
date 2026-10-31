@@ -4,6 +4,7 @@ import { createEmptyPlan, createFurniture } from '../../model/defaults';
 import { EditorStore } from '../../state/editor.store';
 import { PlanStore } from '../../state/plan.store';
 import { squareRoom } from '../../testing/fixtures';
+import { twoTonePng } from '../../testing/png';
 import { PropertiesPanel } from './properties-panel';
 
 describe('PropertiesPanel', () => {
@@ -213,6 +214,55 @@ describe('PropertiesPanel', () => {
       await render();
       const first = el.querySelector('.wall-side[data-side="front"] .swatch')!;
       expect(first.getAttribute('title')).toBe('Coastal accent');
+    });
+  });
+
+  describe('art pictures', () => {
+    const settle = async () => {
+      await new Promise((r) => setTimeout(r));
+      await render();
+    };
+    const art = () => plan.plan().furniture.find((f) => f.id === 'art')!;
+    const uploadFile = async (f: File) => {
+      const input = el.querySelector<HTMLInputElement>('.art-upload input')!;
+      Object.defineProperty(input, 'files', { value: [f], configurable: true });
+      input.dispatchEvent(new Event('change'));
+      await settle();
+    };
+
+    beforeEach(async () => {
+      plan.update((d) => d.furniture.push({ ...createFurniture('art-small', { x: 200, y: 10 }), id: 'art' }));
+      editor.select([{ kind: 'furniture', id: 'art' }]);
+      await render();
+    });
+
+    it('uploads a picture, shows it on the art and shapes the frame to it', async () => {
+      await uploadFile(new File([twoTonePng(40, 20)], 'wide_print.png', { type: 'image/png' }));
+      expect(art().artImageId).toMatch(/^i_/);
+      expect(art().height).toBeCloseTo(art().width / 2, 1);
+      expect(el.querySelector('.art-tile.active .art-pick')?.getAttribute('title')).toBe('wide print');
+
+      el.querySelector<HTMLButtonElement>('.art-none')!.click();
+      await render();
+      expect(art().artImageId).toBeUndefined();
+    });
+
+    it('explains files it cannot use', async () => {
+      await uploadFile(new File(['not an image'], 'notes.png'));
+      expect(el.querySelector('.note.error')?.textContent).toContain('not a PNG, JPEG or WebP image');
+      expect(art().artImageId).toBeUndefined();
+    });
+
+    it('deletes a picture after confirming, leaving the art with a plain picture', async () => {
+      await uploadFile(new File([twoTonePng(40, 30)], 'print.png', { type: 'image/png' }));
+      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+      el.querySelector<HTMLButtonElement>('.art-remove')!.click();
+      await settle();
+      expect(confirm).toHaveBeenCalled();
+      expect(el.querySelectorAll('.art-pick')).toHaveLength(0);
+      expect(art().artImageId).toMatch(/^i_/);
+      expect(el.textContent).toContain('picture was deleted');
+      confirm.mockRestore();
     });
   });
 

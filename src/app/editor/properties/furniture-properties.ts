@@ -11,11 +11,12 @@ import { Icon } from '../../shared/icon';
 import { LengthInput } from '../../shared/length-input';
 import { EditorActions } from '../../state/editor-actions';
 import { PlanStore } from '../../state/plan.store';
+import { ArtProperties } from './art-properties';
 
 /** Label, size, rotation, height off the floor and color of one furniture item. */
 @Component({
   selector: 'app-furniture-properties',
-  imports: [ColorSwatches, Icon, LengthInput],
+  imports: [ArtProperties, ColorSwatches, Icon, LengthInput],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './properties.css',
   template: `
@@ -82,6 +83,9 @@ import { PlanStore } from '../../state/plan.store';
       <span>Color</span>
       <app-color-swatches [swatches]="swatches" [selected]="f.color" [pickerValue]="f.color" (pick)="setColor($event)" />
     </div>
+    @if (isArt()) {
+      <app-art-properties [item]="f" />
+    }
     <div class="actions">
       <button class="btn" (click)="actions.duplicateSelection()"><app-icon name="copy" /> Duplicate</button>
       <button class="btn ghost" (click)="resetSize()">Reset size</button>
@@ -109,6 +113,7 @@ export class FurnitureProperties {
     const models = this.library.forTemplate(f.catalogId);
     return current && !models.includes(current) ? [...models, current] : models;
   });
+  protected readonly isArt = computed(() => ['art', 'canvas-art'].includes(catalogItem(this.item().catalogId).shape));
   protected readonly mount = computed(() => mountOf(catalogItem(this.item().catalogId)));
   protected readonly elevation = computed(() => itemElevation(this.item(), this.plan.rooms()));
   protected readonly maxElevation = computed(() =>
