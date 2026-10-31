@@ -7,6 +7,7 @@ import { Plan } from '../model/plan.model';
 import { CUTAWAY_SCALE, isWallCut } from './cutaway';
 import { FurnitureMeshFactory } from './furniture-meshes';
 import { ModelCache } from './model-cache';
+import { ImageSource, TextureCache } from './texture-cache';
 import { buildPlanScene, disposePlanScene, ModelResolver, PlanScene, SceneWall } from './scene-builder';
 
 export type CameraPreset = 'perspective' | 'top';
@@ -18,6 +19,7 @@ export interface ModelSource {
 }
 
 const NO_MODELS: ModelSource = { model: () => undefined, bytes: async () => null };
+const NO_IMAGES: ImageSource = { image: () => undefined, bytes: async () => null };
 
 /**
  * Renders the 3D preview: renderer, lights, camera presets, orbit controls and the wall cutaway.
@@ -32,6 +34,7 @@ export class PreviewEngine {
   private readonly ground: THREE.Mesh;
   private readonly factory = new FurnitureMeshFactory();
   private readonly models = new ModelCache();
+  private readonly textures = new TextureCache();
   private content: PlanScene | null = null;
   private lastUpdate: Parameters<PreviewEngine['update']> | null = null;
   private disposed = false;
@@ -84,18 +87,19 @@ export class PreviewEngine {
   }
 
   /**
-   * Rebuilds the plan's objects. Uploaded models that are not loaded yet draw as built-in models
-   * at first; once they load, the scene is rebuilt with them.
+   * Rebuilds the plan's objects. Uploaded models and art images that are not loaded yet draw as
+   * built-in models and plain pictures at first; once they load, the scene is rebuilt with them.
    */
-  update(plan: Plan, rooms: Room[], segs: WallSegment[], source: ModelSource = NO_MODELS): void {
-    this.lastUpdate = [plan, rooms, segs, source];
+  update(plan: Plan, rooms: Room[], segs: WallSegment[], source: ModelSource = NO_MODELS, images: ImageSource = NO_IMAGES): void {
+    this.lastUpdate = [plan, rooms, segs, source, images];
     const resolve: ModelResolver = (id) => {
       const meta = source.model(id);
       const object = meta && this.models.get(id);
       return object ? { object, orientation: meta.orientation } : undefined;
     };
     this.clearContent();
-    this.content = buildPlanScene(plan, rooms, segs, this.factory, resolve);
+    const picture = (id: string) => (images.image(id) ? this.textures.get(id) : undefined);
+    this.content = buildPlanScene(plan, rooms, segs, this.factory, resolve, picture);
     this.scene.add(this.content.group);
     this.walls = this.content.walls.map((w) => ({ ...w, cut: false }));
 
@@ -108,12 +112,15 @@ export class PreviewEngine {
     }
     this.requestRender();
 
+    const rebuild = (loaded: boolean) => {
+      if (loaded && !this.disposed && this.lastUpdate) this.update(...this.lastUpdate);
+    };
     const missing = plan.furniture.flatMap((f) => (f.modelId && source.model(f.modelId) && !this.models.has(f.modelId) ? [f.modelId] : []));
-    if (missing.length) {
-      this.models.load(missing, (id) => source.bytes(id)).then((loaded) => {
-        if (loaded && !this.disposed && this.lastUpdate) this.update(...this.lastUpdate);
-      });
-    }
+    if (missing.length) this.models.load(missing, (id) => source.bytes(id)).then(rebuild);
+    const missingImages = plan.furniture.flatMap((f) =>
+      f.artImageId && images.image(f.artImageId) && !this.textures.has(f.artImageId) ? [f.artImageId] : [],
+    );
+    if (missingImages.length) this.textures.load(missingImages, images).then(rebuild);
   }
 
   setCamera(preset: CameraPreset, fromUser = true): void {
@@ -152,6 +159,7 @@ export class PreviewEngine {
     this.clearContent();
     this.factory.dispose();
     this.models.dispose();
+    this.textures.dispose();
     this.ground.geometry.dispose();
     (this.ground.material as THREE.Material).dispose();
     this.renderer.dispose();

@@ -7,7 +7,7 @@ import { EXTERIOR_WALL_COLOR } from '../model/palettes';
 import { Plan } from '../model/plan.model';
 import { squareRoom } from '../testing/fixtures';
 import { FurnitureMeshFactory } from './furniture-meshes';
-import { buildPlanScene, disposePlanScene, M, ModelResolver } from './scene-builder';
+import { buildPlanScene, disposePlanScene, ImageResolver, M, ModelResolver } from './scene-builder';
 
 function floorOf(scene: { group: THREE.Group }): THREE.Mesh {
   let floor: THREE.Mesh | undefined;
@@ -21,13 +21,13 @@ describe('buildPlanScene', () => {
   const factory = new FurnitureMeshFactory();
   afterAll(() => factory.dispose());
 
-  function build(edit: (plan: Plan, walls: string[]) => void = () => {}, models?: ModelResolver) {
+  function build(edit: (plan: Plan, walls: string[]) => void = () => {}, models?: ModelResolver, images?: ImageResolver) {
     const plan = createEmptyPlan();
     const walls = squareRoom(plan, 400, 300);
     plan.rooms.push({ id: 'r', anchor: { x: 200, y: 150 }, name: 'Den', floorColor: '#112233', wallColor: '#445566' });
     edit(plan, walls);
     const rooms = attachRoomMeta(detectRooms(plan), plan.rooms);
-    return { plan, walls, scene: buildPlanScene(plan, rooms, wallSegments(plan), factory, models) };
+    return { plan, walls, scene: buildPlanScene(plan, rooms, wallSegments(plan), factory, models, images) };
   }
 
   /** Materials of the first solid box in a wall, in BoxGeometry face order (+x, -x, +y, -y, +z, -z). */
@@ -165,6 +165,25 @@ describe('buildPlanScene', () => {
       const head = pieces.find((m) => Math.abs(m.position.y - 2.035) < 1e-6);
       expect(head).toBeDefined();
     });
+  });
+
+  it('shows an uploaded picture on art, in a material the scene owns', () => {
+    const texture = new THREE.Texture();
+    const addArt = (p: Plan) => p.furniture.push({ ...createFurniture('art-small', { x: 200, y: 20 }), id: 'art', artImageId: 'i_1' });
+    const withPicture = (scene: ReturnType<typeof build>['scene']) => {
+      const meshes: THREE.Mesh[] = [];
+      scene.group.getObjectByName('furniture:art')!.traverse((o) => {
+        if (o instanceof THREE.Mesh && (o.material as THREE.MeshStandardMaterial).map === texture) meshes.push(o);
+      });
+      return meshes;
+    };
+    const { scene } = build(addArt, undefined, (id) => (id === 'i_1' ? texture : undefined));
+    const pictures = withPicture(scene);
+    expect(pictures).toHaveLength(1);
+    expect(scene.materials).toContain(pictures[0].material);
+    // Not loaded yet: a plain picture.
+    expect(withPicture(build(addArt).scene)).toHaveLength(0);
+    texture.dispose();
   });
 
   it('bounds the walls at full height', () => {

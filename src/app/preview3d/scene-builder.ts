@@ -41,6 +41,9 @@ export interface PlanScene {
   materials: THREE.Material[];
 }
 
+/** A loaded art image for a picture id, or `undefined` while it loads or when it is gone. */
+export type ImageResolver = (imageId: string) => THREE.Texture | undefined;
+
 /** A loaded uploaded model and how to turn it, or `undefined` to use the built-in model. */
 export type ModelResolver = (modelId: string) => { object: THREE.Object3D; orientation: ModelOrientation } | undefined;
 
@@ -50,6 +53,7 @@ export function buildPlanScene(
   segments: WallSegment[],
   factory: FurnitureMeshFactory,
   models: ModelResolver = () => undefined,
+  images: ImageResolver = () => undefined,
 ): PlanScene {
   const group = new THREE.Group();
   const materials: THREE.Material[] = [];
@@ -72,7 +76,10 @@ export function buildPlanScene(
     const custom = f.modelId ? models(f.modelId) : undefined;
     const model = custom
       ? fitModelToBox(custom.object, custom.orientation, f.width * M, f.depth * M, f.height * M)
-      : factory.build(catalogItem(f.catalogId).shape, f.width * M, f.depth * M, f.height * M, f.color);
+      : factory.build(catalogItem(f.catalogId).shape, f.width * M, f.depth * M, f.height * M, f.color, {
+          map: f.artImageId ? images(f.artImageId) : undefined,
+          own,
+        });
     model.name = `furniture:${f.id}`;
     model.position.set(f.x * M, elevation * M, f.y * M);
     model.rotation.y = (-f.rotation * Math.PI) / 180;

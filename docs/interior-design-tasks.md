@@ -119,7 +119,7 @@ Tracker for the interior design feature (colors, art, verticality) on branch `fe
 - [x] **T20: Art properties UI.**
   - `properties/art-properties.ts` for `art` and `canvas-art` items: a thumbnail grid, Upload, None, Match proportions, and remove with confirm.
   - Done when: a spec passes.
-- [ ] **T21: Art textures in 3D.**
+- [x] **T21: Art textures in 3D.**
   - `preview3d/texture-cache.ts` (lazy, mirrors `ModelCache`).
   - `buildPlanScene` gets an images resolver, so the art `map` is set.
   - `Preview3d`'s effect tracks `imageLibrary.images()`, and `PreviewEngine.update` loads missing textures and reruns.
