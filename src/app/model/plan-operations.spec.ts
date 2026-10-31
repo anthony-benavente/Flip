@@ -8,6 +8,7 @@ import {
   remapFurnitureModels,
   resetFurnitureSize,
   setFurnitureModel,
+  setRoomCeilingHeight,
   setWallColor,
   updateFurniture,
   updateOpening,
@@ -35,6 +36,32 @@ describe('plan operations', () => {
     [720, 0],
   ])('normalizes %s° to %s°', (input, expected) => {
     expect(normalizeRotation(input)).toBe(expected);
+  });
+
+  it('keeps elevations between the floor and the ceiling', () => {
+    const { plan } = setup();
+    const sofa = plan.furniture[0];
+    updateFurniture(plan, 'f1', { elevation: 50 });
+    expect(sofa.elevation).toBe(50);
+    updateFurniture(plan, 'f1', { elevation: 1000 });
+    expect(sofa.elevation).toBeCloseTo(240 - sofa.height, 5);
+    updateFurniture(plan, 'f1', { elevation: -5 });
+    expect(sofa.elevation).toBeUndefined();
+
+    plan.furniture.push({ ...createFurniture('art-small', { x: 200, y: 10 }), id: 'art' });
+    updateFurniture(plan, 'art', { elevation: 0 });
+    expect(plan.furniture[1].elevation).toBe(0);
+  });
+
+  it('sets the height of every wall around a room', () => {
+    const { plan } = setup();
+    squareRoom(plan, 200, 300, { x: 400, y: 0 });
+    const rooms = attachRoomMeta(detectRooms(plan), []);
+    const left = rooms.find((r) => r.polygon.every((p) => p.x <= 400))!;
+    setRoomCeilingHeight(plan, left, 300);
+    const heights = new Map(plan.walls.map((w) => [w.id, w.height]));
+    for (const id of left.wallIds) expect(heights.get(id)).toBe(300);
+    expect(plan.walls.filter((w) => !left.wallIds.includes(w.id)).every((w) => w.height === 240)).toBe(true);
   });
 
   it('updates wall thickness and height', () => {

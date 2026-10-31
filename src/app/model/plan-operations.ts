@@ -4,9 +4,10 @@
  * normalized, empty override objects are dropped). Low-level wall-graph editing lives in
  * `geometry/wall-geometry.ts`; these build on it.
  */
-import { Room } from '../geometry/room-detection';
+import { ceilingHeightAt } from '../geometry/elevation';
+import { attachRoomMeta, detectRooms, Room } from '../geometry/room-detection';
 import { clampOpeningOffset, nodeMap, reclampOpenings, wallSegment } from '../geometry/wall-geometry';
-import { catalogItem } from './catalog';
+import { catalogItem, mountOf } from './catalog';
 import { FurnitureItem, newId, Opening, Plan, RoomMeta, Wall, WallSide } from './plan.model';
 
 /** Wraps an angle in degrees into (-180, 180]. */
@@ -45,12 +46,26 @@ export function updateOpening(draft: Plan, id: string, patch: Partial<Omit<Openi
   o.offset = clampOpeningOffset(o.offset, o.width, seg.length);
 }
 
+/** Updates an item. Its elevation stays between the floor and the ceiling above it. */
 export function updateFurniture(draft: Plan, id: string, patch: Partial<Omit<FurnitureItem, 'id'>>): void {
   const f = draft.furniture.find((x) => x.id === id);
   if (!f) return;
   Object.assign(f, patch);
   if (patch.rotation !== undefined) f.rotation = normalizeRotation(f.rotation);
   if (patch.label !== undefined && !patch.label.trim()) delete f.label;
+  if (f.elevation !== undefined) clampElevation(draft, f);
+}
+
+function clampElevation(draft: Plan, f: FurnitureItem): void {
+  const ceiling = ceilingHeightAt(attachRoomMeta(detectRooms(draft), []), f);
+  const e = Number.isFinite(f.elevation) ? f.elevation! : 0;
+  f.elevation = Math.min(Math.max(0, e), Math.max(0, ceiling - f.height));
+  if (f.elevation === 0 && mountOf(catalogItem(f.catalogId)) === 'floor') delete f.elevation;
+}
+
+/** Sets the height of every wall around a room. Walls shared with a neighboring room change for it too. */
+export function setRoomCeilingHeight(draft: Plan, room: Room, height: number): void {
+  for (const id of room.wallIds) updateWall(draft, id, { height });
 }
 
 /** Draws an item with an uploaded model, or with the catalog's built-in model for `undefined`. */

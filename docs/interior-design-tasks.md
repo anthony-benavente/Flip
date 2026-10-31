@@ -45,7 +45,7 @@ Tracker for the interior design feature (colors, art, verticality) on branch `fe
   - Wall-mounted items skip the wall-outline check.
   - Update the caller in `plan-canvas.ts:97`.
   - Done when: new `furniture-geometry.spec` cases pass.
-- [ ] **T6: Operations.**
+- [x] **T6: Operations.**
   - `updateFurniture` clamps `elevation` to `[0, ceiling − height]`, taking a ceiling-height argument.
   - New `setRoomCeilingHeight(draft, room, h)` sets the height of every wall in the room through `updateWall`.
   - Done when: `plan-operations.spec` passes.
