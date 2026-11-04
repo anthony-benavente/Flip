@@ -2,6 +2,8 @@ import { createEmptyPlan } from '../model/defaults';
 import {
   addWall,
   clampOpeningOffset,
+  faceTrimGaps,
+  subtractGaps,
   mergeNodes,
   nodeMap,
   removeWalls,
@@ -102,5 +104,32 @@ describe('clampOpeningOffset', () => {
     expect(clampOpeningOffset(390, 80, 400)).toBe(360);
     expect(clampOpeningOffset(200, 80, 400)).toBe(200);
     expect(clampOpeningOffset(10, 500, 400)).toBe(200);
+  });
+});
+
+describe('faceTrimGaps', () => {
+  const seg = (id: string, a: { x: number; y: number }, b: { x: number; y: number }) =>
+    wallSegment({ id, a: `${id}a`, b: `${id}b`, thickness: 10, height: 240 } as never, new Map([[`${id}a`, { id: `${id}a`, ...a }], [`${id}b`, { id: `${id}b`, ...b }]]))!;
+
+  it('stops trim at a wall that joins the face, and ignores the far side', () => {
+    const main = seg('m', { x: 0, y: 0 }, { x: 400, y: 0 });
+    const stem = seg('s', { x: 400, y: 0 }, { x: 400, y: 300 });
+    // normal of main points +y, the stem's side: the front face is blocked for the last 5 cm.
+    const [g0, g1] = faceTrimGaps(main, 'front', [main, stem])[0];
+    expect(g0).toBeCloseTo(195);
+    expect(g1).toBeGreaterThan(200);
+    expect(faceTrimGaps(main, 'back', [main, stem])).toEqual([]);
+  });
+
+  it('lets trim run through a collinear continuation up to the shared node', () => {
+    const a = seg('a', { x: 0, y: 0 }, { x: 100, y: 0 });
+    const b = seg('b', { x: 100, y: 0 }, { x: 200, y: 0 });
+    const [g0] = faceTrimGaps(a, 'front', [a, b])[0];
+    expect(g0).toBeCloseTo(50);
+  });
+
+  it('subtracts gaps from a range', () => {
+    expect(subtractGaps(0, 100, [[-5, 10], [90, 120]])).toEqual([[10, 90]]);
+    expect(subtractGaps(0, 100, [])).toEqual([[0, 100]]);
   });
 });

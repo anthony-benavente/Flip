@@ -1,4 +1,4 @@
-import { newId, Opening, Plan, Point, Wall, WallNode } from '../model/plan.model';
+import { newId, Opening, Plan, Point, Wall, WallNode, WallSide } from '../model/plan.model';
 import { add, cross, dist, dot, EPS, len, normalize, perp, projectToSegment, scale, sub } from './vec';
 
 /** Minimum wall length in cm; shorter segments are discarded. */
@@ -279,4 +279,48 @@ export function nearestWall(
 /** Signed distance of p from the wall's centerline along its normal. */
 export function sideOfWall(seg: WallSegment, p: Point): number {
   return dot(sub(p, seg.a), seg.normal);
+}
+
+/** How far inside the face a trim strip is tested against neighboring walls, so collinear walls count too. */
+const TRIM_PROBE = 0.1;
+
+/**
+ * Ranges along a wall face (x in cm from the wall's midpoint, along `dir`) that other walls cover,
+ * so trim on this face stops where it runs into a joining wall instead of overlapping it.
+ */
+export function faceTrimGaps(seg: WallSegment, side: WallSide, segments: WallSegment[]): Array<[number, number]> {
+  const mid = add(seg.a, scale(seg.dir, seg.length / 2));
+  const v0 = (side === 'front' ? 1 : -1) * (seg.wall.thickness / 2 - TRIM_PROBE);
+  const gaps: Array<[number, number]> = [];
+  for (const other of segments) {
+    if (other.wall.id === seg.wall.id) continue;
+    const poly = wallOutline(other, false).map((p) => {
+      const d = sub(p, mid);
+      return { u: dot(d, seg.dir), v: dot(d, seg.normal) };
+    });
+    const us: number[] = [];
+    for (let i = 0; i < poly.length; i++) {
+      const p = poly[i];
+      const q = poly[(i + 1) % poly.length];
+      if ((p.v - v0) * (q.v - v0) > 0 || p.v === q.v) continue;
+      us.push(p.u + ((v0 - p.v) / (q.v - p.v)) * (q.u - p.u));
+    }
+    if (us.length >= 2) gaps.push([Math.min(...us), Math.max(...us)]);
+  }
+  return gaps;
+}
+
+/** `[x0, x1]` minus the gaps, as the pieces that remain. */
+export function subtractGaps(x0: number, x1: number, gaps: Array<[number, number]>): Array<[number, number]> {
+  let parts: Array<[number, number]> = [[x0, x1]];
+  for (const [g0, g1] of gaps) {
+    parts = parts.flatMap(([a, b]): Array<[number, number]> => {
+      if (g1 <= a || g0 >= b) return [[a, b]];
+      const out: Array<[number, number]> = [];
+      if (g0 > a) out.push([a, g0]);
+      if (g1 < b) out.push([g1, b]);
+      return out;
+    });
+  }
+  return parts;
 }

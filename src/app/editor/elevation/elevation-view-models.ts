@@ -8,7 +8,7 @@ import { itemElevation, mountedWall } from '../../geometry/elevation';
 import { Room, roomsBesideWall, wallFaceColor } from '../../geometry/room-detection';
 import { formatLength } from '../../geometry/units';
 import { dot, rectCorners, scale, sub } from '../../geometry/vec';
-import { WallSegment } from '../../geometry/wall-geometry';
+import { faceTrimGaps, subtractGaps, WallSegment } from '../../geometry/wall-geometry';
 import { BASEBOARD, CROWN, wallPieces } from '../../geometry/wall-pieces';
 import { catalogItem, EYE_LEVEL, mountOf } from '../../model/catalog';
 import { EXTERIOR_WALL_COLOR } from '../../model/palettes';
@@ -116,9 +116,12 @@ export function elevationView(input: ElevationInput) {
   const trimColor = room?.trimColor ?? null;
   const trim: ElevationRect[] = [];
   if (room) {
+    const gaps = faceTrimGaps(seg, side, input.segments);
     for (const b of pieces.solids) {
-      if (b.y0 < 0.01) trim.push(box(b.x0 + L / 2, b.x1 + L / 2, 0, Math.min(BASEBOARD.height, b.y1)));
-      if (room.crownMolding && b.y1 > H - 0.01) trim.push(box(b.x0 + L / 2, b.x1 + L / 2, H - CROWN.height, H));
+      for (const [x0, x1] of subtractGaps(b.x0, b.x1, gaps)) {
+        if (b.y0 < 0.01) trim.push(box(x0 + L / 2, x1 + L / 2, 0, Math.min(BASEBOARD.height, b.y1)));
+        if (room.crownMolding && b.y1 > H - 0.01) trim.push(box(x0 + L / 2, x1 + L / 2, H - CROWN.height, H));
+      }
     }
   }
 

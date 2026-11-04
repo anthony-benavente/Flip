@@ -58,7 +58,7 @@ describe('elevationView', () => {
     const v = elevationView(input());
     expect(v).toMatchObject({ width: 400, height: 240, title: 'Den wall', wallColor: '#223344', trimColor: '#eeeeee' });
     expect(v.trim).toHaveLength(1);
-    expect(v.trim[0]).toMatchObject({ x: 0, w: 400, y: -BASEBOARD.height, h: BASEBOARD.height });
+    expect(v.trim[0]).toMatchObject({ x: 5, w: 390, y: -BASEBOARD.height, h: BASEBOARD.height });
     expect(v.guides.map((g) => g.kind)).toEqual(['floor', 'ceiling', 'eye']);
     expect(v.guides.find((g) => g.kind === 'eye')!.y).toBeCloseTo(-EYE_LEVEL);
   });
