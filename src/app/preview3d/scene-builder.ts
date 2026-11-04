@@ -14,6 +14,7 @@ import { EXTERIOR_WALL_COLOR } from '../model/palettes';
 import { FloorMaterial, Opening, Plan, WallSide } from '../model/plan.model';
 import { FurnitureMeshFactory } from './furniture-meshes';
 import { fitModelToBox, SHARED_MODEL } from './model-fit';
+import { tagPick } from './scene-picking';
 import { BASEBOARD, CASING, CROWN, railingParts, WallPieces, wallPieces } from '../geometry/wall-pieces';
 
 /** cm → m */
@@ -83,6 +84,7 @@ export function buildPlanScene(
           own,
         });
     model.name = `furniture:${f.id}`;
+    tagPick(model, { kind: 'furniture', id: f.id });
     model.position.set(f.x * M, elevation * M, f.y * M);
     model.rotation.y = (-f.rotation * Math.PI) / 180;
     group.add(model);
@@ -177,7 +179,7 @@ function buildWall(seg: WallSegment, openings: Opening[], rooms: Room[], segment
       s.opening.kind === 'window'
         ? buildWindow(s.x0 * M, s.x1 * M, s.sill * M, s.top * M, t, own)
         : buildDoor(s.opening, s.x0 * M, s.x1 * M, s.top * M, t, factory, own);
-    group.add(fill);
+    group.add(tagPick(fill, { kind: 'opening', id: s.opening.id }));
   }
   group.add(buildTrim(seg, pieces, beside, segments, own));
 
