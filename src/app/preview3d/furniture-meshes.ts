@@ -14,6 +14,8 @@ export interface BuildOptions {
 
 const BULB = '#ffe7b0';
 const MIRROR = '#dfe6ea';
+/** Countertop on base cabinets; the item color is the cabinet color. */
+const GRANITE = '#2f2b2a';
 /** Picture area of framed art with no uploaded image. */
 const PLACEHOLDER_ART = '#d8d0c4';
 
@@ -124,6 +126,22 @@ export class FurnitureMeshFactory {
     };
     const legs = (inset: number, y1: number, r: number, col: string) => {
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) cyl(sx * (w / 2 - inset), sz * (d / 2 - inset), r, r, 0, y1, col);
+    };
+    /** A row of raised-panel cabinet doors (about 50 cm each) on the front face, with knobs. */
+    const cabinetFronts = (x0: number, x1: number, y0: number, y1: number, knob: 'top' | 'mid' | 'bottom') => {
+      const knobMat = this.material(metal, { roughness: 0.3, metalness: 0.7 });
+      const n = Math.max(1, Math.round((x1 - x0) / 0.5));
+      const dw = (x1 - x0) / n;
+      const inset = Math.min(0.05, dw * 0.15, (y1 - y0) * 0.2);
+      for (let i = 0; i < n; i++) {
+        const a = x0 + dw * i;
+        const b = a + dw;
+        box(a + 0.003, b - 0.003, y0 + 0.003, y1 - 0.003, d / 2 - 0.02, d / 2 - 0.008, c);
+        box(a + inset, b - inset, y0 + inset, y1 - inset, d / 2 - 0.008, d / 2 - 0.004, light);
+        const kx = n > 1 && i % 2 === 1 ? a + 0.04 : b - 0.04;
+        const ky = knob === 'top' ? y1 - 0.06 : knob === 'bottom' ? y0 + 0.06 : (y0 + y1) / 2;
+        sphere(knob === 'mid' ? (a + b) / 2 : kx, ky, d / 2 - 0.004, 0.012, knobMat);
+      }
     };
 
     const X0 = -w / 2;
@@ -329,6 +347,43 @@ export class FurnitureMeshFactory {
         box(-aw / 2 + 0.03, aw / 2 - 0.03, comboTop - 0.07, comboTop - 0.02, Z1 + 0.01, Z1 + 0.012, '#141414', glass);
         break;
       }
+      case 'range-hood': {
+        // Chimney hood: a lip, a canopy tapering back to the wall, and a chimney up the wall.
+        const steel = this.material(c, { roughness: 0.3, metalness: 0.6 });
+        const lip = Math.min(0.06, h * 0.2);
+        const canopyTop = Math.min(h * 0.45, 0.28);
+        const cw = Math.min(w * 0.35, 0.3);
+        const cd = Math.min(d * 0.55, 0.25);
+        box(X0, X1, 0, lip, Z0, Z1, c, steel);
+        box(X0 + 0.03, X1 - 0.03, 0, 0.002, Z0 + 0.03, Z1 - 0.03, '#555555');
+        const canopy = new THREE.BoxGeometry(1, 1, 1);
+        const pos = canopy.attributes['position'];
+        for (let i = 0; i < pos.count; i++) {
+          const top = pos.getY(i) > 0;
+          pos.setXYZ(i, pos.getX(i) * (top ? cw : w), lip + (pos.getY(i) + 0.5) * (canopyTop - lip), Z0 + (pos.getZ(i) + 0.5) * (top ? cd : d));
+        }
+        canopy.computeVertexNormals();
+        g.add(new THREE.Mesh(canopy, steel));
+        box(-cw / 2, cw / 2, canopyTop, h, Z0, Z0 + cd, c, steel);
+        break;
+      }
+      case 'base-cabinet':
+        box(X0 + 0.02, X1 - 0.02, 0, 0.1, Z0, Z1 - 0.08, '#3a3530');
+        box(X0, X1, 0.1, h - 0.04, Z0, Z1 - 0.02, c);
+        cabinetFronts(X0, X1, h - 0.2, h - 0.04, 'mid');
+        cabinetFronts(X0, X1, 0.1, h - 0.2, 'top');
+        box(X0, X1, h - 0.04, h, Z0, Z1, GRANITE, this.material(GRANITE, { roughness: 0.25 }));
+        break;
+      case 'wall-cabinet':
+        box(X0, X1, 0, h, Z0, Z1 - 0.02, c);
+        cabinetFronts(X0, X1, 0, h, 'bottom');
+        break;
+      case 'pantry':
+        box(X0 + 0.02, X1 - 0.02, 0, 0.1, Z0, Z1 - 0.08, '#3a3530');
+        box(X0, X1, 0.1, h, Z0, Z1 - 0.02, c);
+        cabinetFronts(X0, X1, 0.1, h * 0.55, 'top');
+        cabinetFronts(X0, X1, h * 0.55, h, 'bottom');
+        break;
       case 'kitchen-sink': {
         // Drop-in sink: a thin rim on the counter top with a dark basin opening, faucet at the back.
         const chrome = this.material(metal, { roughness: 0.2, metalness: 0.8 });

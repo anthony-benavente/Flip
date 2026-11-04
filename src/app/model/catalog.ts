@@ -23,6 +23,10 @@ export type FurnitureShape =
   | 'stove'
   | 'cooktop'
   | 'oven-tower'
+  | 'range-hood'
+  | 'base-cabinet'
+  | 'wall-cabinet'
+  | 'pantry'
   | 'sink'
   | 'kitchen-sink'
   | 'toilet'
@@ -115,6 +119,10 @@ export const CATALOG: CatalogItem[] = [
   { id: 'stove', name: 'Stove', category: 'Kitchen & Bath', shape: 'stove', width: 30 * IN, depth: 26 * IN, height: 36 * IN, color: '#b9bcc2' },
   { id: 'cooktop', name: 'Cooktop (5 burner)', category: 'Kitchen & Bath', shape: 'cooktop', width: 36 * IN, depth: 21 * IN, height: 2 * IN, color: '#c9ccd1', noWallSnap: true, stackable: true },
   { id: 'oven-tower', name: 'Oven + microwave tower', category: 'Kitchen & Bath', shape: 'oven-tower', width: 33 * IN, depth: 25 * IN, height: 90 * IN, color: '#ece6d6' },
+  { id: 'range-hood', name: 'Range hood', category: 'Kitchen & Bath', shape: 'range-hood', width: 36 * IN, depth: 20 * IN, height: 28 * IN, color: '#c9ccd1', mount: 'wall', defaultElevation: 80 * IN },
+  { id: 'base-cabinet', name: 'Base cabinet', category: 'Kitchen & Bath', shape: 'base-cabinet', width: 30 * IN, depth: 25 * IN, height: 36 * IN, color: '#ece6d6' },
+  { id: 'wall-cabinet', name: 'Upper cabinet', category: 'Kitchen & Bath', shape: 'wall-cabinet', width: 30 * IN, depth: 12 * IN, height: 36 * IN, color: '#ece6d6', mount: 'wall', defaultElevation: 72 * IN },
+  { id: 'pantry', name: 'Pantry cabinet', category: 'Kitchen & Bath', shape: 'pantry', width: 24 * IN, depth: 25 * IN, height: 90 * IN, color: '#ece6d6' },
   { id: 'kitchen-sink', name: 'Kitchen sink', category: 'Kitchen & Bath', shape: 'kitchen-sink', width: 33 * IN, depth: 22 * IN, height: 14 * IN, color: '#c9ccd1', noWallSnap: true, stackable: true },
   { id: 'sink', name: 'Sink vanity', category: 'Kitchen & Bath', shape: 'sink', width: 30 * IN, depth: 21 * IN, height: 34 * IN, color: '#e9e7e2' },
   { id: 'toilet', name: 'Toilet', category: 'Kitchen & Bath', shape: 'toilet', width: 20 * IN, depth: 28 * IN, height: 30 * IN, color: '#f4f4f2' },

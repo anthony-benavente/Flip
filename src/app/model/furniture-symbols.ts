@@ -143,6 +143,24 @@ export function symbolParts(shape: FurnitureShape, w: number, d: number): Symbol
       const aw = Math.min(w - 8, 76);
       return [{ t: 'rect', x: -aw / 2, y: -y0 - 4, w: aw, h: 4, tone: -0.35 }];
     }
+    case 'range-hood': {
+      const cw = Math.min(w * 0.35, 30);
+      const cd = Math.min(d * 0.55, 25);
+      return [
+        { t: 'rect', x: -cw / 2, y: y0, w: cw, h: cd, tone: -0.15 },
+        { t: 'line', x1: -cw / 2, y1: y0 + cd, x2: x0, y2: -y0 },
+        { t: 'line', x1: cw / 2, y1: y0 + cd, x2: -x0, y2: -y0 },
+      ];
+    }
+    case 'base-cabinet':
+      return [{ t: 'line', x1: x0, y1: -y0 - 5, x2: -x0, y2: -y0 - 5 }];
+    case 'wall-cabinet':
+      return [{ t: 'line', x1: x0, y1: y0, x2: -x0, y2: -y0 }];
+    case 'pantry':
+      return [
+        { t: 'line', x1: x0, y1: y0, x2: -x0, y2: -y0 },
+        { t: 'line', x1: -x0, y1: y0, x2: x0, y2: -y0 },
+      ];
     case 'kitchen-sink':
       return [
         { t: 'rect', x: x0 + w * 0.08, y: y0 + d * 0.3, w: w * 0.84, h: d * 0.6, r: 4, tone: -0.2 },
