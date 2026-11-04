@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import { ImageLibrary } from '../persistence/image-library';
 import { ModelLibrary } from '../persistence/model-library';
+import { EditorStore, SelectionItem } from '../state/editor.store';
 import { PlanStore } from '../state/plan.store';
 import { Icon } from '../shared/icon';
 import type { CameraPreset, PreviewEngine } from './preview-engine';
@@ -41,7 +42,7 @@ const REBUILD_DEBOUNCE_MS = 150;
         <input type="checkbox" [checked]="cutaway()" (change)="toggleCutaway()" /> Cutaway walls
       </label>
     </div>
-    <div class="help">Drag to orbit · right-drag to pan · scroll to zoom</div>
+    <div class="help">Click to select · drag to orbit · right-drag to pan · scroll to zoom</div>
   `,
   styles: `
     :host { position: relative; display: block; overflow: hidden; background: #eef0f2; }
@@ -62,6 +63,7 @@ const REBUILD_DEBOUNCE_MS = 150;
 })
 export class Preview3d {
   private readonly store = inject(PlanStore);
+  private readonly editor = inject(EditorStore);
   private readonly library = inject(ModelLibrary);
   private readonly images = inject(ImageLibrary);
   private readonly hostRef = viewChild.required<ElementRef<HTMLElement>>('host');
@@ -83,6 +85,10 @@ export class Preview3d {
       this.images.images();
       untracked(() => this.scheduleRebuild());
     });
+    effect(() => {
+      const selection = this.editor.selection();
+      untracked(() => this.engine?.setSelection(selection));
+    });
 
     afterNextRender(async () => {
       try {
@@ -90,6 +96,8 @@ export class Preview3d {
         if (this.destroyed) return;
         this.engine = new PreviewEngine(this.hostRef().nativeElement);
         this.engine.setCutaway(this.cutaway());
+        this.engine.setSelection(this.editor.selection());
+        this.engine.onPick = (item, additive) => this.pick(item, additive);
         this.rebuild();
         this.status.set('ready');
       } catch (e) {
@@ -109,6 +117,17 @@ export class Preview3d {
   protected setCamera(preset: CameraPreset): void {
     this.preset.set(preset);
     this.engine?.setCamera(preset);
+  }
+
+  /** Click selects the element under the pointer; Shift/Ctrl-click adds or removes it. */
+  private pick(item: SelectionItem | null, additive: boolean): void {
+    if (!item) {
+      if (!additive) this.editor.clearSelection();
+    } else if (additive) {
+      this.editor.toggle(item);
+    } else {
+      this.editor.select([item]);
+    }
   }
 
   protected toggleCutaway(): void {

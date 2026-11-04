@@ -116,7 +116,8 @@ export function openingViews(openings: Opening[], segmentById: ReadonlyMap<strin
 
 /**
  * Furniture in draw order: floor-layer items (rugs) first, then everything else from low to high,
- * so stacked and wall-mounted items draw over what is beneath them.
+ * so stacked and wall-mounted items draw over what is beneath them. Selected items, rugs included,
+ * draw last in the top layer so nothing covers them while they are being edited.
  */
 export function furnitureViews(
   furniture: FurnitureItem[],
@@ -128,6 +129,7 @@ export function furnitureViews(
   const items = furniture.map((f) => {
     const c = catalogItem(f.catalogId);
     const label = f.label || c.name;
+    const isSelected = selected.has(`furniture:${f.id}`);
     return {
       id: f.id,
       transform: transformOf(f.x, f.y, f.rotation),
@@ -135,18 +137,19 @@ export function furnitureViews(
       w: f.width,
       d: f.depth,
       color: f.color,
-      floor: !!c.floorLayer,
+      layer: c.floorLayer && !isSelected ? ('floor' as const) : ('top' as const),
       mount: mountOf(c),
       elevation: elevationOf(f),
       label,
       showLabel: f.width * zoom > label.length * 6.5 + 8 && f.depth * zoom > 16,
       // Keep text upright regardless of item rotation.
       labelRotate: -f.rotation,
-      selected: selected.has(`furniture:${f.id}`),
+      selected: isSelected,
       overlap: overlaps.has(f.id),
     };
   });
-  return [...items.filter((i) => i.floor), ...items.filter((i) => !i.floor).sort((a, b) => a.elevation - b.elevation)];
+  const top = items.filter((i) => i.layer === 'top').sort((a, b) => Number(a.selected) - Number(b.selected) || a.elevation - b.elevation);
+  return [...items.filter((i) => i.layer === 'floor'), ...top];
 }
 
 /** Wall length labels, placed on the side of the wall that is outside any room and kept upright. */
