@@ -72,4 +72,29 @@ describe('scene picking', () => {
     expect(pickDown(scene.group, 120, 80)).toEqual({ kind: 'furniture', id: 'f' });
     material.dispose();
   });
+
+  it('outlines a trimmed uploaded model along the item, not the trimmed-off parts', () => {
+    const plan = createEmptyPlan();
+    plan.furniture.push({ ...createFurniture('box', { x: 0, y: 0 }, 0), id: 'f', width: 100, depth: 50, height: 80, modelId: 'm' });
+    // A model with a stray part far off to the right, trimmed away.
+    const source = new THREE.Group();
+    const part = (x: number) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial());
+      mesh.position.x = x;
+      source.add(mesh);
+    };
+    part(0);
+    part(9);
+    const trim = { left: 0, right: 0.9, front: 0, back: 0, top: 0, bottom: 0 };
+    const scene = buildPlanScene(plan, [], [], factory, () => ({ object: source, orientation: { x: 0, y: 0, z: 0 }, trim }));
+    const [item] = findTagged(scene.group, [{ kind: 'furniture', id: 'f' }]);
+    const line = addOutline(item, new THREE.LineBasicMaterial())!;
+    scene.group.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(line);
+    // The item's 1 m × 0.8 m × 0.5 m box plus the 1 cm margin, scaled into place.
+    expect(box.min.x).toBeCloseTo(-0.5, 1);
+    expect(box.max.x).toBeCloseTo(0.5, 1);
+    expect(box.max.y).toBeCloseTo(0.8, 1);
+    expect(box.max.z).toBeCloseTo(0.25, 1);
+  });
 });

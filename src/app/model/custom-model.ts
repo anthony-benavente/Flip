@@ -12,6 +12,26 @@ export interface ModelOrientation {
 
 export const DEFAULT_ORIENTATION: ModelOrientation = { x: 0, y: 0, z: 0 };
 
+/**
+ * Fractions of the model's measured size cut off each side before it is stretched to the item's
+ * box, for files whose bounds hold empty space or stray parts. Sides are those of the item after
+ * `orientation`: front faces +z, and left and right are as seen from the front.
+ */
+export interface ModelTrim {
+  left: number;
+  right: number;
+  front: number;
+  back: number;
+  top: number;
+  bottom: number;
+}
+
+export type TrimSide = keyof ModelTrim;
+export const TRIM_SIDES: readonly TrimSide[] = ['left', 'right', 'front', 'back', 'top', 'bottom'];
+/** Largest trim on one side, so opposite sides together always keep 10% of the model. */
+export const MAX_TRIM = 0.45;
+export const NO_TRIM: ModelTrim = { left: 0, right: 0, front: 0, back: 0, top: 0, bottom: 0 };
+
 export interface CustomModel {
   id: string;
   name: string;
@@ -21,10 +41,12 @@ export interface CustomModel {
   byteSize: number;
   createdAt: string;
   orientation: ModelOrientation;
+  /** Unset when nothing is trimmed. */
+  trim?: ModelTrim;
 }
 
 /** What can change after upload: everything but the file. */
-export type ModelSettings = Partial<Pick<CustomModel, 'name' | 'catalogId' | 'orientation'>>;
+export type ModelSettings = Partial<Pick<CustomModel, 'name' | 'catalogId' | 'orientation' | 'trim'>>;
 
 /** A model's metadata plus its glTF / GLB file bytes. */
 export interface CustomModelRecord {
@@ -56,6 +78,25 @@ export function turnOrientation(o: ModelOrientation, axis: keyof ModelOrientatio
   return { ...o, [axis]: ((o[axis] + 1) % 4) as QuarterTurns };
 }
 
+/** Sets one side's trim, clamped to 0…`MAX_TRIM` and rounded to 0.1%. */
+export function setTrimSide(trim: ModelTrim, side: TrimSide, value: number): ModelTrim {
+  const clamped = Math.min(MAX_TRIM, Math.max(0, Number.isFinite(value) ? value : 0));
+  return { ...trim, [side]: Math.round(clamped * 1000) / 1000 };
+}
+
+/** The trim to store on a model: `undefined` when no side is trimmed. */
+export function storedTrim(trim: ModelTrim): ModelTrim | undefined {
+  return TRIM_SIDES.some((s) => trim[s] > 0) ? { ...trim } : undefined;
+}
+
+export function isModelTrim(v: unknown): v is ModelTrim {
+  if (!v || typeof v !== 'object') return false;
+  return TRIM_SIDES.every((s) => {
+    const n = (v as Record<string, unknown>)[s];
+    return typeof n === 'number' && n >= 0 && n <= MAX_TRIM;
+  });
+}
+
 export function isModelOrientation(v: unknown): v is ModelOrientation {
   const turn = (t: unknown) => t === 0 || t === 1 || t === 2 || t === 3;
   return !!v && typeof v === 'object' && ['x', 'y', 'z'].every((k) => turn((v as Record<string, unknown>)[k]));
@@ -68,6 +109,7 @@ export function isCustomModel(v: unknown): v is CustomModel {
   return (
     ['id', 'name', 'catalogId', 'fileName', 'createdAt'].every((k) => typeof m[k] === 'string') &&
     typeof m['byteSize'] === 'number' &&
-    isModelOrientation(m['orientation'])
+    isModelOrientation(m['orientation']) &&
+    (m['trim'] === undefined || isModelTrim(m['trim']))
   );
 }

@@ -9,12 +9,12 @@ import { Room, roomsBesideWall, wallFaceColor } from '../geometry/room-detection
 import { add, scale } from '../geometry/vec';
 import { endExtensions, faceTrimGaps, subtractGaps, WallSegment } from '../geometry/wall-geometry';
 import { catalogItem } from '../model/catalog';
-import { ModelOrientation } from '../model/custom-model';
+import { ModelOrientation, ModelTrim } from '../model/custom-model';
 import { EXTERIOR_WALL_COLOR } from '../model/palettes';
 import { FloorMaterial, Opening, Plan, WallSide } from '../model/plan.model';
 import { FurnitureMeshFactory } from './furniture-meshes';
 import { fitModelToBox, SHARED_MODEL } from './model-fit';
-import { tagPick } from './scene-picking';
+import { ITEM_BOX, ItemBox, tagPick } from './scene-picking';
 import { BASEBOARD, CASING, CROWN, railingParts, WallPieces, wallPieces } from '../geometry/wall-pieces';
 
 /** cm → m */
@@ -48,7 +48,7 @@ export interface PlanScene {
 export type ImageResolver = (imageId: string) => THREE.Texture | undefined;
 
 /** A loaded uploaded model and how to turn it, or `undefined` to use the built-in model. */
-export type ModelResolver = (modelId: string) => { object: THREE.Object3D; orientation: ModelOrientation } | undefined;
+export type ModelResolver = (modelId: string) => { object: THREE.Object3D; orientation: ModelOrientation; trim?: ModelTrim } | undefined;
 
 export function buildPlanScene(
   plan: Plan,
@@ -78,13 +78,14 @@ export function buildPlanScene(
     const elevation = itemElevation(f, rooms);
     const custom = f.modelId ? models(f.modelId) : undefined;
     const model = custom
-      ? fitModelToBox(custom.object, custom.orientation, f.width * M, f.depth * M, f.height * M)
+      ? fitModelToBox(custom.object, custom.orientation, f.width * M, f.depth * M, f.height * M, custom.trim)
       : factory.build(catalogItem(f.catalogId).shape, f.width * M, f.depth * M, f.height * M, f.color, {
           map: f.artImageId ? images(f.artImageId) : undefined,
           own,
         });
     model.name = `furniture:${f.id}`;
     tagPick(model, { kind: 'furniture', id: f.id });
+    model.userData[ITEM_BOX] = { w: f.width * M, d: f.depth * M, h: f.height * M } satisfies ItemBox;
     model.position.set(f.x * M, elevation * M, f.y * M);
     model.rotation.y = (-f.rotation * Math.PI) / 180;
     group.add(model);

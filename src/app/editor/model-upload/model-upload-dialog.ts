@@ -19,8 +19,15 @@ import {
   DEFAULT_ORIENTATION,
   MAX_MODEL_BYTES,
   MODEL_FILE_ACCEPT,
+  MAX_TRIM,
   ModelOrientation,
   modelNameFromFile,
+  ModelTrim,
+  NO_TRIM,
+  setTrimSide,
+  storedTrim,
+  TRIM_SIDES,
+  TrimSide,
   turnOrientation,
 } from '../../model/custom-model';
 import { ModelLibrary } from '../../persistence/model-library';
@@ -34,7 +41,8 @@ type PreviewModule = typeof import('../../preview3d/model-preview');
 /**
  * Uploads a glTF / GLB model as a variant of a catalog template, or edits an uploaded model's
  * settings (everything but the file). The model is stretched to the template's box; the preview
- * shows the fit so the user can turn the model to face the right way.
+ * shows the fit so the user can turn the model to face the right way and trim empty space off
+ * its bounds.
  */
 @Component({
   selector: 'app-model-upload-dialog',
@@ -105,6 +113,31 @@ type PreviewModule = typeof import('../../preview3d/model-preview');
           <span class="front">Red arrow = front</span>
         </div>
 
+        <div class="trim">
+          <div class="trim-head">
+            <span>Trim empty space: cut each side in until the model fills the blue box</span>
+            <button class="btn ghost" [disabled]="status() !== 'ready'" (click)="trim.set(noTrim)">Reset</button>
+          </div>
+          <div class="trim-grid">
+            @for (side of trimSides; track side) {
+              <label class="trim-side">
+                <span class="side">{{ side }}</span>
+                <input
+                  type="range"
+                  min="0"
+                  [max]="maxTrim * 100"
+                  step="0.5"
+                  [value]="trim()[side] * 100"
+                  [disabled]="status() !== 'ready'"
+                  (input)="setTrim(side, $any($event.target).valueAsNumber / 100)"
+                  [attr.aria-label]="'Trim ' + side"
+                />
+                <span class="pct">{{ percent(side) }}</span>
+              </label>
+            }
+          </div>
+        </div>
+
         <div class="actions">
           <button class="btn ghost" (click)="close()">Cancel</button>
           <button class="btn primary" [disabled]="status() !== 'ready' || saving()" (click)="save()">
@@ -130,6 +163,14 @@ type PreviewModule = typeof import('../../preview3d/model-preview');
     .size { position: absolute; right: 8px; bottom: 6px; color: var(--text-muted); font-size: 12px; }
     .turns { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
     .front { margin-left: auto; color: #d9534f; font-size: 12px; }
+    .trim { margin-top: 12px; }
+    .trim-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--text-muted);
+      font-size: 12px; }
+    .trim-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px 14px; margin-top: 4px; }
+    .trim-side { display: grid; grid-template-columns: 46px 1fr 40px; align-items: center; gap: 6px; font-size: 12px; }
+    .trim-side input { width: 100%; min-width: 0; }
+    .side { text-transform: capitalize; }
+    .pct { color: var(--text-muted); text-align: right; font-variant-numeric: tabular-nums; }
     .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
   `,
 })
@@ -149,6 +190,9 @@ export class ModelUploadDialog implements OnInit {
   protected readonly accept = MODEL_FILE_ACCEPT;
   protected readonly axes = ['x', 'y', 'z'] as const;
   protected readonly defaultOrientation = DEFAULT_ORIENTATION;
+  protected readonly trimSides = TRIM_SIDES;
+  protected readonly maxTrim = MAX_TRIM;
+  protected readonly noTrim = NO_TRIM;
   protected readonly templateGroups = CATALOG_CATEGORIES.map((category) => ({
     category,
     items: CATALOG.filter((c) => c.category === category),
@@ -157,6 +201,7 @@ export class ModelUploadDialog implements OnInit {
   protected readonly catalogId = signal('office-chair');
   protected readonly name = signal('');
   protected readonly orientation = signal<ModelOrientation>(DEFAULT_ORIENTATION);
+  protected readonly trim = signal<ModelTrim>(NO_TRIM);
   protected readonly status = signal<'idle' | 'reading' | 'ready'>('idle');
   protected readonly error = signal<string | null>(null);
   protected readonly saving = signal(false);
@@ -180,7 +225,8 @@ export class ModelUploadDialog implements OnInit {
     effect(() => {
       const c = catalogItem(this.catalogId());
       const o = this.orientation();
-      if (this.status() === 'ready') this.preview?.fit(o, c.width / 100, c.depth / 100, c.height / 100);
+      const trim = this.trim();
+      if (this.status() === 'ready') this.preview?.fit(o, c.width / 100, c.depth / 100, c.height / 100, trim);
     });
     inject(DestroyRef).onDestroy(() => {
       this.destroyed = true;
@@ -246,6 +292,7 @@ export class ModelUploadDialog implements OnInit {
       return false;
     }
     this.orientation.set(this.editing()?.orientation ?? DEFAULT_ORIENTATION);
+    this.trim.set(this.editing()?.trim ?? NO_TRIM);
     this.showInPreview(mod, object);
     this.status.set('ready');
     return true;
@@ -260,16 +307,26 @@ export class ModelUploadDialog implements OnInit {
     this.orientation.update((o) => turnOrientation(o, axis));
   }
 
+  protected setTrim(side: TrimSide, value: number): void {
+    this.trim.update((t) => setTrimSide(t, side, value));
+  }
+
+  /** "12.5%". */
+  protected percent(side: TrimSide): string {
+    return `${Math.round(this.trim()[side] * 1000) / 10}%`;
+  }
+
   protected async save(): Promise<void> {
     const editing = this.editing();
     if ((!editing && !this.file) || this.saving()) return;
     this.saving.set(true);
+    const trim = storedTrim(this.trim());
     try {
       if (editing) {
-        await this.library.update(editing.id, { name: this.name(), catalogId: this.catalogId(), orientation: this.orientation() });
+        await this.library.update(editing.id, { name: this.name(), catalogId: this.catalogId(), orientation: this.orientation(), trim });
         this.closed.emit(this.library.model(editing.id) ?? editing);
       } else {
-        this.closed.emit(await this.library.upload(this.file!, this.catalogId(), this.name(), this.orientation()));
+        this.closed.emit(await this.library.upload(this.file!, this.catalogId(), this.name(), this.orientation(), trim));
       }
     } catch (e) {
       this.error.set(e instanceof Error ? e.message : 'The model could not be saved.');

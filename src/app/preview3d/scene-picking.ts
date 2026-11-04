@@ -7,7 +7,18 @@ import type { SelectionItem } from '../state/editor.store';
 
 /** `userData` key holding the `SelectionItem` an object stands for. */
 export const PICK = 'pick';
+/**
+ * `userData` key holding a furniture item's box in meters (`{ w, d, h }`), standing on the
+ * object's origin. Outlines use it rather than the meshes, which a trimmed uploaded model overhangs.
+ */
+export const ITEM_BOX = 'itemBox';
 const OUTLINE = 'outline';
+
+export interface ItemBox {
+  w: number;
+  d: number;
+  h: number;
+}
 
 export function tagPick<T extends THREE.Object3D>(object: T, item: SelectionItem): T {
   object.userData[PICK] = item;
@@ -60,12 +71,20 @@ export function localBounds(object: THREE.Object3D): THREE.Box3 {
   return box;
 }
 
+/** An item's box in the object's own frame, undoing the object's scale (fitted models are scaled). */
+function itemBounds(object: THREE.Object3D, { w, d, h }: ItemBox): THREE.Box3 {
+  const s = object.scale;
+  return new THREE.Box3(new THREE.Vector3(-w / 2 / s.x, 0, -d / 2 / s.z), new THREE.Vector3(w / 2 / s.x, h / s.y, d / 2 / s.z));
+}
+
 /**
- * A box of lines around a selected object's meshes, added as its child so it follows the object's
- * scale and visibility. `null` for an empty object.
+ * A box of lines around a selected object, added as its child so it follows the object's scale
+ * and visibility: the item's box for furniture, otherwise the box around its meshes. `null` for an
+ * empty object.
  */
 export function addOutline(object: THREE.Object3D, material: THREE.LineBasicMaterial): THREE.LineSegments | null {
-  const box = localBounds(object);
+  const item = object.userData[ITEM_BOX] as ItemBox | undefined;
+  const box = item ? itemBounds(object, item) : localBounds(object);
   if (box.isEmpty()) return null;
   box.expandByScalar(0.01);
   const size = box.getSize(new THREE.Vector3());
