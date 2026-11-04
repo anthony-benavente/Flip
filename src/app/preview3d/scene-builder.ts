@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { itemElevation, mountedWall } from '../geometry/elevation';
 import { Room, roomsBesideWall, wallFaceColor } from '../geometry/room-detection';
 import { add, scale } from '../geometry/vec';
-import { faceTrimGaps, subtractGaps, WallSegment } from '../geometry/wall-geometry';
+import { endExtensions, faceTrimGaps, subtractGaps, WallSegment } from '../geometry/wall-geometry';
 import { catalogItem } from '../model/catalog';
 import { ModelOrientation } from '../model/custom-model';
 import { EXTERIOR_WALL_COLOR } from '../model/palettes';
@@ -156,7 +156,7 @@ function buildWall(seg: WallSegment, openings: Opening[], rooms: Room[], segment
   group.rotation.y = -Math.atan2(seg.dir.y, seg.dir.x);
 
   const t = seg.wall.thickness * M;
-  const pieces = wallPieces({ length: seg.length, thickness: seg.wall.thickness, height: seg.wall.height }, openings);
+  const pieces = wallPieces({ length: seg.length, thickness: seg.wall.thickness, height: seg.wall.height }, openings, endExtensions(seg, segments));
   for (const b of pieces.solids) {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry((b.x1 - b.x0) * M, (b.y1 - b.y0) * M, t), faceMaterials);
     mesh.position.set(((b.x0 + b.x1) / 2) * M, ((b.y0 + b.y1) / 2) * M, 0);

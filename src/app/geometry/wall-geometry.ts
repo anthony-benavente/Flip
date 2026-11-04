@@ -324,3 +324,38 @@ export function subtractGaps(x0: number, x1: number, gaps: Array<[number, number
   }
   return parts;
 }
+
+/**
+ * How far each end of a wall extends past its node. An end whose extension lies entirely inside
+ * other walls (a T-junction, or a collinear continuation) gets none, so the two walls' faces
+ * are never coplanar and do not z-fight. A square corner of two walls is filled by only one of them.
+ */
+export function endExtensions(seg: WallSegment, segments: WallSegment[]): { a: number; b: number } {
+  const h = seg.wall.thickness / 2;
+  const covered = (node: Point, outward: Point) => {
+    const corners = [
+      add(node, scale(seg.normal, h)),
+      sub(node, scale(seg.normal, h)),
+      add(add(node, scale(outward, h)), scale(seg.normal, h)),
+      add(node, sub(scale(outward, h), scale(seg.normal, h))),
+    ];
+    // Each corner of the extension must lie in some other wall; a T-junction's main wall is two pieces.
+    return corners.every((p) =>
+      segments.some((o) => {
+        if (o.wall.id === seg.wall.id) return false;
+        const d = sub(p, o.a);
+        const u = dot(d, o.dir);
+        return Math.abs(dot(d, o.normal)) <= o.wall.thickness / 2 + EPS && u >= -EPS && u <= o.length + EPS;
+      }),
+    );
+  };
+  /** At a square corner of exactly two walls, only the one with the lower id fills the outer corner square. */
+  const yields = (nodeId: string) => {
+    const others = segments.filter((o) => o.wall.id !== seg.wall.id && (o.wall.a === nodeId || o.wall.b === nodeId));
+    return others.length === 1 && Math.abs(dot(seg.dir, others[0].dir)) < 1e-3 && others[0].wall.id < seg.wall.id;
+  };
+  return {
+    a: covered(seg.a, scale(seg.dir, -1)) || yields(seg.wall.a) ? 0 : h,
+    b: covered(seg.b, seg.dir) || yields(seg.wall.b) ? 0 : h,
+  };
+}

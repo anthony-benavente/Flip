@@ -30,9 +30,14 @@ const MIN_SIZE = 0.01;
 
 /**
  * Splits a wall into solid boxes around its door and window openings.
- * Each end is extended by half the wall's thickness so corners close, matching the 2D plan's square caps.
+ * Each end is extended (by half the wall's thickness unless `ends` says otherwise) so corners close, matching the 2D plan's square caps.
  */
-export function wallPieces(wall: { length: number; thickness: number; height: number }, openings: Opening[]): WallPieces {
+export function wallPieces(
+  wall: { length: number; thickness: number; height: number },
+  openings: Opening[],
+  /** How far each end extends past its node; defaults to half the thickness. */
+  ends: { a: number; b: number } = { a: wall.thickness / 2, b: wall.thickness / 2 },
+): WallPieces {
   const { length: L, thickness: t, height: H } = wall;
   const solids: WallBox[] = [];
   const spans: OpeningSpan[] = [];
@@ -40,8 +45,8 @@ export function wallPieces(wall: { length: number; thickness: number; height: nu
     if (x1 - x0 >= MIN_SIZE && y1 - y0 >= MIN_SIZE) solids.push({ x0, x1, y0, y1 });
   };
 
-  const start = -L / 2 - t / 2;
-  const end = L / 2 + t / 2;
+  const start = -L / 2 - ends.a;
+  const end = L / 2 + ends.b;
   let cursor = start;
   for (const o of [...openings].sort((a, b) => a.offset - b.offset)) {
     const x0 = Math.max(cursor, o.offset - o.width / 2 - L / 2);
