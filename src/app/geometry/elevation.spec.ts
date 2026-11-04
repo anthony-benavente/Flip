@@ -76,6 +76,11 @@ describe('stacking', () => {
     expect(sink.elevation).toBe(island.height);
     expect(itemsRestingOn(island, [island, sink], rooms).map((f) => f.id)).toEqual([sink.id]);
   });
+
+  it('sets a cooktop into a counter top', () => {
+    const counter = item('counter', 200, 100);
+    expect(restingElevation(item('cooktop', 200, 100), [counter], rooms)).toBe(counter.height);
+  });
 });
 
 describe('mountedWall', () => {

@@ -7,6 +7,31 @@ export type SymbolPart =
   | { t: 'line'; x1: number; y1: number; x2: number; y2: number };
 
 /**
+ * Burner centers and radii of a five-burner cooktop, centered on the item with the back at -d/2.
+ * Works in any length unit; the 2D symbol and the 3D mesh share it.
+ */
+export function cooktopBurners(w: number, d: number): { x: number; y: number; r: number }[] {
+  const m = Math.min(w, d);
+  return [
+    { x: -w * 0.36, y: -d * 0.2, r: m * 0.1 },
+    { x: -w * 0.36, y: d * 0.2, r: m * 0.12 },
+    { x: 0, y: -d * 0.08, r: m * 0.13 },
+    { x: w * 0.36, y: -d * 0.2, r: m * 0.1 },
+    { x: w * 0.36, y: d * 0.2, r: m * 0.12 },
+  ];
+}
+
+/** Depth of the knob strip at the front center of a cooktop, where the middle grate stops. */
+export function cooktopKnobStrip(d: number): number {
+  return d * 0.18;
+}
+
+/** Knob positions along the front center of a cooktop. */
+export function cooktopKnobs(w: number, d: number): { x: number; y: number }[] {
+  return [-2, -1, 0, 1, 2].map((i) => ({ x: i * w * 0.07, y: d / 2 - cooktopKnobStrip(d) / 2 }));
+}
+
+/**
  * Detail parts drawn on top of the item's base outline. `tone` lightens (+) or darkens (-)
  * the item color. The base outline is drawn separately (rect or ellipse).
  */
@@ -106,6 +131,18 @@ export function symbolParts(shape: FurnitureShape, w: number, d: number): Symbol
         { t: 'rect', x: -w * 0.3, y: y0 + d * 0.25, w: w * 0.6, h: d * 0.55, r: 8, tone: 0.2 },
         { t: 'circle', cx: 0, cy: y0 + d * 0.15, r: 2, tone: -0.5 },
       ];
+    case 'cooktop':
+      return [
+        { t: 'line', x1: x0 + w / 3, y1: y0, x2: x0 + w / 3, y2: -y0 },
+        { t: 'line', x1: -x0 - w / 3, y1: y0, x2: -x0 - w / 3, y2: -y0 },
+        ...cooktopBurners(w, d).map((b): SymbolPart => ({ t: 'circle', cx: b.x, cy: b.y, r: b.r, tone: -0.6 })),
+        ...cooktopKnobs(w, d).map((k): SymbolPart => ({ t: 'circle', cx: k.x, cy: k.y, r: Math.min(1.8, w * 0.02), tone: 0.3 })),
+      ];
+    case 'oven-tower': {
+      // Stainless appliance face along the front edge.
+      const aw = Math.min(w - 8, 76);
+      return [{ t: 'rect', x: -aw / 2, y: -y0 - 4, w: aw, h: 4, tone: -0.35 }];
+    }
     case 'kitchen-sink':
       return [
         { t: 'rect', x: x0 + w * 0.08, y: y0 + d * 0.3, w: w * 0.84, h: d * 0.6, r: 4, tone: -0.2 },

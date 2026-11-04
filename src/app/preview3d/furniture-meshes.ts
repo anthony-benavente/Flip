@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { FurnitureShape } from '../model/catalog';
+import { cooktopBurners, cooktopKnobs, cooktopKnobStrip } from '../model/furniture-symbols';
 import { FloorMaterial } from '../model/plan.model';
 import { shade } from '../shared/color';
 import { floorPattern } from './floor-textures';
@@ -272,6 +273,62 @@ export class FurnitureMeshFactory {
         box(-w * 0.3, w * 0.3, h - 0.025, h + 0.002, Z0 + d * 0.25, Z0 + d * 0.8, '#d5d9dc', this.material('#d5d9dc', { roughness: 0.2, metalness: 0.2 }));
         cyl(0, Z0 + 0.06, 0.012, 0.012, h, h + 0.2, metal, this.material(metal, { roughness: 0.2, metalness: 0.8 }));
         break;
+      case 'cooktop': {
+        // Gas cooktop: stainless deck, five burners under three cast-iron grates, knobs in a notch at the front.
+        const deck = Math.min(h, 0.008);
+        const iron = this.material('#1c1c1e', { roughness: 0.6 });
+        const chrome = this.material(metal, { roughness: 0.2, metalness: 0.8 });
+        box(X0, X1, 0, deck, Z0, Z1, c, this.material(c, { roughness: 0.3, metalness: 0.6 }));
+        for (const b of cooktopBurners(w, d)) {
+          cyl(b.x, b.y, b.r, b.r, deck, deck + 0.006, '#8f9399', chrome);
+          cyl(b.x, b.y, b.r * 0.7, b.r * 0.75, deck + 0.006, deck + 0.016, '#1c1c1e', iron);
+        }
+        for (const k of cooktopKnobs(w, d)) cyl(k.x, k.y, 0.016, 0.018, deck, deck + 0.022, metal, chrome);
+        // Grates: a frame per section with bars running front to back; the middle one stops short of the knobs.
+        const bar = 0.012;
+        const knobStrip = cooktopKnobStrip(d);
+        for (let s = 0; s < 3; s++) {
+          const gx0 = X0 + (w * s) / 3 + 0.01;
+          const gx1 = X0 + (w * (s + 1)) / 3 - 0.01;
+          const gz1 = s === 1 ? Z1 - knobStrip : Z1 - 0.01;
+          const gz0 = Z0 + 0.01;
+          box(gx0, gx1, deck, h, gz0, gz0 + bar, '#1c1c1e', iron);
+          box(gx0, gx1, deck, h, gz1 - bar, gz1, '#1c1c1e', iron);
+          const bars = Math.max(2, Math.round((gx1 - gx0) / 0.07));
+          for (let i = 0; i <= bars; i++) {
+            const x = gx0 + ((gx1 - gx0 - bar) * i) / bars;
+            box(x, x + bar, deck, h, gz0, gz1, '#1c1c1e', iron);
+          }
+        }
+        break;
+      }
+      case 'oven-tower': {
+        // Tall cabinet: drawers below, a stainless wall oven with a microwave above it, doors on top.
+        const steel = this.material('#b9bcc2', { roughness: 0.3, metalness: 0.5 });
+        const chrome = this.material(metal, { roughness: 0.2, metalness: 0.8 });
+        const glass = this.material('#141414', { roughness: 0.15 });
+        const aw = Math.min(w - 0.08, 0.76);
+        const ovenBottom = h * 0.29;
+        const split = h * 0.6;
+        const comboTop = h * 0.81;
+        box(X0 + 0.02, X1 - 0.02, 0, 0.1, Z0, Z1 - 0.06, '#3a3530');
+        box(X0, X1, 0.1, h, Z0, Z1, c);
+        const seam = (y: number) => box(X0 + 0.02, X1 - 0.02, y - 0.004, y + 0.004, Z1, Z1 + 0.004, dark);
+        seam(0.1 + (ovenBottom - 0.1) / 2);
+        seam(ovenBottom - 0.02);
+        seam(comboTop + 0.02);
+        box(-0.004, 0.004, comboTop + 0.04, h - 0.02, Z1, Z1 + 0.004, dark);
+        // Oven
+        box(-aw / 2, aw / 2, ovenBottom, split, Z1 - 0.02, Z1 + 0.01, '#b9bcc2', steel);
+        box(-aw / 2 + 0.06, aw / 2 - 0.06, ovenBottom + 0.06, split - 0.12, Z1 + 0.01, Z1 + 0.012, '#141414', glass);
+        box(-aw / 2 + 0.05, aw / 2 - 0.05, split - 0.08, split - 0.06, Z1 + 0.03, Z1 + 0.05, metal, chrome);
+        // Microwave
+        box(-aw / 2, aw / 2, split + 0.005, comboTop, Z1 - 0.02, Z1 + 0.01, '#b9bcc2', steel);
+        box(-aw / 2 + 0.06, aw / 2 - 0.06, split + 0.05, comboTop - 0.13, Z1 + 0.01, Z1 + 0.012, '#141414', glass);
+        box(-aw / 2 + 0.05, aw / 2 - 0.05, comboTop - 0.11, comboTop - 0.09, Z1 + 0.03, Z1 + 0.05, metal, chrome);
+        box(-aw / 2 + 0.03, aw / 2 - 0.03, comboTop - 0.07, comboTop - 0.02, Z1 + 0.01, Z1 + 0.012, '#141414', glass);
+        break;
+      }
       case 'kitchen-sink': {
         // Drop-in sink: a thin rim on the counter top with a dark basin opening, faucet at the back.
         const chrome = this.material(metal, { roughness: 0.2, metalness: 0.8 });
