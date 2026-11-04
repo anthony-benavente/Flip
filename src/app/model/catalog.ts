@@ -22,6 +22,7 @@ export type FurnitureShape =
   | 'fridge'
   | 'stove'
   | 'sink'
+  | 'kitchen-sink'
   | 'toilet'
   | 'bathtub'
   | 'shower'
@@ -110,6 +111,7 @@ export const CATALOG: CatalogItem[] = [
   { id: 'island', name: 'Kitchen island', category: 'Kitchen & Bath', shape: 'counter', width: 72 * IN, depth: 36 * IN, height: 36 * IN, color: '#d8d4cc', noWallSnap: true },
   { id: 'fridge', name: 'Refrigerator', category: 'Kitchen & Bath', shape: 'fridge', width: 36 * IN, depth: 30 * IN, height: 70 * IN, color: '#c9ccd1' },
   { id: 'stove', name: 'Stove', category: 'Kitchen & Bath', shape: 'stove', width: 30 * IN, depth: 26 * IN, height: 36 * IN, color: '#b9bcc2' },
+  { id: 'kitchen-sink', name: 'Kitchen sink', category: 'Kitchen & Bath', shape: 'kitchen-sink', width: 33 * IN, depth: 22 * IN, height: 14 * IN, color: '#c9ccd1', noWallSnap: true, stackable: true },
   { id: 'sink', name: 'Sink vanity', category: 'Kitchen & Bath', shape: 'sink', width: 30 * IN, depth: 21 * IN, height: 34 * IN, color: '#e9e7e2' },
   { id: 'toilet', name: 'Toilet', category: 'Kitchen & Bath', shape: 'toilet', width: 20 * IN, depth: 28 * IN, height: 30 * IN, color: '#f4f4f2' },
   { id: 'bathtub', name: 'Bathtub', category: 'Kitchen & Bath', shape: 'bathtub', width: 60 * IN, depth: 30 * IN, height: 20 * IN, color: '#f4f4f2' },

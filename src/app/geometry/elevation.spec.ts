@@ -68,6 +68,14 @@ describe('stacking', () => {
     expect(ids.sort()).toEqual([books.id, vase.id].sort());
     expect(itemsRestingOn(books, [dresser, books, vase], rooms).map((f) => f.id)).toEqual([vase.id]);
   });
+
+  it('sets a kitchen sink into an island top, and moves it with the island', () => {
+    const island = item('island', 200, 150);
+    const sink = item('kitchen-sink', 200, 150);
+    sink.elevation = restingElevation(sink, [island, sink], rooms);
+    expect(sink.elevation).toBe(island.height);
+    expect(itemsRestingOn(island, [island, sink], rooms).map((f) => f.id)).toEqual([sink.id]);
+  });
 });
 
 describe('mountedWall', () => {

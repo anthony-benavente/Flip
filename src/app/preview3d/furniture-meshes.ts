@@ -272,6 +272,15 @@ export class FurnitureMeshFactory {
         box(-w * 0.3, w * 0.3, h - 0.025, h + 0.002, Z0 + d * 0.25, Z0 + d * 0.8, '#d5d9dc', this.material('#d5d9dc', { roughness: 0.2, metalness: 0.2 }));
         cyl(0, Z0 + 0.06, 0.012, 0.012, h, h + 0.2, metal, this.material(metal, { roughness: 0.2, metalness: 0.8 }));
         break;
+      case 'kitchen-sink': {
+        // Drop-in sink: a thin rim on the counter top with a dark basin opening, faucet at the back.
+        const chrome = this.material(metal, { roughness: 0.2, metalness: 0.8 });
+        box(X0, X1, 0, 0.004, Z0, Z1, c, this.material(c, { roughness: 0.25, metalness: 0.6 }));
+        box(X0 + w * 0.08, X1 - w * 0.08, 0.004, 0.005, Z0 + d * 0.3, Z1 - d * 0.1, dark);
+        cyl(0, Z0 + d * 0.15, 0.014, 0.018, 0.004, h, metal, chrome);
+        box(-0.01, 0.01, h - 0.02, h, Z0 + d * 0.15, Z0 + d * 0.15 + Math.min(d * 0.4, 0.22), metal, chrome);
+        break;
+      }
       case 'toilet': {
         const porcelain = this.material(c, { roughness: 0.25 });
         box(X0 + 0.02, X1 - 0.02, h * 0.45, h * 1.05, Z0, Z0 + d * 0.28, c, porcelain);

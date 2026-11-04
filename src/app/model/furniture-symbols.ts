@@ -106,6 +106,11 @@ export function symbolParts(shape: FurnitureShape, w: number, d: number): Symbol
         { t: 'rect', x: -w * 0.3, y: y0 + d * 0.25, w: w * 0.6, h: d * 0.55, r: 8, tone: 0.2 },
         { t: 'circle', cx: 0, cy: y0 + d * 0.15, r: 2, tone: -0.5 },
       ];
+    case 'kitchen-sink':
+      return [
+        { t: 'rect', x: x0 + w * 0.08, y: y0 + d * 0.3, w: w * 0.84, h: d * 0.6, r: 4, tone: -0.2 },
+        { t: 'circle', cx: 0, cy: y0 + d * 0.15, r: 2.5, tone: -0.5 },
+      ];
     case 'toilet':
       return [
         { t: 'rect', x: x0, y: y0, w, h: d * 0.3, r: 3, tone: -0.05 },
