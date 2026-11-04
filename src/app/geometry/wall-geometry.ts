@@ -1,4 +1,4 @@
-import { newId, Opening, Plan, Point, Wall, WallNode } from '../model/plan.model';
+import { newId, Opening, Plan, Point, Wall, WallNode, WallSide } from '../model/plan.model';
 import { add, cross, dist, dot, EPS, len, normalize, perp, projectToSegment, scale, sub } from './vec';
 
 /** Minimum wall length in cm; shorter segments are discarded. */
@@ -279,4 +279,83 @@ export function nearestWall(
 /** Signed distance of p from the wall's centerline along its normal. */
 export function sideOfWall(seg: WallSegment, p: Point): number {
   return dot(sub(p, seg.a), seg.normal);
+}
+
+/** How far inside the face a trim strip is tested against neighboring walls, so collinear walls count too. */
+const TRIM_PROBE = 0.1;
+
+/**
+ * Ranges along a wall face (x in cm from the wall's midpoint, along `dir`) that other walls cover,
+ * so trim on this face stops where it runs into a joining wall instead of overlapping it.
+ */
+export function faceTrimGaps(seg: WallSegment, side: WallSide, segments: WallSegment[]): Array<[number, number]> {
+  const mid = add(seg.a, scale(seg.dir, seg.length / 2));
+  const v0 = (side === 'front' ? 1 : -1) * (seg.wall.thickness / 2 - TRIM_PROBE);
+  const gaps: Array<[number, number]> = [];
+  for (const other of segments) {
+    if (other.wall.id === seg.wall.id) continue;
+    const poly = wallOutline(other, false).map((p) => {
+      const d = sub(p, mid);
+      return { u: dot(d, seg.dir), v: dot(d, seg.normal) };
+    });
+    const us: number[] = [];
+    for (let i = 0; i < poly.length; i++) {
+      const p = poly[i];
+      const q = poly[(i + 1) % poly.length];
+      if ((p.v - v0) * (q.v - v0) > 0 || p.v === q.v) continue;
+      us.push(p.u + ((v0 - p.v) / (q.v - p.v)) * (q.u - p.u));
+    }
+    if (us.length >= 2) gaps.push([Math.min(...us), Math.max(...us)]);
+  }
+  return gaps;
+}
+
+/** `[x0, x1]` minus the gaps, as the pieces that remain. */
+export function subtractGaps(x0: number, x1: number, gaps: Array<[number, number]>): Array<[number, number]> {
+  let parts: Array<[number, number]> = [[x0, x1]];
+  for (const [g0, g1] of gaps) {
+    parts = parts.flatMap(([a, b]): Array<[number, number]> => {
+      if (g1 <= a || g0 >= b) return [[a, b]];
+      const out: Array<[number, number]> = [];
+      if (g0 > a) out.push([a, g0]);
+      if (g1 < b) out.push([g1, b]);
+      return out;
+    });
+  }
+  return parts;
+}
+
+/**
+ * How far each end of a wall extends past its node. An end whose extension lies entirely inside
+ * other walls (a T-junction, or a collinear continuation) gets none, so the two walls' faces
+ * are never coplanar and do not z-fight. A square corner of two walls is filled by only one of them.
+ */
+export function endExtensions(seg: WallSegment, segments: WallSegment[]): { a: number; b: number } {
+  const h = seg.wall.thickness / 2;
+  const covered = (node: Point, outward: Point) => {
+    const corners = [
+      add(node, scale(seg.normal, h)),
+      sub(node, scale(seg.normal, h)),
+      add(add(node, scale(outward, h)), scale(seg.normal, h)),
+      add(node, sub(scale(outward, h), scale(seg.normal, h))),
+    ];
+    // Each corner of the extension must lie in some other wall; a T-junction's main wall is two pieces.
+    return corners.every((p) =>
+      segments.some((o) => {
+        if (o.wall.id === seg.wall.id) return false;
+        const d = sub(p, o.a);
+        const u = dot(d, o.dir);
+        return Math.abs(dot(d, o.normal)) <= o.wall.thickness / 2 + EPS && u >= -EPS && u <= o.length + EPS;
+      }),
+    );
+  };
+  /** At a square corner of exactly two walls, only the one with the lower id fills the outer corner square. */
+  const yields = (nodeId: string) => {
+    const others = segments.filter((o) => o.wall.id !== seg.wall.id && (o.wall.a === nodeId || o.wall.b === nodeId));
+    return others.length === 1 && Math.abs(dot(seg.dir, others[0].dir)) < 1e-3 && others[0].wall.id < seg.wall.id;
+  };
+  return {
+    a: covered(seg.a, scale(seg.dir, -1)) || yields(seg.wall.a) ? 0 : h,
+    b: covered(seg.b, seg.dir) || yields(seg.wall.b) ? 0 : h,
+  };
 }

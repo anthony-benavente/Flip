@@ -2,6 +2,9 @@ import { createEmptyPlan } from '../model/defaults';
 import {
   addWall,
   clampOpeningOffset,
+  endExtensions,
+  faceTrimGaps,
+  subtractGaps,
   mergeNodes,
   nodeMap,
   removeWalls,
@@ -102,5 +105,69 @@ describe('clampOpeningOffset', () => {
     expect(clampOpeningOffset(390, 80, 400)).toBe(360);
     expect(clampOpeningOffset(200, 80, 400)).toBe(200);
     expect(clampOpeningOffset(10, 500, 400)).toBe(200);
+  });
+});
+
+describe('faceTrimGaps', () => {
+  const seg = (id: string, a: { x: number; y: number }, b: { x: number; y: number }) =>
+    wallSegment({ id, a: `${id}a`, b: `${id}b`, thickness: 10, height: 240 } as never, new Map([[`${id}a`, { id: `${id}a`, ...a }], [`${id}b`, { id: `${id}b`, ...b }]]))!;
+
+  it('stops trim at a wall that joins the face, and ignores the far side', () => {
+    const main = seg('m', { x: 0, y: 0 }, { x: 400, y: 0 });
+    const stem = seg('s', { x: 400, y: 0 }, { x: 400, y: 300 });
+    // normal of main points +y, the stem's side: the front face is blocked for the last 5 cm.
+    const [g0, g1] = faceTrimGaps(main, 'front', [main, stem])[0];
+    expect(g0).toBeCloseTo(195);
+    expect(g1).toBeGreaterThan(200);
+    expect(faceTrimGaps(main, 'back', [main, stem])).toEqual([]);
+  });
+
+  it('lets trim run through a collinear continuation up to the shared node', () => {
+    const a = seg('a', { x: 0, y: 0 }, { x: 100, y: 0 });
+    const b = seg('b', { x: 100, y: 0 }, { x: 200, y: 0 });
+    const [g0] = faceTrimGaps(a, 'front', [a, b])[0];
+    expect(g0).toBeCloseTo(50);
+  });
+
+  it('subtracts gaps from a range', () => {
+    expect(subtractGaps(0, 100, [[-5, 10], [90, 120]])).toEqual([[10, 90]]);
+    expect(subtractGaps(0, 100, [])).toEqual([[0, 100]]);
+  });
+});
+
+describe('endExtensions', () => {
+  const seg = (id: string, a: { x: number; y: number }, b: { x: number; y: number }) =>
+    wallSegment({ id, a: `${id}a`, b: `${id}b`, thickness: 10, height: 240 } as never, new Map([[`${id}a`, { id: `${id}a`, ...a }], [`${id}b`, { id: `${id}b`, ...b }]]))!;
+
+  it('keeps the extension on a free end and at the lower-id wall of a corner', () => {
+    const a = seg('a', { x: 0, y: 0 }, { x: 100, y: 0 });
+    const b = seg('b', { x: 100, y: 0 }, { x: 100, y: 100 });
+    expect(endExtensions(a, [a, b])).toEqual({ a: 5, b: 5 });
+  });
+
+  it('lets only one wall fill the outer square of a 90 degree corner', () => {
+    const nodes = new Map([
+      ['n0', { id: 'n0', x: 0, y: 0 }],
+      ['n1', { id: 'n1', x: 100, y: 0 }],
+      ['n2', { id: 'n2', x: 100, y: 100 }],
+    ]);
+    const a = wallSegment({ id: 'a', a: 'n0', b: 'n1', thickness: 10, height: 240 } as never, nodes)!;
+    const b = wallSegment({ id: 'b', a: 'n1', b: 'n2', thickness: 10, height: 240 } as never, nodes)!;
+    expect(endExtensions(a, [a, b]).b).toBe(5);
+    expect(endExtensions(b, [a, b]).a).toBe(0);
+  });
+
+  it('drops it where a wall ends inside two collinear walls (T-junction)', () => {
+    const left = seg('l', { x: 0, y: 0 }, { x: 100, y: 0 });
+    const right = seg('r', { x: 100, y: 0 }, { x: 200, y: 0 });
+    const stem = seg('s', { x: 100, y: 0 }, { x: 100, y: 100 });
+    expect(endExtensions(stem, [left, right, stem]).a).toBe(0);
+    expect(endExtensions(stem, [left, right, stem]).b).toBe(5);
+  });
+
+  it('drops it between collinear walls', () => {
+    const a = seg('a', { x: 0, y: 0 }, { x: 100, y: 0 });
+    const b = seg('b', { x: 100, y: 0 }, { x: 200, y: 0 });
+    expect(endExtensions(a, [a, b])).toEqual({ a: 5, b: 0 });
   });
 });

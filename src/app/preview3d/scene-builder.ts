@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { itemElevation, mountedWall } from '../geometry/elevation';
 import { Room, roomsBesideWall, wallFaceColor } from '../geometry/room-detection';
 import { add, scale } from '../geometry/vec';
-import { WallSegment } from '../geometry/wall-geometry';
+import { endExtensions, faceTrimGaps, subtractGaps, WallSegment } from '../geometry/wall-geometry';
 import { catalogItem } from '../model/catalog';
 import { ModelOrientation } from '../model/custom-model';
 import { EXTERIOR_WALL_COLOR } from '../model/palettes';
@@ -64,7 +64,7 @@ export function buildPlanScene(
   const openingsByWall = new Map<string, Opening[]>();
   for (const o of plan.openings) openingsByWall.set(o.wallId, [...(openingsByWall.get(o.wallId) ?? []), o]);
   const walls = segments.map((seg) => {
-    const wall = buildWall(seg, openingsByWall.get(seg.wall.id) ?? [], rooms, factory, own);
+    const wall = buildWall(seg, openingsByWall.get(seg.wall.id) ?? [], rooms, segments, factory, own);
     group.add(wall.group);
     return wall;
   });
@@ -141,7 +141,7 @@ function buildCeiling(room: Room, own: Own): THREE.Mesh {
   return mesh;
 }
 
-function buildWall(seg: WallSegment, openings: Opening[], rooms: Room[], factory: FurnitureMeshFactory, own: Own): SceneWall {
+function buildWall(seg: WallSegment, openings: Opening[], rooms: Room[], segments: WallSegment[], factory: FurnitureMeshFactory, own: Own): SceneWall {
   const beside = roomsBesideWall(seg, rooms);
   const face = (side: WallSide) =>
     own(new THREE.MeshStandardMaterial({ color: wallFaceColor(seg, side, beside[side]) ?? EXTERIOR_WALL_COLOR, roughness: 0.92 }));
@@ -156,7 +156,7 @@ function buildWall(seg: WallSegment, openings: Opening[], rooms: Room[], factory
   group.rotation.y = -Math.atan2(seg.dir.y, seg.dir.x);
 
   const t = seg.wall.thickness * M;
-  const pieces = wallPieces({ length: seg.length, thickness: seg.wall.thickness, height: seg.wall.height }, openings);
+  const pieces = wallPieces({ length: seg.length, thickness: seg.wall.thickness, height: seg.wall.height }, openings, endExtensions(seg, segments));
   for (const b of pieces.solids) {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry((b.x1 - b.x0) * M, (b.y1 - b.y0) * M, t), faceMaterials);
     mesh.position.set(((b.x0 + b.x1) / 2) * M, ((b.y0 + b.y1) / 2) * M, 0);
@@ -171,7 +171,7 @@ function buildWall(seg: WallSegment, openings: Opening[], rooms: Room[], factory
         : buildDoor(s.opening, s.x0 * M, s.x1 * M, s.top * M, t, factory, own);
     group.add(fill);
   }
-  group.add(buildTrim(seg, pieces, beside, own));
+  group.add(buildTrim(seg, pieces, beside, segments, own));
 
   return {
     id: seg.wall.id,
@@ -186,7 +186,7 @@ function buildWall(seg: WallSegment, openings: Opening[], rooms: Room[], factory
  * Baseboards, crown molding and door and window casings on each face of a wall that borders a
  * room, in that room's trim color. Built in the wall's local frame (centimeters → meters).
  */
-function buildTrim(seg: WallSegment, pieces: WallPieces, beside: Record<WallSide, Room | null>, own: Own): THREE.Group {
+function buildTrim(seg: WallSegment, pieces: WallPieces, beside: Record<WallSide, Room | null>, segments: WallSegment[], own: Own): THREE.Group {
   const trim = new THREE.Group();
   trim.name = 'trim';
   const t = seg.wall.thickness;
@@ -196,8 +196,13 @@ function buildTrim(seg: WallSegment, pieces: WallPieces, beside: Record<WallSide
     if (!room) continue;
     const material = own(new THREE.MeshStandardMaterial({ color: room.trimColor, roughness: 0.5 }));
     const sign = side === 'front' ? 1 : -1;
+    const gaps = faceTrimGaps(seg, side, segments);
     /** A strip on this face: x and y ranges in cm, standing `depth` cm off the wall. */
-    const strip = (x0: number, x1: number, y0: number, y1: number, depth: number) => {
+    const strip = (x0: number, x1: number, y0: number, y1: number, depth: number, clip = false) => {
+      if (clip) {
+        for (const [a, b] of subtractGaps(x0, x1, gaps)) strip(a, b, y0, y1, depth);
+        return;
+      }
       if (x1 - x0 < 0.5 || y1 - y0 < 0.5) return;
       const mesh = new THREE.Mesh(new THREE.BoxGeometry((x1 - x0) * M, (y1 - y0) * M, depth * M), material);
       mesh.position.set(((x0 + x1) / 2) * M, ((y0 + y1) / 2) * M, sign * (t / 2 + depth / 2) * M);
@@ -205,8 +210,8 @@ function buildTrim(seg: WallSegment, pieces: WallPieces, beside: Record<WallSide
       trim.add(mesh);
     };
     for (const b of pieces.solids) {
-      if (b.y0 < 0.01) strip(b.x0, b.x1, 0, Math.min(BASEBOARD.height, b.y1), BASEBOARD.depth);
-      if (room.crownMolding && b.y1 > height - 0.01) strip(b.x0, b.x1, height - CROWN.height, height, CROWN.depth);
+      if (b.y0 < 0.01) strip(b.x0, b.x1, 0, Math.min(BASEBOARD.height, b.y1), BASEBOARD.depth, true);
+      if (room.crownMolding && b.y1 > height - 0.01) strip(b.x0, b.x1, height - CROWN.height, height, CROWN.depth, true);
     }
     for (const o of pieces.openings) {
       const w = CASING.width;
