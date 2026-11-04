@@ -80,6 +80,32 @@
   stroke: #8eaef0;
 }
 
+/* Railings: a dashed line down the middle of the wall marks them as open. */
+.walls-fill line.railing {
+  stroke: var(--wall);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+  stroke-linecap: butt;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Hidden walls: only a faint dashed divider between rooms. */
+.walls-fill line.divider {
+  stroke: var(--wall);
+  stroke-opacity: 0.45;
+  stroke-width: 1.5;
+  stroke-dasharray: 2 4;
+  stroke-linecap: butt;
+  vector-effect: non-scaling-stroke;
+}
+
+.walls-fill line.divider.hovered,
+.walls-fill line.divider.selected {
+  stroke: var(--accent);
+  stroke-opacity: 1;
+  stroke-width: 2.5;
+}
+
 .walls-outline,
 .walls-fill {
   pointer-events: none;

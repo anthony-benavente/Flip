@@ -1,5 +1,5 @@
 import { Opening } from '../model/plan.model';
-import { WallBox, wallPieces } from './wall-pieces';
+import { RAILING, railingParts, WallBox, wallPieces } from './wall-pieces';
 
 const wall = { length: 400, thickness: 10, height: 250 };
 
@@ -7,6 +7,29 @@ const door = (offset: number, width = 80): Opening => ({ id: 'd' + offset, wallI
 const win = (offset: number, width = 100): Opening => ({ id: 'w' + offset, wallId: 'w', kind: 'window', offset, width, height: 120, sillHeight: 90 });
 
 const area = (boxes: WallBox[]) => boxes.reduce((s, b) => s + (b.x1 - b.x0) * (b.y1 - b.y0), 0);
+
+describe('railingParts', () => {
+  const parts = railingParts(400);
+  const of = (kind: string) => parts.filter((p) => p.kind === kind);
+
+  it('puts posts at both ends and no more than RAILING.postEvery apart', () => {
+    const centers = of('post').map((p) => (p.x0 + p.x1) / 2);
+    expect(centers[0]).toBeCloseTo(-200);
+    expect(centers[centers.length - 1]).toBeCloseTo(200);
+    for (let i = 1; i < centers.length; i++) expect(centers[i] - centers[i - 1]).toBeLessThanOrEqual(RAILING.postEvery);
+  });
+
+  it('runs the handrail the full length at railing height', () => {
+    expect(of('handrail')).toEqual([expect.objectContaining({ x0: -200, x1: 200, y1: RAILING.height })]);
+  });
+
+  it('keeps balusters closer than the gap allows', () => {
+    const balusters = of('baluster').sort((a, b) => a.x0 - b.x0);
+    expect(balusters.length).toBeGreaterThan(20);
+    const edges = [...of('post'), ...balusters].sort((a, b) => a.x0 - b.x0);
+    for (let i = 1; i < edges.length; i++) expect(edges[i].x0 - edges[i - 1].x1).toBeLessThanOrEqual(RAILING.gap + 1e-6);
+  });
+});
 
 describe('wallPieces', () => {
   it('is a single full-height box extended by half the thickness at each end', () => {

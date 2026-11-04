@@ -9,7 +9,7 @@ import { attachRoomMeta, detectRooms, Room } from '../geometry/room-detection';
 import { add, angleDeg, scale } from '../geometry/vec';
 import { clampOpeningOffset, nodeMap, reclampOpenings, WallSegment, wallSegment } from '../geometry/wall-geometry';
 import { catalogItem, mountOf } from './catalog';
-import { FurnitureItem, newId, Opening, Plan, RoomMeta, Wall, WallSide } from './plan.model';
+import { FurnitureItem, newId, Opening, Plan, RoomMeta, Wall, WallSide, WallType } from './plan.model';
 
 /** Wraps an angle in degrees into (-180, 180]. */
 export function normalizeRotation(deg: number): number {
@@ -33,6 +33,14 @@ export function setWallColor(draft: Plan, id: string, side: WallSide, color: str
   else delete colors[side];
   if (Object.keys(colors).length) w.colors = colors;
   else delete w.colors;
+}
+
+/** Makes a wall a railing or a hidden divider, or a solid wall again with `null`. */
+export function setWallType(draft: Plan, id: string, type: WallType | null): void {
+  const w = draft.walls.find((x) => x.id === id);
+  if (!w) return;
+  if (type) w.type = type;
+  else delete w.type;
 }
 
 /** Updates a door or window, keeping it no wider than its wall and fully on it. */

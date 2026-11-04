@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, input } from '@an
 import { Room, roomsBesideWall, wallFaceColor } from '../../geometry/room-detection';
 import { setWallLength, WallSegment } from '../../geometry/wall-geometry';
 import { ACCENT_SWATCHES, EXTERIOR_WALL_COLOR, matchingScheme, Swatch } from '../../model/palettes';
-import { setWallColor, updateWall } from '../../model/plan-operations';
-import { WallSide } from '../../model/plan.model';
+import { setWallColor, setWallType, updateWall } from '../../model/plan-operations';
+import { WallSide, WallType } from '../../model/plan.model';
 import { ColorPick, ColorSwatches } from '../../shared/color-swatches';
 import { Icon } from '../../shared/icon';
 import { LengthInput } from '../../shared/length-input';
@@ -35,36 +35,51 @@ import { PlanStore } from '../../state/plan.store';
         <app-length-input [value]="w.height" [units]="units()" [min]="50" [max]="1000" label="Wall height" (valueChange)="update({ height: $event })" />
       </label>
     </div>
+    <div class="field">
+      <span>Type</span>
+      <div class="segmented wall-type" role="group" aria-label="Wall type">
+        <button [class.active]="!w.type" (click)="setType(null)">Wall</button>
+        <button [class.active]="w.type === 'railing'" (click)="setType('railing')">Railing</button>
+        <button [class.active]="w.type === 'hidden'" (click)="setType('hidden')">Hidden</button>
+      </div>
+    </div>
+    @if (w.type === 'railing') {
+      <p class="tip">An open 36" railing, such as over a stairwell. It still closes off the room, and Height still sets the room's ceiling.</p>
+    } @else if (w.type === 'hidden') {
+      <p class="tip">Not built in 3D. It only divides rooms, for open floor plans. Height still sets the room's ceiling.</p>
+    }
     @if (openingCount()) {
       <p class="tip">{{ openingCount() }} door/window opening{{ openingCount() === 1 ? '' : 's' }} on this wall.</p>
     }
-    <h3>Paint</h3>
-    @for (s of sides(); track s.side) {
-      <div class="field wall-side" [attr.data-side]="s.side">
-        <div class="side-head">
-          <span class="side-chip" [style.background]="s.color"></span>
-          <span class="side-label">{{ s.label }}</span>
+    @if (!w.type) {
+      <h3>Paint</h3>
+      @for (s of sides(); track s.side) {
+        <div class="field wall-side" [attr.data-side]="s.side">
+          <div class="side-head">
+            <span class="side-chip" [style.background]="s.color"></span>
+            <span class="side-label">{{ s.label }}</span>
+            @if (s.accent) {
+              <span class="badge">Accent</span>
+            }
+            <button class="btn ghost elevation-btn" [attr.aria-label]="'Elevation of ' + s.label" title="Arrange art and shelves on this side (E)" (click)="editor.openElevation(segment().wall.id, s.side)">
+              Elevation
+            </button>
+          </div>
+          <app-color-swatches
+            [swatches]="s.swatches"
+            [selected]="s.accent"
+            [pickerValue]="s.color"
+            [ariaSuffix]="' accent for ' + s.label"
+            [customLabel]="'Custom color for ' + s.label"
+            (pick)="paint(s.side, $event)"
+          />
           @if (s.accent) {
-            <span class="badge">Accent</span>
+            <button class="btn ghost reset" (click)="clearPaint(s.side)">{{ s.hasRoom ? 'Match room color' : 'Clear accent' }}</button>
           }
-          <button class="btn ghost elevation-btn" [attr.aria-label]="'Elevation of ' + s.label" title="Arrange art and shelves on this side (E)" (click)="editor.openElevation(segment().wall.id, s.side)">
-            Elevation
-          </button>
         </div>
-        <app-color-swatches
-          [swatches]="s.swatches"
-          [selected]="s.accent"
-          [pickerValue]="s.color"
-          [ariaSuffix]="' accent for ' + s.label"
-          [customLabel]="'Custom color for ' + s.label"
-          (pick)="paint(s.side, $event)"
-        />
-        @if (s.accent) {
-          <button class="btn ghost reset" (click)="clearPaint(s.side)">{{ s.hasRoom ? 'Match room color' : 'Clear accent' }}</button>
-        }
-      </div>
+      }
+      <p class="tip">Accent colors show as a stripe on the plan and as paint in the 3D view.</p>
     }
-    <p class="tip">Accent colors show as a stripe on the plan and as paint in the 3D view.</p>
     <div class="actions">
       <button class="btn danger" (click)="actions.deleteSelection()"><app-icon name="trash" /> Delete wall</button>
     </div>
@@ -113,6 +128,10 @@ export class WallProperties {
 
   protected update(patch: { thickness?: number; height?: number }): void {
     this.plan.update((d) => updateWall(d, this.id, patch));
+  }
+
+  protected setType(type: WallType | null): void {
+    this.plan.update((d) => setWallType(d, this.id, type));
   }
 
   protected paint(side: WallSide, pick: ColorPick): void {

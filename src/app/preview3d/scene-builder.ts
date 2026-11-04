@@ -14,13 +14,15 @@ import { EXTERIOR_WALL_COLOR } from '../model/palettes';
 import { FloorMaterial, Opening, Plan, WallSide } from '../model/plan.model';
 import { FurnitureMeshFactory } from './furniture-meshes';
 import { fitModelToBox, SHARED_MODEL } from './model-fit';
-import { BASEBOARD, CASING, CROWN, WallPieces, wallPieces } from '../geometry/wall-pieces';
+import { BASEBOARD, CASING, CROWN, railingParts, WallPieces, wallPieces } from '../geometry/wall-pieces';
 
 /** cm → m */
 export const M = 0.01;
 export const WALL_EDGE_COLOR = '#cfc8bc';
 export const DOOR_COLOR = '#b48b5e';
 export const DOOR_OPEN_ANGLE = (70 * Math.PI) / 180;
+const RAIL_WOOD = '#6b4a32';
+const RAIL_WHITE = '#f4f3ef';
 
 export interface SceneWall {
   id: string;
@@ -155,6 +157,12 @@ function buildWall(seg: WallSegment, openings: Opening[], rooms: Room[], segment
   group.position.set(mid.x * M, 0, mid.y * M);
   group.rotation.y = -Math.atan2(seg.dir.y, seg.dir.x);
 
+  if (seg.wall.type) {
+    // A hidden wall only divides rooms, so it builds nothing.
+    if (seg.wall.type === 'railing') group.add(buildRailing(seg.length, own));
+    return { id: seg.wall.id, group, mid: new THREE.Vector2(mid.x * M, mid.y * M), normal: new THREE.Vector2(seg.normal.x, seg.normal.y), attached: [] };
+  }
+
   const t = seg.wall.thickness * M;
   const pieces = wallPieces({ length: seg.length, thickness: seg.wall.thickness, height: seg.wall.height }, openings, endExtensions(seg, segments));
   for (const b of pieces.solids) {
@@ -223,6 +231,21 @@ function buildTrim(seg: WallSegment, pieces: WallPieces, beside: Record<WallSide
     }
   }
   return trim;
+}
+
+/** An open railing in the wall's local frame: stained posts and handrail, white balusters. */
+function buildRailing(length: number, own: Own): THREE.Group {
+  const g = new THREE.Group();
+  g.name = 'railing';
+  const wood = own(new THREE.MeshStandardMaterial({ color: RAIL_WOOD, roughness: 0.5 }));
+  const white = own(new THREE.MeshStandardMaterial({ color: RAIL_WHITE, roughness: 0.6 }));
+  for (const p of railingParts(length)) {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry((p.x1 - p.x0) * M, (p.y1 - p.y0) * M, p.depth * M), p.kind === 'post' || p.kind === 'handrail' ? wood : white);
+    mesh.position.set(((p.x0 + p.x1) / 2) * M, ((p.y0 + p.y1) / 2) * M, 0);
+    mesh.castShadow = true;
+    g.add(mesh);
+  }
+  return g;
 }
 
 function buildWindow(x0: number, x1: number, sill: number, top: number, t: number, own: Own): THREE.Group {

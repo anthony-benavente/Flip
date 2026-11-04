@@ -25,7 +25,15 @@ export interface Wall {
    * of the room on that side.
    */
   colors?: WallColors;
+  /** Unset for a solid wall. Other types still bound rooms and keep `height` for the room's ceiling. */
+  type?: WallType;
 }
+
+/**
+ * `railing`: an open railing `RAILING.height` tall, such as over a stairwell.
+ * `hidden`: an invisible room divider (open plans); nothing is built in 3D.
+ */
+export type WallType = 'railing' | 'hidden';
 
 export type WallSide = 'front' | 'back';
 export type WallColors = Partial<Record<WallSide, string>>;

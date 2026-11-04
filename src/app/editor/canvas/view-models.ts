@@ -62,6 +62,7 @@ export function wallViews(segments: WallSegment[], selected: SelectedIds, hover:
     x2: s.b.x,
     y2: s.b.y,
     t: s.wall.thickness,
+    type: s.wall.type ?? 'solid',
     selected: selected.has(`wall:${s.wall.id}`),
     hovered: hover?.kind === 'wall' && hover.id === s.wall.id,
   }));
@@ -71,6 +72,7 @@ export function wallViews(segments: WallSegment[], selected: SelectedIds, hover:
 export function accentViews(segments: WallSegment[], px: number) {
   const result: { key: string; x1: number; y1: number; x2: number; y2: number; width: number; color: string }[] = [];
   for (const s of segments) {
+    if (s.wall.type) continue;
     for (const side of ['front', 'back'] as const) {
       const color = s.wall.colors?.[side];
       if (!color) continue;

@@ -68,20 +68,29 @@
     <!-- Walls: dark outline pass, then lighter fill pass, which merges corners visually -->
     <g class="walls-outline">
       @for (w of walls(); track w.id) {
-        <line [attr.x1]="w.x1" [attr.y1]="w.y1" [attr.x2]="w.x2" [attr.y2]="w.y2" [attr.stroke-width]="w.t" />
+        @if (w.type !== 'hidden') {
+          <line [attr.x1]="w.x1" [attr.y1]="w.y1" [attr.x2]="w.x2" [attr.y2]="w.y2" [attr.stroke-width]="w.t" />
+        }
       }
     </g>
     <g class="walls-fill">
       @for (w of walls(); track w.id) {
-        <line
-          [class.selected]="w.selected"
-          [class.hovered]="w.hovered"
-          [attr.x1]="w.x1"
-          [attr.y1]="w.y1"
-          [attr.x2]="w.x2"
-          [attr.y2]="w.y2"
-          [attr.stroke-width]="w.t - 3 * px()"
-        />
+        @if (w.type === 'hidden') {
+          <line class="divider" [class.selected]="w.selected" [class.hovered]="w.hovered" [attr.x1]="w.x1" [attr.y1]="w.y1" [attr.x2]="w.x2" [attr.y2]="w.y2" />
+        } @else {
+          <line
+            [class.selected]="w.selected"
+            [class.hovered]="w.hovered"
+            [attr.x1]="w.x1"
+            [attr.y1]="w.y1"
+            [attr.x2]="w.x2"
+            [attr.y2]="w.y2"
+            [attr.stroke-width]="w.t - 3 * px()"
+          />
+        }
+        @if (w.type === 'railing') {
+          <line class="railing" [attr.x1]="w.x1" [attr.y1]="w.y1" [attr.x2]="w.x2" [attr.y2]="w.y2" />
+        }
       }
     </g>
     <g class="wall-accents">

@@ -14,6 +14,7 @@ import {
   setFurnitureModel,
   setRoomCeilingHeight,
   setWallColor,
+  setWallType,
   updateFurniture,
   updateOpening,
   updateWall,
@@ -129,6 +130,18 @@ describe('plan operations', () => {
       plan.walls[1].colors = shared;
       setWallColor(plan, walls[0], 'front', '#999999');
       expect(plan.walls[1].colors).toEqual({ front: '#111111' });
+    });
+  });
+
+  describe('setWallType', () => {
+    it('sets the type and drops it for a solid wall', () => {
+      const { plan, walls } = setup();
+      setWallType(plan, walls[0], 'railing');
+      expect(plan.walls[0].type).toBe('railing');
+      setWallType(plan, walls[0], 'hidden');
+      expect(plan.walls[0].type).toBe('hidden');
+      setWallType(plan, walls[0], null);
+      expect('type' in plan.walls[0]).toBe(false);
     });
   });
 

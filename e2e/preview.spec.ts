@@ -18,8 +18,8 @@ test.describe('3D preview', () => {
     await expect(page.locator('app-plan-canvas')).toBeHidden();
     await expect.poll(async () => (await gl.boundingBox())!.width).toBeGreaterThan(split.width);
 
-    await page.getByRole('button', { name: 'Top' }).click();
-    await expect(page.getByRole('button', { name: 'Top' })).toHaveClass(/active/);
+    await page.getByRole('button', { name: 'Top', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Top', exact: true })).toHaveClass(/active/);
     await page.getByLabel('Cutaway walls').uncheck();
 
     await page.locator('.view-modes button', { hasText: 'Plan' }).click();

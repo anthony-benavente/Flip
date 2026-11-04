@@ -54,6 +54,21 @@ describe('buildPlanScene', () => {
     expect(faceColors(scene, walls[1]).front).toBe('#2f4a6d');
   });
 
+  it('builds a railing wall as an open railing that still closes the room', () => {
+    const { scene, walls } = build((plan, w) => (plan.walls.find((x) => x.id === w[1])!.type = 'railing'));
+    const rail = scene.walls.find((w) => w.id === walls[1])!.group;
+    expect(rail.children.map((c) => c.name)).toEqual(['railing']);
+    const size = new THREE.Box3().setFromObject(rail).getSize(new THREE.Vector3());
+    expect(size.y).toBeLessThan(1);
+    expect(scene.group.children.filter((c) => c.name.startsWith('floor:'))).toHaveLength(1);
+  });
+
+  it('builds nothing for a hidden wall but keeps the room', () => {
+    const { scene, walls } = build((plan, w) => (plan.walls.find((x) => x.id === w[1])!.type = 'hidden'));
+    expect(scene.walls.find((w) => w.id === walls[1])!.group.children).toHaveLength(0);
+    expect(scene.group.children.filter((c) => c.name.startsWith('floor:'))).toHaveLength(1);
+  });
+
   it('places walls at their midpoint, rotated along the wall', () => {
     const { scene, walls } = build();
     const right = scene.walls.find((w) => w.id === walls[1])!;
