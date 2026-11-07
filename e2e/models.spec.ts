@@ -4,7 +4,7 @@ import { boxGlb } from '../src/app/testing/glb';
 import { expect, newStarterRoom, savedPlan, test } from './helpers';
 
 const library = (page: Page) => page.getByRole('tabpanel', { name: '3D models' });
-const furnitureTab = (page: Page) => page.getByRole('tab', { name: 'Furniture' });
+const furnitureTab = (page: Page) => page.getByRole('tab', { name: 'Decor' });
 const uploadDialog = (page: Page) => page.getByRole('dialog', { name: 'Upload 3D model' });
 const editDialog = (page: Page) => page.getByRole('dialog', { name: 'Edit 3D model' });
 
@@ -159,7 +159,7 @@ test.describe('uploaded 3D models', () => {
 test.describe('icon rail', () => {
   test('switches between furniture, models and rooms', async ({ page }) => {
     await newStarterRoom(page);
-    await expect(page.getByRole('tab', { name: 'Furniture' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('tab', { name: 'Decor' })).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator('.item').first()).toBeVisible();
 
     await page.getByRole('tab', { name: 'Models' }).click();

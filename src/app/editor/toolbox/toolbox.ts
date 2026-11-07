@@ -48,7 +48,7 @@ export class Toolbox {
   ];
 
   protected readonly tabs: RailTab[] = [
-    { id: 'furniture', label: 'Furniture', icon: 'furniture' },
+    { id: 'furniture', label: 'Decor', icon: 'furniture' },
     { id: 'models', label: 'Models', icon: 'cube' },
     { id: 'rooms', label: 'Rooms', icon: 'plan' },
   ];
