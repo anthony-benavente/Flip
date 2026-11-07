@@ -1,13 +1,15 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Room } from '../geometry/room-detection';
+import { Obstacle, walkMove, walkObstacles, WALK_EYE_HEIGHT } from '../geometry/walk';
 import { WallSegment } from '../geometry/wall-geometry';
 import { CustomModel } from '../model/custom-model';
-import { Plan } from '../model/plan.model';
+import { Plan, Point } from '../model/plan.model';
 import { CUTAWAY_SCALE, isWallCut } from './cutaway';
 import { FurnitureMeshFactory } from './furniture-meshes';
 import { ModelCache } from './model-cache';
 import { ImageSource, TextureCache } from './texture-cache';
+import { isTypingTarget } from '../shared/dom';
 import { buildPlanScene, disposePlanScene, ModelResolver, PlanScene, SceneWall } from './scene-builder';
 import { addOutline, findTagged, pickFromHits } from './scene-picking';
 import type { SelectionItem } from '../state/editor.store';
@@ -20,6 +22,15 @@ export type PickHandler = (item: SelectionItem | null, additive: boolean) => voi
 /** A press that moves farther than this is an orbit or pan, not a click. */
 const CLICK_SLOP_PX = 4;
 const SELECTION_COLOR = '#2f6fde';
+/** Walk mode: speeds in cm/s, turn rates, and the field of view while inside a room. */
+const WALK_SPEED = 130;
+const RUN_SPEED = 260;
+const KEY_TURN_RATE = 1.8;
+const LOOK_RATE = 0.004;
+const WALK_FOV = 70;
+const MAX_PITCH = (80 * Math.PI) / 180;
+/** A long frame (a hidden tab, a hitch) must not let a step skip through a wall. */
+const MAX_FRAME_S = 0.05;
 
 /** Where the engine finds uploaded models: metadata (orientation, and whether it still exists) and file bytes. */
 export interface ModelSource {
@@ -64,6 +75,18 @@ export class PreviewEngine {
   private selection: SelectionItem[] = [];
   private pressedAt: { x: number; y: number } | null = null;
   onPick: PickHandler | null = null;
+  /** Called when walk mode ends on its own (Esc). */
+  onWalkEnd: (() => void) | null = null;
+  private walking = false;
+  /** Walk position in plan centimeters and view direction in radians (yaw 0 faces plan +x). */
+  private walkAt: Point = { x: 0, y: 0 };
+  private yaw = 0;
+  private pitch = 0;
+  private obstacles: Obstacle[] = [];
+  private readonly held = new Set<string>();
+  private walkFrame = 0;
+  private lastTick = 0;
+  private looking = false;
 
   constructor(private readonly container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -109,6 +132,7 @@ export class PreviewEngine {
    */
   update(plan: Plan, rooms: Room[], segs: WallSegment[], source: ModelSource = NO_MODELS, images: ImageSource = NO_IMAGES): void {
     this.lastUpdate = [plan, rooms, segs, source, images];
+    this.obstacles = walkObstacles(segs, plan.openings);
     const resolve: ModelResolver = (id) => {
       const meta = source.model(id);
       const object = meta && this.models.get(id);
@@ -124,8 +148,8 @@ export class PreviewEngine {
     this.updateBounds(this.content.bounds);
     if (!this.hasFitted && !this.content.bounds.isEmpty()) {
       this.hasFitted = true;
-      this.setCamera('perspective');
-    } else if (!this.userMovedCamera) {
+      if (!this.walking) this.setCamera('perspective');
+    } else if (!this.userMovedCamera && !this.walking) {
       this.setCamera(this.preset, false);
     }
     this.requestRender();
@@ -142,6 +166,7 @@ export class PreviewEngine {
   }
 
   setCamera(preset: CameraPreset, fromUser = true): void {
+    if (this.walking) this.stopWalk();
     if (fromUser) this.userMovedCamera = false;
     this.preset = preset;
     const c = this.center;
@@ -163,6 +188,48 @@ export class PreviewEngine {
     this.requestRender();
   }
 
+  /** Puts the camera at eye height at `at` (plan cm) and lets the arrow keys, WASD and the mouse move it. */
+  startWalk(at: Point): void {
+    if (this.walking) return;
+    this.walking = true;
+    this.walkAt = { ...at };
+    this.yaw = 0;
+    this.pitch = 0;
+    this.controls.enabled = false;
+    this.camera.fov = WALK_FOV;
+    this.camera.near = 0.05;
+    this.camera.rotation.order = 'YXZ';
+    this.camera.updateProjectionMatrix();
+    this.renderer.domElement.style.cursor = 'grab';
+    window.addEventListener('keydown', this.onWalkKeyDown, true);
+    window.addEventListener('keyup', this.onWalkKeyUp, true);
+    window.addEventListener('blur', this.onWalkBlur);
+    this.renderer.domElement.addEventListener('pointermove', this.onLook);
+    this.lastTick = performance.now();
+    this.walkFrame = requestAnimationFrame(this.tick);
+    this.placeCamera();
+  }
+
+  /** Back to the orbit camera in the current preset. */
+  stopWalk(): void {
+    if (!this.walking) return;
+    this.walking = false;
+    this.looking = false;
+    cancelAnimationFrame(this.walkFrame);
+    this.walkFrame = 0;
+    this.held.clear();
+    window.removeEventListener('keydown', this.onWalkKeyDown, true);
+    window.removeEventListener('keyup', this.onWalkKeyUp, true);
+    window.removeEventListener('blur', this.onWalkBlur);
+    this.renderer.domElement.removeEventListener('pointermove', this.onLook);
+    this.renderer.domElement.style.cursor = '';
+    this.controls.enabled = true;
+    this.camera.fov = 45;
+    this.camera.rotation.order = 'XYZ';
+    this.camera.updateProjectionMatrix();
+    this.setCamera(this.preset, false);
+  }
+
   setCutaway(on: boolean): void {
     this.cutaway = on;
     this.requestRender();
@@ -179,6 +246,8 @@ export class PreviewEngine {
     this.disposed = true;
     this.lastUpdate = null;
     this.onPick = null;
+    this.stopWalk();
+    this.onWalkEnd = null;
     cancelAnimationFrame(this.frame);
     this.resizeObserver.disconnect();
     this.renderer.domElement.removeEventListener('pointerdown', this.onPointerDown);
@@ -225,7 +294,7 @@ export class PreviewEngine {
     const height = this.camera.position.y - this.center.y;
     const extent = Math.max(this.size.x, this.size.z);
     for (const w of this.walls) {
-      const cut = this.cutaway && isWallCut(w.mid, w.normal, center, camera, height, extent);
+      const cut = this.cutaway && !this.walking && isWallCut(w.mid, w.normal, center, camera, height, extent);
       if (cut !== w.cut) {
         w.cut = cut;
         w.group.scale.y = cut ? CUTAWAY_SCALE : 1;
@@ -251,15 +320,89 @@ export class PreviewEngine {
     this.renderer.domElement.style.height = '100%';
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
-    if (this.hasFitted && !this.userMovedCamera) this.setCamera(this.preset, false);
+    if (this.hasFitted && !this.userMovedCamera && !this.walking) this.setCamera(this.preset, false);
     this.requestRender();
   }
 
+  private placeCamera(): void {
+    this.camera.position.set(this.walkAt.x * 0.01, WALK_EYE_HEIGHT * 0.01, this.walkAt.y * 0.01);
+    // The camera looks down -Z; this turns it to face (cos yaw, sin yaw) on the plan.
+    this.camera.rotation.set(this.pitch, -this.yaw - Math.PI / 2, 0);
+  }
+
+  private readonly tick = (now: number): void => {
+    if (!this.walking) return;
+    const dt = Math.min((now - this.lastTick) / 1000, MAX_FRAME_S);
+    this.lastTick = now;
+    const down = (...keys: string[]) => keys.some((k) => this.held.has(k));
+    this.yaw += ((down('arrowright') ? 1 : 0) - (down('arrowleft') ? 1 : 0)) * KEY_TURN_RATE * dt;
+    const ahead = (down('w', 'arrowup') ? 1 : 0) - (down('s', 'arrowdown') ? 1 : 0);
+    const side = (down('d') ? 1 : 0) - (down('a') ? 1 : 0);
+    if (ahead || side) {
+      const speed = (this.held.has('shift') ? RUN_SPEED : WALK_SPEED) * dt;
+      const norm = Math.hypot(ahead, side);
+      const fx = Math.cos(this.yaw);
+      const fy = Math.sin(this.yaw);
+      const delta = {
+        x: ((fx * ahead - fy * side) / norm) * speed,
+        y: ((fy * ahead + fx * side) / norm) * speed,
+      };
+      this.walkAt = walkMove(this.walkAt, delta, this.obstacles);
+    }
+    this.placeCamera();
+    this.updateCutaway();
+    this.renderer.render(this.scene, this.camera);
+    this.walkFrame = requestAnimationFrame(this.tick);
+  };
+
+  private readonly onWalkKeyDown = (e: KeyboardEvent): void => {
+    if (isTypingTarget(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
+    const key = e.key.toLowerCase();
+    if (key === 'escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      this.onWalkEnd?.();
+    } else if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
+      // Keep the editor's own W, D and arrow-key shortcuts from firing while walking.
+      e.preventDefault();
+      e.stopPropagation();
+      this.held.add(key);
+    }
+    this.syncShift(e);
+  };
+
+  private readonly onWalkKeyUp = (e: KeyboardEvent): void => {
+    this.held.delete(e.key.toLowerCase());
+    this.syncShift(e);
+  };
+
+  private syncShift(e: KeyboardEvent): void {
+    if (e.shiftKey) this.held.add('shift');
+    else this.held.delete('shift');
+  }
+
+  private readonly onWalkBlur = (): void => this.held.clear();
+
+  private readonly onLook = (e: PointerEvent): void => {
+    if (!this.looking) return;
+    this.yaw += e.movementX * LOOK_RATE;
+    this.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, this.pitch - e.movementY * LOOK_RATE));
+  };
+
   private readonly onPointerDown = (e: PointerEvent): void => {
+    if (this.walking) {
+      this.looking = e.button === 0;
+      if (this.looking) this.renderer.domElement.setPointerCapture(e.pointerId);
+      return;
+    }
     this.pressedAt = e.button === 0 ? { x: e.clientX, y: e.clientY } : null;
   };
 
   private readonly onPointerUp = (e: PointerEvent): void => {
+    if (this.walking) {
+      this.looking = false;
+      return;
+    }
     const from = this.pressedAt;
     this.pressedAt = null;
     if (!from || e.button !== 0 || Math.hypot(e.clientX - from.x, e.clientY - from.y) > CLICK_SLOP_PX) return;

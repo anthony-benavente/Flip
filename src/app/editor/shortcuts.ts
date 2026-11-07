@@ -98,6 +98,7 @@ export const GESTURES: HelpRow[] = [
   { keys: 'Scroll', label: 'Zoom' },
   { keys: 'Shift (drawing)', label: 'Lock walls to 90°' },
   { keys: 'Alt (dragging)', label: 'Turn off snapping' },
+  { keys: 'W A S D / arrows', label: 'Move in the 3D walk view (Shift to run, drag to look, Esc to exit)' },
   { keys: 'Type a number', label: 'Set exact wall length while drawing, then Enter' },
 ];
 

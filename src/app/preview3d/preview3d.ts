@@ -10,6 +10,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
+import { walkStart } from '../geometry/walk';
 import { ImageLibrary } from '../persistence/image-library';
 import { ModelLibrary } from '../persistence/model-library';
 import { EditorStore, SelectionItem } from '../state/editor.store';
@@ -38,11 +39,20 @@ const REBUILD_DEBOUNCE_MS = 150;
       <button class="btn" [class.active]="preset() === 'top'" (click)="setCamera('top')" title="Top-down view">
         <app-icon name="top" /> Top
       </button>
+      <button class="btn" [class.active]="walking()" (click)="toggleWalk()" title="Walk through the room at eye level">
+        <app-icon name="walk" /> Walk
+      </button>
       <label class="toggle" title="Fade walls that block the view">
         <input type="checkbox" [checked]="cutaway()" (change)="toggleCutaway()" /> Cutaway walls
       </label>
     </div>
-    <div class="help">Click to select · drag to orbit · right-drag to pan · scroll to zoom</div>
+    <div class="help">
+      @if (walking()) {
+        W A S D or arrows to move · drag to look · Shift to run · Esc to exit
+      } @else {
+        Click to select · drag to orbit · right-drag to pan · scroll to zoom
+      }
+    </div>
   `,
   styles: `
     :host { position: relative; display: block; overflow: hidden; background: #eef0f2; }
@@ -74,6 +84,7 @@ export class Preview3d {
   protected readonly status = signal<'loading' | 'ready' | 'error'>('loading');
   protected readonly preset = signal<CameraPreset>('perspective');
   protected readonly cutaway = signal(true);
+  protected readonly walking = signal(false);
 
   constructor() {
     effect(() => {
@@ -98,6 +109,7 @@ export class Preview3d {
         this.engine.setCutaway(this.cutaway());
         this.engine.setSelection(this.editor.selection());
         this.engine.onPick = (item, additive) => this.pick(item, additive);
+        this.engine.onWalkEnd = () => this.stopWalk();
         this.rebuild();
         this.status.set('ready');
       } catch (e) {
@@ -114,7 +126,21 @@ export class Preview3d {
     });
   }
 
+  protected toggleWalk(): void {
+    if (this.walking()) return this.stopWalk();
+    if (!this.engine) return;
+    const selected = this.editor.selection().find((s) => s.kind === 'room');
+    this.engine.startWalk(walkStart(this.store.rooms(), selected?.id));
+    this.walking.set(true);
+  }
+
+  private stopWalk(): void {
+    this.engine?.stopWalk();
+    this.walking.set(false);
+  }
+
   protected setCamera(preset: CameraPreset): void {
+    this.walking.set(false);
     this.preset.set(preset);
     this.engine?.setCamera(preset);
   }

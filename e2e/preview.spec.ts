@@ -36,4 +36,28 @@ test.describe('3D preview', () => {
     await page.keyboard.press('Delete');
     await expect(page.locator('g.furniture')).toHaveCount(0);
   });
+
+  test('walks through the room with the keyboard and leaves with Esc', async ({ page }) => {
+    await newStarterRoom(page);
+    await page.locator('.view-modes button', { hasText: '3D' }).click();
+    await expect(page.getByText('Loading 3D view…')).toHaveCount(0);
+    const gl = page.locator('app-preview3d canvas');
+    const walk = page.getByRole('button', { name: 'Walk', exact: true });
+    await walk.click();
+    await expect(walk).toHaveClass(/active/);
+    await expect(page.getByText('Shift to run')).toBeVisible();
+
+    // W moves the camera, and must not also switch the editor to the wall tool.
+    const before = await gl.screenshot();
+    await page.keyboard.down('w');
+    await page.waitForTimeout(500);
+    await page.keyboard.up('w');
+    await expect.poll(async () => (await gl.screenshot()).equals(before)).toBe(false);
+    await expect(page.locator('.tool.active')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.tool.active')).not.toContainText(/wall/i);
+
+    await page.keyboard.press('Escape');
+    await expect(walk).not.toHaveClass(/active/);
+    await expect(page.getByText('drag to orbit')).toBeVisible();
+  });
 });
