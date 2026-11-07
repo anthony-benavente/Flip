@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { ModelOrientation } from '../model/custom-model';
+import { ModelOrientation, ModelTrim } from '../model/custom-model';
 import { disposeObject, parseModel } from './model-cache';
 import { fitModelToBox } from './model-fit';
 
@@ -42,9 +42,9 @@ export class ModelPreview {
   }
 
   /** Fits the model into a `w` × `d` × `h` meter box and frames the camera on it. */
-  fit(orientation: ModelOrientation, w: number, d: number, h: number): void {
+  fit(orientation: ModelOrientation, w: number, d: number, h: number, trim?: ModelTrim): void {
     if (this.fitted) this.scene.remove(this.fitted);
-    this.fitted = this.source ? fitModelToBox(this.source, orientation, w, d, h) : null;
+    this.fitted = this.source ? fitModelToBox(this.source, orientation, w, d, h, trim) : null;
     if (this.fitted) this.scene.add(this.fitted);
 
     this.clearFrame();

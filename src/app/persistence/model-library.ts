@@ -5,6 +5,7 @@ import {
   MAX_MODEL_BYTES,
   ModelOrientation,
   ModelSettings,
+  ModelTrim,
 } from '../model/custom-model';
 import { newId } from '../model/plan.model';
 import { MODEL_REPOSITORY } from './model-repository';
@@ -44,7 +45,7 @@ export class ModelLibrary {
   }
 
   /** Adds a model file as a variant of a catalog template. */
-  async upload(file: File, catalogId: string, name: string, orientation: ModelOrientation): Promise<CustomModel> {
+  async upload(file: File, catalogId: string, name: string, orientation: ModelOrientation, trim?: ModelTrim): Promise<CustomModel> {
     if (file.size > MAX_MODEL_BYTES) throw new Error(`${file.name} is larger than ${MAX_MODEL_BYTES / 1024 / 1024} MB.`);
     const meta: CustomModel = {
       id: newId('m'),
@@ -54,6 +55,7 @@ export class ModelLibrary {
       byteSize: file.size,
       createdAt: new Date().toISOString(),
       orientation,
+      ...(trim && { trim }),
     };
     await this.add({ meta, data: await file.arrayBuffer() });
     return meta;
@@ -71,7 +73,7 @@ export class ModelLibrary {
     return this.repo.get(id);
   }
 
-  /** Changes a model's name, template or orientation. A blank name is ignored. */
+  /** Changes a model's name, template, orientation or trim. A blank name is ignored. */
   async update(id: string, settings: ModelSettings): Promise<void> {
     const patch = { ...settings };
     if (patch.name !== undefined) patch.name = patch.name.trim() || undefined;

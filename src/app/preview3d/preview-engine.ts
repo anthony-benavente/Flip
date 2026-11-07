@@ -9,8 +9,17 @@ import { FurnitureMeshFactory } from './furniture-meshes';
 import { ModelCache } from './model-cache';
 import { ImageSource, TextureCache } from './texture-cache';
 import { buildPlanScene, disposePlanScene, ModelResolver, PlanScene, SceneWall } from './scene-builder';
+import { addOutline, findTagged, pickFromHits } from './scene-picking';
+import type { SelectionItem } from '../state/editor.store';
 
 export type CameraPreset = 'perspective' | 'top';
+
+/** Called on a click in the view with the element under it (`null` for empty space). */
+export type PickHandler = (item: SelectionItem | null, additive: boolean) => void;
+
+/** A press that moves farther than this is an orbit or pan, not a click. */
+const CLICK_SLOP_PX = 4;
+const SELECTION_COLOR = '#2f6fde';
 
 /** Where the engine finds uploaded models: metadata (orientation, and whether it still exists) and file bytes. */
 export interface ModelSource {
@@ -49,6 +58,12 @@ export class PreviewEngine {
   private cutaway = true;
   private readonly resizeObserver: ResizeObserver;
   private frame = 0;
+  private readonly raycaster = new THREE.Raycaster();
+  private readonly outlineMaterial = new THREE.LineBasicMaterial({ color: SELECTION_COLOR, depthTest: false, transparent: true });
+  private outlines: THREE.LineSegments[] = [];
+  private selection: SelectionItem[] = [];
+  private pressedAt: { x: number; y: number } | null = null;
+  onPick: PickHandler | null = null;
 
   constructor(private readonly container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -80,6 +95,8 @@ export class PreviewEngine {
     this.controls.maxDistance = 80;
     this.controls.addEventListener('change', () => this.requestRender());
     this.controls.addEventListener('start', () => (this.userMovedCamera = true));
+    this.renderer.domElement.addEventListener('pointerdown', this.onPointerDown);
+    this.renderer.domElement.addEventListener('pointerup', this.onPointerUp);
 
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(container);
@@ -95,13 +112,14 @@ export class PreviewEngine {
     const resolve: ModelResolver = (id) => {
       const meta = source.model(id);
       const object = meta && this.models.get(id);
-      return object ? { object, orientation: meta.orientation } : undefined;
+      return object ? { object, orientation: meta.orientation, trim: meta.trim } : undefined;
     };
     this.clearContent();
     const picture = (id: string) => (images.image(id) ? this.textures.get(id) : undefined);
     this.content = buildPlanScene(plan, rooms, segs, this.factory, resolve, picture);
     this.scene.add(this.content.group);
     this.walls = this.content.walls.map((w) => ({ ...w, cut: false }));
+    this.showSelection();
 
     this.updateBounds(this.content.bounds);
     if (!this.hasFitted && !this.content.bounds.isEmpty()) {
@@ -150,13 +168,24 @@ export class PreviewEngine {
     this.requestRender();
   }
 
+  /** Outlines the selected elements. */
+  setSelection(items: SelectionItem[]): void {
+    this.selection = items;
+    this.showSelection();
+    this.requestRender();
+  }
+
   dispose(): void {
     this.disposed = true;
     this.lastUpdate = null;
+    this.onPick = null;
     cancelAnimationFrame(this.frame);
     this.resizeObserver.disconnect();
+    this.renderer.domElement.removeEventListener('pointerdown', this.onPointerDown);
+    this.renderer.domElement.removeEventListener('pointerup', this.onPointerUp);
     this.controls.dispose();
     this.clearContent();
+    this.outlineMaterial.dispose();
     this.factory.dispose();
     this.models.dispose();
     this.textures.dispose();
@@ -226,7 +255,48 @@ export class PreviewEngine {
     this.requestRender();
   }
 
+  private readonly onPointerDown = (e: PointerEvent): void => {
+    this.pressedAt = e.button === 0 ? { x: e.clientX, y: e.clientY } : null;
+  };
+
+  private readonly onPointerUp = (e: PointerEvent): void => {
+    const from = this.pressedAt;
+    this.pressedAt = null;
+    if (!from || e.button !== 0 || Math.hypot(e.clientX - from.x, e.clientY - from.y) > CLICK_SLOP_PX) return;
+    this.onPick?.(this.pick(e.clientX, e.clientY), e.shiftKey || e.ctrlKey || e.metaKey);
+  };
+
+  /** The element under a screen point. */
+  private pick(clientX: number, clientY: number): SelectionItem | null {
+    if (!this.content) return null;
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    const ndc = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+    // Match the cutaway to the current camera, as the next frame would.
+    this.updateCutaway();
+    this.raycaster.setFromCamera(ndc, this.camera);
+    return pickFromHits(this.raycaster.intersectObject(this.content.group, true));
+  }
+
+  private showSelection(): void {
+    this.clearOutlines();
+    if (!this.content) return;
+    for (const o of findTagged(this.content.group, this.selection)) {
+      const line = addOutline(o, this.outlineMaterial);
+      if (line) this.outlines.push(line);
+    }
+  }
+
+  private clearOutlines(): void {
+    for (const line of this.outlines) {
+      line.removeFromParent();
+      line.geometry.dispose();
+    }
+    this.outlines = [];
+  }
+
   private clearContent(): void {
+    this.clearOutlines();
     if (!this.content) return;
     this.scene.remove(this.content.group);
     disposePlanScene(this.content);

@@ -97,12 +97,33 @@ describe('canvas view models', () => {
   it('draws rugs first and hides labels that would not fit', () => {
     const sofa = { ...createFurniture('sofa-3', { x: 0, y: 0 }), id: 'sofa' };
     const rug = { ...createFurniture('rug-large', { x: 0, y: 0 }), id: 'rug' };
-    const views = furnitureViews([sofa, rug], new Set(['sofa']), new Set(['furniture:rug']), 1);
-    expect(views.map((v) => v.id)).toEqual(['rug', 'sofa']);
-    expect(views[0].selected).toBe(true);
+    const views = furnitureViews([sofa, rug], new Set(['sofa']), new Set(), 1);
+    expect(views.map((v) => [v.id, v.layer])).toEqual([
+      ['rug', 'floor'],
+      ['sofa', 'top'],
+    ]);
     expect(views[1].overlap).toBe(true);
     expect(views[1].showLabel).toBe(true);
     expect(furnitureViews([sofa], new Set(), new Set(), 0.05)[0].showLabel).toBe(false);
+  });
+
+  it('draws selected items last, lifting a selected rug above the furniture on it', () => {
+    const sofa = { ...createFurniture('sofa-3', { x: 0, y: 0 }), id: 'sofa' };
+    const rug = { ...createFurniture('rug-large', { x: 0, y: 0 }), id: 'rug' };
+    const lamp = { ...createFurniture('table-lamp', { x: 0, y: 0 }), id: 'lamp', elevation: 80 };
+    const elevationOf = (f: { elevation?: number }) => f.elevation ?? 0;
+    const pick = (ids: string[]) =>
+      furnitureViews([lamp, rug, sofa], new Set(), new Set(ids.map((id) => `furniture:${id}`)), 1, elevationOf).map((v) => [v.id, v.layer]);
+    expect(pick(['sofa'])).toEqual([
+      ['rug', 'floor'],
+      ['lamp', 'top'],
+      ['sofa', 'top'],
+    ]);
+    expect(pick(['rug'])).toEqual([
+      ['sofa', 'top'],
+      ['lamp', 'top'],
+      ['rug', 'top'],
+    ]);
   });
 
   it('draws higher items over lower ones and marks ceiling items', () => {
