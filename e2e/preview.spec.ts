@@ -42,9 +42,10 @@ test.describe('3D preview', () => {
     await page.locator('.view-modes button', { hasText: '3D' }).click();
     await expect(page.getByText('Loading 3D view…')).toHaveCount(0);
     const gl = page.locator('app-preview3d canvas');
-    const walk = page.getByRole('button', { name: 'Walk', exact: true });
+    const walk = page.locator('app-preview3d .controls .btn', { hasText: /walk/i });
     await walk.click();
     await expect(walk).toHaveClass(/active/);
+    await expect(walk).toHaveText(/Exit walk/);
     await expect(page.getByText('Shift to run')).toBeVisible();
 
     // W moves the camera, and must not also switch the editor to the wall tool.
@@ -58,6 +59,7 @@ test.describe('3D preview', () => {
 
     await page.keyboard.press('Escape');
     await expect(walk).not.toHaveClass(/active/);
+    await expect(walk).toHaveText(/^\s*Walk\s*$/);
     await expect(page.getByText('drag to orbit')).toBeVisible();
   });
 });

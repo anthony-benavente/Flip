@@ -3,6 +3,7 @@ import { provideRouter, Router } from '@angular/router';
 import { createStarterPlan } from '../model/defaults';
 import { LocalPlanRepository } from '../persistence/local-plan.repository';
 import { PLAN_REPOSITORY } from '../persistence/plan-repository';
+import { ToastService } from '../shared/toast';
 import { MemoryStorage } from '../testing/fixtures';
 import { ProjectsPage } from './projects-page';
 
@@ -71,20 +72,18 @@ describe('ProjectsPage', () => {
       expect(el.querySelector('app-plan-thumbnail svg')).not.toBeNull();
     });
 
-    it('asks before deleting, and can cancel', async () => {
+    it('deletes at once and offers Undo in a toast', async () => {
       el.querySelector<HTMLButtonElement>('button[title="Delete"]')!.click();
-      await settle();
-      expect(el.textContent).toContain('Delete “Den”?');
-      button('Cancel').click();
-      await settle();
-      expect(await repo.list()).toHaveLength(1);
-
-      el.querySelector<HTMLButtonElement>('button[title="Delete"]')!.click();
-      await settle();
-      button('Delete').click();
       await settle();
       expect(await repo.list()).toEqual([]);
       expect(el.textContent).toContain('No projects yet');
+      const toast = TestBed.inject(ToastService).toasts()[0];
+      expect(toast.message).toBe('Deleted “Den”');
+
+      TestBed.inject(ToastService).act(toast);
+      await settle();
+      expect((await repo.list()).map((s) => s.name)).toEqual(['Den']);
+      expect(el.querySelectorAll('.card')).toHaveLength(1);
     });
 
     it('duplicates a project', async () => {

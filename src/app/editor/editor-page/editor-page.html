@@ -34,7 +34,7 @@
 
       <div class="segmented view-modes" role="group" aria-label="View">
         @for (m of viewModes; track m.id) {
-          <button [class.active]="editor.viewMode() === m.id" [attr.aria-pressed]="editor.viewMode() === m.id" (click)="editor.viewMode.set(m.id)"><app-icon [name]="m.icon" /> {{ m.label }}</button>
+          <button [class.active]="editor.viewMode() === m.id" [attr.aria-pressed]="editor.viewMode() === m.id" [title]="m.label + ' view (press 3 to cycle)'" (click)="editor.viewMode.set(m.id)"><app-icon [name]="m.icon" /> {{ m.label }}</button>
         }
       </div>
 

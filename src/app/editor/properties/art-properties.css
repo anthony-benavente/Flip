@@ -9,7 +9,7 @@
   position: relative;
   aspect-ratio: 1;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--surface-2);
   overflow: hidden;
 }

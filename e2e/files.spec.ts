@@ -14,7 +14,6 @@ test.describe('import and export', () => {
 
     await page.getByTitle('All projects').click();
     await page.getByTitle('Delete').click();
-    await page.locator('.card').getByRole('button', { name: 'Delete' }).click();
     await expect(page.getByText('No projects yet')).toBeVisible();
 
     await page.locator('input[type=file]').setInputFiles(file);
@@ -33,5 +32,14 @@ test.describe('import and export', () => {
     await page.locator('input[type=file]').setInputFiles(file);
     await expect(page.locator('.error')).toContainText('"nodes" must be a list.');
     await expect(page).toHaveURL(/\/$/);
+  });
+
+  test('deletes a project at once and brings it back with Undo', async ({ page }) => {
+    await newStarterRoom(page);
+    await page.getByTitle('All projects').click();
+    await page.getByTitle('Delete').click();
+    await expect(page.getByText('No projects yet')).toBeVisible();
+    await page.getByRole('button', { name: 'Undo' }).click();
+    await expect(page.locator('.card')).toHaveCount(1);
   });
 });

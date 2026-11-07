@@ -79,7 +79,6 @@ test.describe('interior design', () => {
     await expect(page.getByText('picture was deleted')).toBeVisible();
     await page.getByTitle('All projects').click();
     await page.getByTitle('Delete').click();
-    await page.locator('.card').getByRole('button', { name: 'Delete' }).click();
     await page.locator('input[type=file]').setInputFiles(file);
     await expect(page.locator('app-plan-canvas')).toBeVisible();
 

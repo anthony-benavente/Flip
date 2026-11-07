@@ -71,15 +71,6 @@ h3 {
   color: var(--text);
 }
 
-.badge {
-  padding: 0 6px;
-  border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 11px;
-  font-weight: 600;
-}
-
 .wall-side .reset {
   align-self: flex-start;
   height: 26px;
@@ -136,7 +127,7 @@ h3 {
   gap: 8px;
   padding: 5px 6px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--text);
   font: inherit;

@@ -6,6 +6,7 @@ import { newId, Plan } from '../model/plan.model';
 import { PlanFileService } from '../persistence/plan-file.service';
 import { PLAN_REPOSITORY } from '../persistence/plan-repository';
 import { Icon } from '../shared/icon';
+import { ToastService } from '../shared/toast';
 import { PlanThumbnail } from '../shared/plan-thumbnail';
 
 @Component({
@@ -19,11 +20,11 @@ export class ProjectsPage {
   private readonly repo = inject(PLAN_REPOSITORY);
   private readonly files = inject(PlanFileService);
   private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
 
   protected readonly plans = signal<Plan[] | null>(null);
   protected readonly error = signal<string | null>(null);
   protected readonly renamingId = signal<string | null>(null);
-  protected readonly confirmDeleteId = signal<string | null>(null);
 
   private readonly nameInput = viewChild<ElementRef<HTMLInputElement>>('nameInput');
 
@@ -71,12 +72,19 @@ export class ProjectsPage {
     const copy: Plan = { ...structuredClone(plan), id: newId('p'), name: `${plan.name} copy`, updatedAt: new Date().toISOString() };
     await this.repo.save(copy);
     await this.refresh();
+    this.toast.show(`Duplicated “${plan.name}”`);
   }
 
   async remove(plan: Plan): Promise<void> {
-    this.confirmDeleteId.set(null);
     await this.repo.delete(plan.id);
     await this.refresh();
+    this.toast.show(`Deleted “${plan.name}”`, {
+      label: 'Undo',
+      run: async () => {
+        await this.repo.save(plan);
+        await this.refresh();
+      },
+    });
   }
 
   async importFile(event: Event): Promise<void> {
@@ -88,6 +96,7 @@ export class ProjectsPage {
     try {
       const plan = await this.files.import(file);
       await this.router.navigate(['/plan', plan.id]);
+      this.toast.show(`Imported “${plan.name}”`);
     } catch (e) {
       this.error.set((e as Error).message);
     }

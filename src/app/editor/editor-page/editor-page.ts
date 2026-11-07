@@ -11,6 +11,7 @@ import { EditorActions } from '../../state/editor-actions';
 import { EditorStore, ViewMode } from '../../state/editor.store';
 import { PlanStore } from '../../state/plan.store';
 import { isTypingTarget } from '../../shared/dom';
+import { ToastService } from '../../shared/toast';
 import { HelpDialog } from '../help-dialog';
 import { Autosave } from '../autosave';
 import { PlanCanvas } from '../canvas/plan-canvas';
@@ -43,6 +44,7 @@ export class EditorPage {
   private readonly canvas = viewChild(PlanCanvas);
   private readonly elevationView = viewChild(WallElevation);
   private readonly autosave = inject(Autosave);
+  private readonly toast = inject(ToastService);
 
   protected readonly state = signal<'loading' | 'ready' | 'missing' | 'error'>('loading');
   protected readonly loadError = signal('');
@@ -123,6 +125,7 @@ export class EditorPage {
 
   protected exportPlan(): void {
     this.files.export(this.planStore.plan());
+    this.toast.show(`Exported “${this.planStore.plan().name}”`);
   }
 
   protected async importPlan(event: Event): Promise<void> {
@@ -135,6 +138,7 @@ export class EditorPage {
       const plan = await this.files.import(file);
       this.importError.set(null);
       await this.router.navigate(['/plan', plan.id]);
+      this.toast.show(`Imported “${plan.name}”`);
     } catch (e) {
       this.importError.set((e as Error).message);
     }

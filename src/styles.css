@@ -12,9 +12,13 @@
   --danger: #c4372d;
   --danger-soft: #fbe7e5;
   --success: #2f8a4f;
+  --toast-action: #9db9f2;
   --wall: #3a3733;
   --wall-fill: #8d877d;
   --canvas: #fbfaf7;
+  --preview-bg: #eef0f2;
+  --overlay: rgb(255 255 255 / 92%);
+  --overlay-soft: rgb(255 255 255 / 85%);
   --grid-minor: #ece8e0;
   --grid-major: #ddd7cc;
   --radius: 8px;
@@ -168,6 +172,16 @@ select {
 .segmented button.active {
   background: var(--accent-soft);
   color: var(--accent);
+  font-weight: 600;
+}
+
+/* A small count or status pill. */
+.badge {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
   font-weight: 600;
 }
 

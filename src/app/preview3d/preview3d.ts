@@ -39,8 +39,8 @@ const REBUILD_DEBOUNCE_MS = 150;
       <button class="btn" [class.active]="preset() === 'top'" [attr.aria-pressed]="preset() === 'top'" (click)="setCamera('top')" title="Top-down view">
         <app-icon name="top" /> Top
       </button>
-      <button class="btn" [class.active]="walking()" [attr.aria-pressed]="walking()" (click)="toggleWalk()" title="Walk through the room at eye level">
-        <app-icon name="walk" /> Walk
+      <button class="btn" [class.active]="walking()" [attr.aria-pressed]="walking()" (click)="toggleWalk()" [title]="walking() ? 'Back to the orbit view (Esc)' : 'Walk through the room at eye level'">
+        <app-icon name="walk" /> {{ walking() ? 'Exit walk' : 'Walk' }}
       </button>
       <label class="toggle" title="Fade walls that block the view">
         <input type="checkbox" [checked]="cutaway()" (change)="toggleCutaway()" /> Cutaway walls
@@ -55,20 +55,20 @@ const REBUILD_DEBOUNCE_MS = 150;
     </div>
   `,
   styles: `
-    :host { position: relative; display: block; overflow: hidden; background: #eef0f2; }
+    :host { position: relative; display: block; overflow: hidden; background: var(--preview-bg); }
     .host { position: absolute; inset: 0; }
     .host ::ng-deep canvas { display: block; outline: none; }
     .message { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px;
       color: var(--text-muted); text-align: center; }
     .message.error { color: var(--danger); }
     .controls { position: absolute; top: 10px; left: 10px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
-      padding: 4px; border: 1px solid var(--border); border-radius: var(--radius); background: rgb(255 255 255 / 92%);
+      padding: 4px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--overlay);
       box-shadow: var(--shadow); }
     .controls .btn { height: 28px; border-color: transparent; }
     .controls .btn.active { background: var(--accent-soft); color: var(--accent); }
     .toggle { display: flex; align-items: center; gap: 6px; padding: 0 8px; font-size: 13px; cursor: pointer; }
     .help { position: absolute; bottom: 10px; left: 10px; padding: 3px 8px; border-radius: var(--radius-sm);
-      background: rgb(255 255 255 / 85%); color: var(--text-muted); font-size: 12px; pointer-events: none; }
+      background: var(--overlay-soft); color: var(--text-muted); font-size: 12px; pointer-events: none; }
   `,
 })
 export class Preview3d {

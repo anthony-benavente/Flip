@@ -186,12 +186,6 @@ li.has-model {
 
 .badge {
   margin-left: auto;
-  padding: 1px 5px;
-  border-radius: var(--radius-sm);
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 10px;
-  font-weight: 600;
 }
 
 .model-actions {
