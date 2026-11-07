@@ -60,6 +60,19 @@ export const CEILING_SWATCHES: Swatch[] = [
   { name: 'Wood', color: '#b08d6e' },
 ];
 
+export const DEFAULT_DOOR_COLOR = '#b48b5e';
+
+export const DOOR_SWATCHES: Swatch[] = [
+  { name: 'Natural wood', color: DEFAULT_DOOR_COLOR },
+  { name: 'White', color: '#f4f2ee' },
+  { name: 'Walnut', color: '#6b4a33' },
+  { name: 'Black', color: '#2b2b2b' },
+  { name: 'Navy', color: '#2f4a6d' },
+  { name: 'Forest', color: '#3f5e4a' },
+  { name: 'Red', color: '#a83f3f' },
+  { name: 'Gray', color: '#8a8d92' },
+];
+
 export const TRIM_SWATCHES: Swatch[] = [
   { name: 'White', color: '#f4f2ee' },
   { name: 'Warm white', color: '#efe9df' },

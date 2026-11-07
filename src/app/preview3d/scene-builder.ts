@@ -10,7 +10,7 @@ import { add, scale } from '../geometry/vec';
 import { endExtensions, faceTrimGaps, subtractGaps, WallSegment } from '../geometry/wall-geometry';
 import { catalogItem } from '../model/catalog';
 import { ModelOrientation } from '../model/custom-model';
-import { EXTERIOR_WALL_COLOR } from '../model/palettes';
+import { DEFAULT_DOOR_COLOR, EXTERIOR_WALL_COLOR } from '../model/palettes';
 import { FloorMaterial, Opening, Plan, WallSide } from '../model/plan.model';
 import { FurnitureMeshFactory } from './furniture-meshes';
 import { fitModelToBox, SHARED_MODEL } from './model-fit';
@@ -19,7 +19,6 @@ import { BASEBOARD, CASING, CROWN, railingParts, WallPieces, wallPieces } from '
 /** cm → m */
 export const M = 0.01;
 export const WALL_EDGE_COLOR = '#cfc8bc';
-export const DOOR_COLOR = '#b48b5e';
 export const DOOR_OPEN_ANGLE = (70 * Math.PI) / 180;
 const RAIL_WOOD = '#6b4a32';
 const RAIL_WHITE = '#f4f3ef';
@@ -276,7 +275,7 @@ function buildDoor(o: Opening, x0: number, x1: number, top: number, t: number, f
   pivot.name = 'door';
   pivot.position.set(hingeLeft ? x0 : x1, 0, (sgn * t) / 2);
   pivot.rotation.y = -dirX * sgn * DOOR_OPEN_ANGLE;
-  const leaf = new THREE.Mesh(new THREE.BoxGeometry(w - 0.01, top - 0.01, 0.04), own(new THREE.MeshStandardMaterial({ color: DOOR_COLOR, roughness: 0.7 })));
+  const leaf = new THREE.Mesh(new THREE.BoxGeometry(w - 0.01, top - 0.01, 0.04), own(new THREE.MeshStandardMaterial({ color: o.color ?? DEFAULT_DOOR_COLOR, roughness: 0.7 })));
   leaf.position.set((dirX * w) / 2, top / 2, sgn * 0.02);
   leaf.castShadow = true;
   const knob = new THREE.Mesh(new THREE.SphereGeometry(0.03, 12, 8), factory.material('#c9b27a', { metalness: 0.8, roughness: 0.3 }));

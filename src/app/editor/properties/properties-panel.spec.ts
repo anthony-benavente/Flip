@@ -294,6 +294,13 @@ describe('PropertiesPanel', () => {
     expect(plan.plan().openings[0]).toMatchObject({ swing: 'right', flip: true });
   });
 
+  it('paints a door', async () => {
+    editor.select([{ kind: 'opening', id: 'o1' }]);
+    await render();
+    el.querySelector<HTMLButtonElement>('.swatch[title="Navy"]')!.click();
+    expect(plan.plan().openings[0].color).toBe('#2f4a6d');
+  });
+
   it('switches units', async () => {
     Array.from(el.querySelectorAll<HTMLButtonElement>('.segmented button'))
       .find((b) => b.textContent?.trim() === 'Metric')!

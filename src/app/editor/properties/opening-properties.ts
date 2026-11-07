@@ -1,7 +1,9 @@
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { WallSegment } from '../../geometry/wall-geometry';
 import { updateOpening } from '../../model/plan-operations';
+import { DOOR_SWATCHES, DEFAULT_DOOR_COLOR } from '../../model/palettes';
 import { Opening } from '../../model/plan.model';
+import { ColorPick, ColorSwatches } from '../../shared/color-swatches';
 import { Icon } from '../../shared/icon';
 import { LengthInput } from '../../shared/length-input';
 import { EditorActions } from '../../state/editor-actions';
@@ -10,7 +12,7 @@ import { PlanStore } from '../../state/plan.store';
 /** Size and position of a door or window; hinge side and swing for doors, sill height for windows. */
 @Component({
   selector: 'app-opening-properties',
-  imports: [Icon, LengthInput],
+  imports: [ColorSwatches, Icon, LengthInput],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './properties.css',
   template: `
@@ -45,6 +47,16 @@ import { PlanStore } from '../../state/plan.store';
         <span>Swing direction</span>
         <button class="btn" (click)="update({ flip: !o.flip })"><app-icon name="flip" /> Flip to other side</button>
       </div>
+      <div class="field">
+        <span>Color</span>
+        <app-color-swatches
+          [swatches]="doorSwatches"
+          [selected]="o.color ?? defaultColor"
+          [pickerValue]="o.color ?? defaultColor"
+          [customLabel]="'Custom door color'"
+          (pick)="paint($event)"
+        />
+      </div>
     }
     <label class="field">
       <span>Distance from wall start</span>
@@ -70,6 +82,13 @@ export class OpeningProperties {
   private readonly plan = inject(PlanStore);
   protected readonly actions = inject(EditorActions);
   protected readonly units = this.plan.units;
+  protected readonly doorSwatches = DOOR_SWATCHES;
+  protected readonly defaultColor = DEFAULT_DOOR_COLOR;
+
+  protected paint(pick: ColorPick): void {
+    const id = this.opening().id;
+    this.plan.update((d) => updateOpening(d, id, { color: pick.color }), { coalesceKey: pick.live ? `door-color:${id}` : undefined });
+  }
 
   protected update(patch: Partial<Omit<Opening, 'id' | 'wallId'>>): void {
     const id = this.opening().id;

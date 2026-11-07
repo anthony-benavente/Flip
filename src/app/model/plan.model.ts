@@ -54,6 +54,8 @@ export interface Opening {
   swing?: 'left' | 'right';
   /** Door opens to the other side of the wall. */
   flip?: boolean;
+  /** Paint of a door leaf; unset uses `DEFAULT_DOOR_COLOR`. */
+  color?: string;
 }
 
 export interface FurnitureItem {
