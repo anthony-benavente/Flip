@@ -57,8 +57,25 @@
       </div>
     }
 
-    <div class="workspace" [attr.data-mode]="editor.elevation() ? 'split' : editor.viewMode()">
+    <div class="workspace" [attr.data-mode]="editor.elevation() ? 'split' : editor.viewMode()" [style.--sidebar-width.px]="editor.sidebarWidth()">
       <app-toolbox class="toolbox" />
+      <div
+        class="sidebar-resizer"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Sidebar width"
+        title="Drag to resize; double-click to reset"
+        tabindex="0"
+        [attr.aria-valuenow]="editor.sidebarWidth()"
+        [attr.aria-valuemin]="sidebarMin"
+        [attr.aria-valuemax]="sidebarMax"
+        (pointerdown)="startResize($event)"
+        (pointermove)="resize($event)"
+        (pointerup)="endResize()"
+        (pointercancel)="endResize()"
+        (dblclick)="resetWidth()"
+        (keydown)="resizeKey($event)"
+      ></div>
       <div class="stage">
         <app-plan-canvas class="canvas" [hidden]="editor.viewMode() === '3d' && !editor.elevation()" />
         @if (editor.elevation()) {

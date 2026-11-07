@@ -1,3 +1,20 @@
+<nav class="rail" role="tablist" aria-orientation="vertical" aria-label="Panels">
+  @for (t of tabs; track t.id) {
+    <button
+      class="rail-tab"
+      role="tab"
+      [class.active]="editor.panel() === t.id"
+      [attr.aria-selected]="editor.panel() === t.id"
+      [title]="t.label"
+      (click)="editor.panel.set(t.id)"
+    >
+      <app-icon [name]="t.icon" />
+      <span>{{ t.label }}</span>
+    </button>
+  }
+</nav>
+
+<div class="main">
 <section class="tools" aria-label="Drawing tools">
   @for (t of tools; track t.id) {
     <button
@@ -14,13 +31,15 @@
   }
 </section>
 
-<section class="catalog" aria-label="Furniture">
+@switch (editor.panel()) {
+@case ('furniture') {
+<section class="catalog" role="tabpanel" aria-label="Furniture">
   <div class="catalog-head">
     <div class="catalog-title">
       <h2>Furniture</h2>
       <button
         class="btn ghost models"
-        (click)="showLibrary.set(true)"
+        (click)="editor.panel.set('models')"
         title="Upload and edit 3D models for catalog items"
       >
         <app-icon name="cube" /> 3D models
@@ -120,14 +139,21 @@
     }
   </div>
 </section>
-
-@if (showLibrary()) {
-  <app-model-library-dialog
-    (closed)="showLibrary.set(false)"
-    (edit)="modelDialog.set({ editing: $event })"
-    (upload)="modelDialog.set({ editing: null })"
-  />
 }
+@case ('models') {
+<app-model-library-panel
+  role="tabpanel"
+  aria-label="3D models"
+  (edit)="modelDialog.set({ editing: $event })"
+  (upload)="modelDialog.set({ editing: null })"
+/>
+}
+@case ('rooms') {
+<app-rooms-panel role="tabpanel" aria-label="Rooms" />
+}
+}
+</div>
+
 @if (modelDialog(); as d) {
   <app-model-upload-dialog
     [editing]="d.editing"

@@ -5,11 +5,12 @@ import { CustomModel, modelDisplayName } from '../../model/custom-model';
 import { ModelLibrary } from '../../persistence/model-library';
 import { FurnitureSymbol } from '../../shared/furniture-symbol';
 import { EditorActions } from '../../state/editor-actions';
-import { EditorStore, ToolId } from '../../state/editor.store';
+import { EditorStore, RailPanel, ToolId } from '../../state/editor.store';
 import { PlanStore } from '../../state/plan.store';
 import { Icon } from '../../shared/icon';
 import { encodeFurnitureDrag, FURNITURE_DRAG_MIME, FurnitureDragData } from '../drag-drop';
-import { ModelLibraryDialog } from '../model-library/model-library-dialog';
+import { ModelLibraryPanel } from '../model-library/model-library-panel';
+import { RoomsPanel } from '../rooms/rooms-panel';
 import { ModelUploadDialog } from '../model-upload/model-upload-dialog';
 
 interface ToolButton {
@@ -19,9 +20,15 @@ interface ToolButton {
   key: string;
 }
 
+interface RailTab {
+  id: RailPanel;
+  label: string;
+  icon: string;
+}
+
 @Component({
   selector: 'app-toolbox',
-  imports: [Icon, FurnitureSymbol, ModelLibraryDialog, ModelUploadDialog],
+  imports: [Icon, FurnitureSymbol, ModelLibraryPanel, ModelUploadDialog, RoomsPanel],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './toolbox.html',
   styleUrl: './toolbox.css',
@@ -40,10 +47,15 @@ export class Toolbox {
     { id: 'pan', label: 'Pan', icon: 'pan', key: 'H' },
   ];
 
+  protected readonly tabs: RailTab[] = [
+    { id: 'furniture', label: 'Furniture', icon: 'furniture' },
+    { id: 'models', label: 'Models', icon: 'cube' },
+    { id: 'rooms', label: 'Rooms', icon: 'plan' },
+  ];
+
   protected readonly query = signal('');
   protected readonly collapsed = signal<Set<string>>(new Set());
 
-  protected readonly showLibrary = signal(false);
   /** The upload dialog, either uploading a new model (`editing: null`) or editing one. */
   protected readonly modelDialog = signal<{ editing: CustomModel | null } | null>(null);
   /** Model entry awaiting delete confirmation. */
@@ -109,10 +121,10 @@ export class Toolbox {
   protected onModelDialogClosed(model: CustomModel | null): void {
     const uploaded = model && !this.modelDialog()?.editing;
     this.modelDialog.set(null);
-    // A new upload shows up in the catalog; close the library so it can be seen.
+    // A new upload shows up in the catalog; go there so it can be seen.
     if (uploaded) {
       this.query.set('');
-      this.showLibrary.set(false);
+      this.editor.panel.set('furniture');
     }
   }
 

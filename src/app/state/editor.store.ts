@@ -3,9 +3,12 @@ import { SnapGuide, SnapKind } from '../geometry/snapping';
 import { DEFAULT_WALL_HEIGHT, DEFAULT_WALL_THICKNESS } from '../model/defaults';
 import { Size, Viewport } from '../geometry/viewport';
 import { Point, WallSide } from '../model/plan.model';
+import { loadSidebarWidth } from './sidebar-width';
 
 export type ToolId = 'select' | 'wall' | 'door' | 'window' | 'pan';
 export type ViewMode = '2d' | 'split' | '3d';
+/** Which panel the icon rail shows beside the plan. */
+export type RailPanel = 'furniture' | 'models' | 'rooms';
 export type SelectableKind = 'node' | 'wall' | 'opening' | 'furniture' | 'room';
 
 export interface SelectionItem {
@@ -48,6 +51,9 @@ export class EditorStore {
   /** Size of the 2D canvas in px, published by the canvas component. */
   readonly canvasSize = signal<Size>({ width: 800, height: 600 });
   readonly viewMode = signal<ViewMode>('2d');
+  readonly panel = signal<RailPanel>('furniture');
+  /** Width of the left sidebar in px; the editor page saves it. */
+  readonly sidebarWidth = signal(loadSidebarWidth());
   /**
    * Wall face open in the elevation view, shown beside the plan in place of the 3D preview.
    * Closing it returns to the current view mode.

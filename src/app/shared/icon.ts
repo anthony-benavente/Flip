@@ -28,6 +28,7 @@ const ICONS: Record<string, string> = {
   top: 'M12 3v12M8 11l4 4 4-4M4 20h16',
   perspective: 'M3 17l9 4 9-4M3 17V7l9-4 9 4v10M12 21V11',
   walk: 'M13 5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM12 7l-2 5 3 3v6M10 12l-3 1M12 7l3 3 3 1M13 15l-1-3',
+  furniture: 'M5 11V8a2 2 0 012-2h10a2 2 0 012 2v3M3 13a2 2 0 014 0v2h10v-2a2 2 0 014 0v5H3zM6 18v2M18 18v2',
   flip: 'M12 3v18M8 7l-5 5 5 5M16 7l5 5-5 5',
 };
 

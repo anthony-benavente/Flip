@@ -1,9 +1,53 @@
 :host {
   display: flex;
-  flex-direction: column;
   min-height: 0;
   border-right: 1px solid var(--border);
   background: var(--surface);
+}
+
+.rail {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 2px;
+  width: 56px;
+  padding: 6px 4px;
+  border-right: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.rail-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 10px;
+}
+
+.rail-tab:hover {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.rail-tab.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
 }
 
 .tools {

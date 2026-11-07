@@ -3,11 +3,12 @@ import { Page } from '@playwright/test';
 import { boxGlb } from '../src/app/testing/glb';
 import { expect, newStarterRoom, savedPlan, test } from './helpers';
 
-const library = (page: Page) => page.getByRole('dialog', { name: '3D model library' });
+const library = (page: Page) => page.getByRole('tabpanel', { name: '3D models' });
+const furnitureTab = (page: Page) => page.getByRole('tab', { name: 'Furniture' });
 const uploadDialog = (page: Page) => page.getByRole('dialog', { name: 'Upload 3D model' });
 const editDialog = (page: Page) => page.getByRole('dialog', { name: 'Edit 3D model' });
 
-/** Opens the library and the upload dialog from it. */
+/** Opens the Models panel and the upload dialog from it. */
 async function openUpload(page: Page) {
   await page.getByRole('button', { name: '3D models' }).click();
   await library(page).getByRole('button', { name: 'Upload model' }).click();
@@ -70,8 +71,6 @@ test.describe('uploaded 3D models', () => {
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
     await expect(library(page)).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(library(page)).toHaveCount(0);
   });
 
   test('edits a model after upload from the library and from the catalog', async ({ page }, testInfo) => {
@@ -98,7 +97,7 @@ test.describe('uploaded 3D models', () => {
     await dialog.getByRole('button', { name: 'Save changes' }).click();
     await expect(dialog).toHaveCount(0);
     await expect(library(page).getByRole('listitem', { name: 'Mesh task chair' })).toContainText('Armchair');
-    await page.keyboard.press('Escape');
+    await furnitureTab(page).click();
 
     // The catalog entry moved to the new template; the placed item keeps the same model.
     await expect(page.locator('.item', { hasText: 'Armchair · Mesh task chair' })).toBeVisible();
@@ -150,9 +149,54 @@ test.describe('uploaded 3D models', () => {
     await expect(row).toContainText('Items using it will show the default model.');
     await row.getByRole('button', { name: 'Delete' }).click();
     await expect(library(page)).toContainText('No models yet');
-    await page.keyboard.press('Escape');
+    await furnitureTab(page).click();
 
     await expect(page.locator('.item', { hasText: 'Desk · desk' })).toHaveCount(0);
     await expect(page.getByText('uploaded model was deleted')).toBeVisible();
+  });
+});
+
+test.describe('icon rail', () => {
+  test('switches between furniture, models and rooms', async ({ page }) => {
+    await newStarterRoom(page);
+    await expect(page.getByRole('tab', { name: 'Furniture' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('.item').first()).toBeVisible();
+
+    await page.getByRole('tab', { name: 'Models' }).click();
+    await expect(library(page)).toContainText('No models yet');
+    await expect(page.locator('.item')).toHaveCount(0);
+    // The drawing tools stay in reach on every tab.
+    await expect(page.getByRole('button', { name: /^Wall/ })).toBeVisible();
+
+    await page.getByRole('tab', { name: 'Rooms' }).click();
+    const rooms = page.getByRole('tabpanel', { name: 'Rooms' });
+    await expect(rooms.getByRole('button')).toHaveCount(1);
+    await rooms.getByRole('button').click();
+    await expect(page.locator('app-properties-panel h2')).toHaveText('Room');
+  });
+
+  test('resizes the sidebar and remembers the width after a reload', async ({ page }) => {
+    await newStarterRoom(page);
+    const sidebar = page.locator('app-toolbox');
+    const before = (await sidebar.boundingBox())!.width;
+
+    const handle = page.getByRole('separator', { name: 'Sidebar width' });
+    const box = (await handle.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + 200);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 80, box.y + 200, { steps: 5 });
+    await page.mouse.up();
+    await expect.poll(async () => (await sidebar.boundingBox())!.width).toBeCloseTo(before + 80, -1);
+
+    await page.reload();
+    await expect(sidebar).toBeVisible();
+    await expect.poll(async () => (await sidebar.boundingBox())!.width).toBeCloseTo(before + 80, -1);
+
+    // Keys move the divider without nudging anything on the plan; double-click resets.
+    await handle.focus();
+    await page.keyboard.press('ArrowLeft');
+    await expect.poll(async () => (await sidebar.boundingBox())!.width).toBeCloseTo(before + 64, -1);
+    await handle.dblclick();
+    await expect.poll(async () => (await sidebar.boundingBox())!.width).toBeCloseTo(before, -1);
   });
 });

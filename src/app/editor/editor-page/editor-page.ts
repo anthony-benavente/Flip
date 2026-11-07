@@ -10,6 +10,7 @@ import { Icon } from '../../shared/icon';
 import { EditorActions } from '../../state/editor-actions';
 import { EditorStore, ViewMode } from '../../state/editor.store';
 import { PlanStore } from '../../state/plan.store';
+import { clampSidebarWidth, SIDEBAR_DEFAULT, SIDEBAR_MAX, SIDEBAR_MIN, SIDEBAR_STEP, saveSidebarWidth } from '../../state/sidebar-width';
 import { isTypingTarget } from '../../shared/dom';
 import { ToastService } from '../../shared/toast';
 import { HelpDialog } from '../help-dialog';
@@ -70,6 +71,7 @@ export class EditorPage {
   ];
 
   constructor() {
+    effect(() => saveSidebarWidth(this.editor.sidebarWidth()));
     effect(() => {
       const id = this.id();
       untracked(() => void this.load(id));
@@ -142,6 +144,37 @@ export class EditorPage {
     } catch (e) {
       this.importError.set((e as Error).message);
     }
+  }
+
+  protected readonly sidebarMin = SIDEBAR_MIN;
+  protected readonly sidebarMax = SIDEBAR_MAX;
+  private dragFrom: { x: number; width: number } | null = null;
+
+  protected startResize(e: PointerEvent): void {
+    if (e.button !== 0) return;
+    this.dragFrom = { x: e.clientX, width: this.editor.sidebarWidth() };
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }
+
+  protected resize(e: PointerEvent): void {
+    if (this.dragFrom) this.editor.sidebarWidth.set(clampSidebarWidth(this.dragFrom.width + e.clientX - this.dragFrom.x));
+  }
+
+  protected endResize(): void {
+    this.dragFrom = null;
+  }
+
+  protected resizeKey(e: KeyboardEvent): void {
+    // Arrow keys move the divider, not the selected furniture behind it.
+    e.stopPropagation();
+    const step = { ArrowLeft: -SIDEBAR_STEP, ArrowRight: SIDEBAR_STEP }[e.key];
+    if (step === undefined && e.key !== 'Home') return;
+    e.preventDefault();
+    this.editor.sidebarWidth.set(step === undefined ? SIDEBAR_DEFAULT : clampSidebarWidth(this.editor.sidebarWidth() + step));
+  }
+
+  protected resetWidth(): void {
+    this.editor.sidebarWidth.set(SIDEBAR_DEFAULT);
   }
 
   protected onKeyDown(e: KeyboardEvent): void {

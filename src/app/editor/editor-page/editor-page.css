@@ -79,7 +79,8 @@
 
 .workspace {
   display: grid;
-  grid-template-columns: 250px minmax(0, 1fr) 270px;
+  position: relative;
+  grid-template-columns: var(--sidebar-width, 306px) minmax(0, 1fr) 270px;
   flex: 1;
   min-height: 0;
 }
@@ -87,6 +88,23 @@
 .toolbox,
 .properties {
   min-height: 0;
+}
+
+.sidebar-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--sidebar-width, 306px) - 3px);
+  z-index: 5;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.sidebar-resizer:hover,
+.sidebar-resizer:focus-visible {
+  background: var(--accent);
+  opacity: 0.5;
 }
 
 .stage {
@@ -159,7 +177,7 @@
 
 @media (max-width: 1000px) {
   .workspace {
-    grid-template-columns: 210px minmax(0, 1fr) 230px;
+    grid-template-columns: var(--sidebar-width, 266px) minmax(0, 1fr) 230px;
   }
 
   .plan-name {
