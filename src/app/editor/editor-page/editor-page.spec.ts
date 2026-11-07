@@ -131,6 +131,15 @@ describe('EditorPage', () => {
       expect(el.querySelector('.modal')).toBeNull();
     });
 
+    it('closes the shortcut help with Escape from inside the dialog', () => {
+      press('?');
+      const modal = el.querySelector<HTMLElement>('.modal')!;
+      expect(modal.getAttribute('aria-modal')).toBe('true');
+      modal.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      fixture.detectChanges();
+      expect(el.querySelector('.modal')).toBeNull();
+    });
+
     it('ignores shortcuts while typing in a text field', () => {
       editor.select([{ kind: 'furniture', id: 'f1' }]);
       const name = el.querySelector<HTMLInputElement>('.plan-name')!;

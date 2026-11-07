@@ -31,7 +31,7 @@ import {
   turnOrientation,
 } from '../../model/custom-model';
 import { ModelLibrary } from '../../persistence/model-library';
-import { focusWhileOpen } from '../../shared/dom';
+import { focusWhileOpen, trapTab } from '../../shared/dom';
 import { Icon } from '../../shared/icon';
 import { PlanStore } from '../../state/plan.store';
 import type { ModelPreview } from '../../preview3d/model-preview';
@@ -50,7 +50,7 @@ type PreviewModule = typeof import('../../preview3d/model-preview');
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="modal-backdrop" (click)="close()">
-      <div #modal class="modal" role="dialog" tabindex="-1" [attr.aria-label]="title()" (click)="$event.stopPropagation()" (keydown)="onKeyDown($event)">
+      <div #modal class="modal" role="dialog" aria-modal="true" tabindex="-1" [attr.aria-label]="title()" (click)="$event.stopPropagation()" (keydown)="onKeyDown($event)">
         <div class="modal-head">
           <h2>{{ title() }}</h2>
           <button class="btn ghost icon" aria-label="Close" (click)="close()"><app-icon name="close" /></button>
@@ -342,6 +342,7 @@ export class ModelUploadDialog implements OnInit {
   protected onKeyDown(e: KeyboardEvent): void {
     // Keep editor shortcuts (Delete, arrows, undo) from acting on the plan behind the dialog.
     e.stopPropagation();
+    trapTab(e, this.modalRef().nativeElement);
     if (e.key === 'Escape') this.close();
   }
 

@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { createEmptyPlan, createStarterPlan } from '../model/defaults';
 import { newId, Plan } from '../model/plan.model';
@@ -25,7 +25,14 @@ export class ProjectsPage {
   protected readonly renamingId = signal<string | null>(null);
   protected readonly confirmDeleteId = signal<string | null>(null);
 
+  private readonly nameInput = viewChild<ElementRef<HTMLInputElement>>('nameInput');
+
   constructor() {
+    effect(() => {
+      const input = this.nameInput()?.nativeElement;
+      input?.focus();
+      input?.select();
+    });
     void this.refresh();
   }
 
@@ -51,6 +58,8 @@ export class ProjectsPage {
   }
 
   async rename(plan: Plan, name: string): Promise<void> {
+    // Escape and Enter close the field, and the blur that follows must not commit again.
+    if (this.renamingId() !== plan.id) return;
     this.renamingId.set(null);
     name = name.trim();
     if (!name || name === plan.name) return;

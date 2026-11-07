@@ -151,6 +151,16 @@ select {
   cursor: pointer;
 }
 
+/* Keyboard focus: a ring on everything focusable; buttons inside clipped groups draw it inward. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.segmented button:focus-visible {
+  outline-offset: -2px;
+}
+
 .segmented button + button {
   border-left: 1px solid var(--border);
 }

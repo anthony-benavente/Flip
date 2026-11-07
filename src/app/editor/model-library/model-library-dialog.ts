@@ -3,7 +3,7 @@ import { catalogItem } from '../../model/catalog';
 import { CustomModel, formatBytes } from '../../model/custom-model';
 import { ModelLibrary } from '../../persistence/model-library';
 import { FurnitureSymbol } from '../../shared/furniture-symbol';
-import { focusWhileOpen } from '../../shared/dom';
+import { focusWhileOpen, trapTab } from '../../shared/dom';
 import { Icon } from '../../shared/icon';
 import { PlanStore } from '../../state/plan.store';
 
@@ -14,7 +14,7 @@ import { PlanStore } from '../../state/plan.store';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="modal-backdrop" (click)="closed.emit()">
-      <div #modal class="modal" role="dialog" tabindex="-1" aria-label="3D model library" (click)="$event.stopPropagation()" (keydown)="onKeyDown($event)">
+      <div #modal class="modal" role="dialog" aria-modal="true" tabindex="-1" aria-label="3D model library" (click)="$event.stopPropagation()" (keydown)="onKeyDown($event)">
         <div class="modal-head">
           <h2>3D model library</h2>
           <button class="btn ghost icon" aria-label="Close" (click)="closed.emit()"><app-icon name="close" /></button>
@@ -123,6 +123,7 @@ export class ModelLibraryDialog {
   protected onKeyDown(e: KeyboardEvent): void {
     // Keep editor shortcuts from acting on the plan behind the dialog.
     e.stopPropagation();
+    trapTab(e, this.modalRef().nativeElement);
     if (e.key === 'Escape') this.closed.emit();
   }
 }

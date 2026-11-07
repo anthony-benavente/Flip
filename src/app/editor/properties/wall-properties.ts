@@ -38,9 +38,9 @@ import { PlanStore } from '../../state/plan.store';
     <div class="field">
       <span>Type</span>
       <div class="segmented wall-type" role="group" aria-label="Wall type">
-        <button [class.active]="!w.type" (click)="setType(null)">Wall</button>
-        <button [class.active]="w.type === 'railing'" (click)="setType('railing')">Railing</button>
-        <button [class.active]="w.type === 'hidden'" (click)="setType('hidden')">Hidden</button>
+        <button [class.active]="!w.type" [attr.aria-pressed]="!w.type" (click)="setType(null)">Wall</button>
+        <button [class.active]="w.type === 'railing'" [attr.aria-pressed]="w.type === 'railing'" (click)="setType('railing')">Railing</button>
+        <button [class.active]="w.type === 'hidden'" [attr.aria-pressed]="w.type === 'hidden'" (click)="setType('hidden')">Hidden</button>
       </div>
     </div>
     @if (w.type === 'railing') {

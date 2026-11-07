@@ -11,15 +11,16 @@ import { EditorActions } from '../../state/editor-actions';
 import { EditorStore, ViewMode } from '../../state/editor.store';
 import { PlanStore } from '../../state/plan.store';
 import { isTypingTarget } from '../../shared/dom';
+import { HelpDialog } from '../help-dialog';
 import { Autosave } from '../autosave';
 import { PlanCanvas } from '../canvas/plan-canvas';
 import { PropertiesPanel } from '../properties/properties-panel';
-import { findShortcut, HELP_ROWS } from '../shortcuts';
+import { findShortcut } from '../shortcuts';
 import { Toolbox } from '../toolbox/toolbox';
 
 @Component({
   selector: 'app-editor-page',
-  imports: [PlanCanvas, Toolbox, PropertiesPanel, Preview3d, WallElevation, Icon, RouterLink],
+  imports: [HelpDialog, PlanCanvas, Toolbox, PropertiesPanel, Preview3d, WallElevation, Icon, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './editor-page.html',
   styleUrl: './editor-page.css',
@@ -65,8 +66,6 @@ export class EditorPage {
     { id: 'split', label: 'Split', icon: 'split' },
     { id: '3d', label: '3D', icon: 'cube' },
   ];
-
-  protected readonly helpRows = HELP_ROWS;
 
   constructor() {
     effect(() => {

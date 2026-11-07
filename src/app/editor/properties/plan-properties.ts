@@ -20,8 +20,8 @@ import { PlanStore } from '../../state/plan.store';
     <div class="field">
       <span>Units</span>
       <div class="segmented">
-        <button [class.active]="units() === 'imperial'" (click)="setUnits('imperial')">Feet &amp; inches</button>
-        <button [class.active]="units() === 'metric'" (click)="setUnits('metric')">Metric</button>
+        <button [class.active]="units() === 'imperial'" [attr.aria-pressed]="units() === 'imperial'" (click)="setUnits('imperial')">Feet &amp; inches</button>
+        <button [class.active]="units() === 'metric'" [attr.aria-pressed]="units() === 'metric'" (click)="setUnits('metric')">Metric</button>
       </div>
     </div>
     <h3>New walls</h3>

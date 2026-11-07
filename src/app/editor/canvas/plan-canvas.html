@@ -261,8 +261,8 @@
 }
 
 <div class="zoom-controls">
-  <button class="btn icon" title="Zoom out" (click)="zoomBy(1 / 1.25)">−</button>
+  <button class="btn icon" title="Zoom out" aria-label="Zoom out" (click)="zoomBy(1 / 1.25)">−</button>
   <span class="zoom-level">{{ (zoom() * 100).toFixed(0) }}%</span>
-  <button class="btn icon" title="Zoom in" (click)="zoomBy(1.25)">+</button>
-  <button class="btn icon" title="Fit to plan (F)" (click)="fitToContent()">⤢</button>
+  <button class="btn icon" title="Zoom in" aria-label="Zoom in" (click)="zoomBy(1.25)">+</button>
+  <button class="btn icon" title="Fit to plan (F)" aria-label="Fit to plan" (click)="fitToContent()">⤢</button>
 </div>

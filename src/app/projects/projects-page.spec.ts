@@ -74,7 +74,7 @@ describe('ProjectsPage', () => {
     it('asks before deleting, and can cancel', async () => {
       el.querySelector<HTMLButtonElement>('button[title="Delete"]')!.click();
       await settle();
-      expect(el.textContent).toContain('Delete this project?');
+      expect(el.textContent).toContain('Delete “Den”?');
       button('Cancel').click();
       await settle();
       expect(await repo.list()).toHaveLength(1);
@@ -102,6 +102,18 @@ describe('ProjectsPage', () => {
       input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
       await settle();
       expect((await repo.list())[0].name).toBe('Study');
+    });
+
+    it('cancels a rename with Escape, even though the field blurs afterward', async () => {
+      el.querySelector<HTMLButtonElement>('button[title="Rename"]')!.click();
+      await settle();
+      const input = el.querySelector<HTMLInputElement>('.card input')!;
+      input.value = 'Study';
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      input.dispatchEvent(new FocusEvent('blur'));
+      await settle();
+      expect((await repo.list())[0].name).toBe('Den');
+      expect(el.querySelector('.card input')).toBeNull();
     });
   });
 

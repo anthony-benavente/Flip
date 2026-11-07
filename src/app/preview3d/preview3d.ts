@@ -33,13 +33,13 @@ const REBUILD_DEBOUNCE_MS = 150;
       <div class="message error">The 3D view could not start. Your browser may not support WebGL.</div>
     }
     <div class="controls">
-      <button class="btn" [class.active]="preset() === 'perspective'" (click)="setCamera('perspective')" title="Corner view">
+      <button class="btn" [class.active]="preset() === 'perspective'" [attr.aria-pressed]="preset() === 'perspective'" (click)="setCamera('perspective')" title="Corner view">
         <app-icon name="perspective" /> Corner
       </button>
-      <button class="btn" [class.active]="preset() === 'top'" (click)="setCamera('top')" title="Top-down view">
+      <button class="btn" [class.active]="preset() === 'top'" [attr.aria-pressed]="preset() === 'top'" (click)="setCamera('top')" title="Top-down view">
         <app-icon name="top" /> Top
       </button>
-      <button class="btn" [class.active]="walking()" (click)="toggleWalk()" title="Walk through the room at eye level">
+      <button class="btn" [class.active]="walking()" [attr.aria-pressed]="walking()" (click)="toggleWalk()" title="Walk through the room at eye level">
         <app-icon name="walk" /> Walk
       </button>
       <label class="toggle" title="Fade walls that block the view">

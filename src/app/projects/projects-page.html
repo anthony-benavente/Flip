@@ -12,10 +12,8 @@
     <div class="buttons">
       <button class="btn primary" (click)="create('starter')"><app-icon name="plus" /> New room</button>
       <button class="btn" (click)="create('blank')">Blank plan</button>
-      <label class="btn">
-        <app-icon name="upload" /> Import file
-        <input type="file" accept=".json,application/json" hidden (change)="importFile($event)" />
-      </label>
+      <button class="btn" (click)="importInput.click()"><app-icon name="upload" /> Import file</button>
+      <input #importInput type="file" accept=".json,application/json" hidden (change)="importFile($event)" />
     </div>
   </section>
 
@@ -43,7 +41,7 @@
                   (keydown.enter)="rename(plan, nameInput.value)"
                   (keydown.escape)="renamingId.set(null)"
                   (blur)="rename(plan, nameInput.value)"
-                  autofocus
+                  [attr.aria-label]="'Rename ' + plan.name"
                 />
               } @else {
                 <button class="name" (click)="open(plan)">{{ plan.name }}</button>
@@ -52,13 +50,13 @@
             </div>
             <div class="card-actions">
               @if (confirmDeleteId() === plan.id) {
-                <span class="confirm">Delete this project?</span>
+                <span class="confirm">Delete “{{ plan.name }}”?</span>
                 <button class="btn danger" (click)="remove(plan)">Delete</button>
                 <button class="btn ghost" (click)="confirmDeleteId.set(null)">Cancel</button>
               } @else {
-                <button class="btn ghost icon" title="Rename" (click)="renamingId.set(plan.id)"><app-icon name="edit" /></button>
-                <button class="btn ghost icon" title="Duplicate" (click)="duplicate(plan)"><app-icon name="copy" /></button>
-                <button class="btn ghost icon" title="Delete" (click)="confirmDeleteId.set(plan.id)"><app-icon name="trash" /></button>
+                <button class="btn ghost icon" title="Rename" [attr.aria-label]="'Rename ' + plan.name" (click)="renamingId.set(plan.id)"><app-icon name="edit" /></button>
+                <button class="btn ghost icon" title="Duplicate" [attr.aria-label]="'Duplicate ' + plan.name" (click)="duplicate(plan)"><app-icon name="copy" /></button>
+                <button class="btn ghost icon" title="Delete" [attr.aria-label]="'Delete ' + plan.name" (click)="confirmDeleteId.set(plan.id)"><app-icon name="trash" /></button>
               }
             </div>
           </li>

@@ -33,6 +33,7 @@
         class="input"
         type="search"
         placeholder="Search furniture"
+        aria-label="Search furniture"
         [value]="query()"
         (input)="query.set($any($event.target).value)"
       />
