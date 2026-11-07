@@ -15,6 +15,7 @@ import { isTypingTarget } from '../../shared/dom';
 import { ToastService } from '../../shared/toast';
 import { HelpDialog } from '../help-dialog';
 import { Autosave } from '../autosave';
+import { ConsultSession } from '../../consult/consult-session';
 import { PlanCanvas } from '../canvas/plan-canvas';
 import { PropertiesPanel } from '../properties/properties-panel';
 import { findShortcut } from '../shortcuts';
@@ -26,7 +27,7 @@ import { Toolbox } from '../toolbox/toolbox';
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './editor-page.html',
   styleUrl: './editor-page.css',
-  providers: [Autosave],
+  providers: [Autosave, ConsultSession],
   host: {
     '(window:keydown)': 'onKeyDown($event)',
     '(window:beforeunload)': 'flushSave()',
@@ -46,6 +47,8 @@ export class EditorPage {
   private readonly elevationView = viewChild(WallElevation);
   private readonly autosave = inject(Autosave);
   private readonly toast = inject(ToastService);
+  /** Created with the page so `window.flip` exists whenever the editor is open, not only once the Consult tab is. */
+  private readonly consult = inject(ConsultSession);
 
   protected readonly state = signal<'loading' | 'ready' | 'missing' | 'error'>('loading');
   protected readonly loadError = signal('');

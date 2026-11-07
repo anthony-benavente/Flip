@@ -8,7 +8,7 @@ import { loadSidebarWidth } from './sidebar-width';
 export type ToolId = 'select' | 'wall' | 'door' | 'window' | 'pan';
 export type ViewMode = '2d' | 'split' | '3d';
 /** Which panel the icon rail shows beside the plan. */
-export type RailPanel = 'furniture' | 'models' | 'rooms';
+export type RailPanel = 'furniture' | 'models' | 'rooms' | 'consult';
 export type SelectableKind = 'node' | 'wall' | 'opening' | 'furniture' | 'room';
 
 export interface SelectionItem {

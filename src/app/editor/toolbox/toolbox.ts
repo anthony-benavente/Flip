@@ -9,6 +9,7 @@ import { EditorStore, RailPanel, ToolId } from '../../state/editor.store';
 import { PlanStore } from '../../state/plan.store';
 import { Icon } from '../../shared/icon';
 import { encodeFurnitureDrag, FURNITURE_DRAG_MIME, FurnitureDragData } from '../drag-drop';
+import { ConsultPanel } from '../consult/consult-panel';
 import { ModelLibraryPanel } from '../model-library/model-library-panel';
 import { RoomsPanel } from '../rooms/rooms-panel';
 import { ModelUploadDialog } from '../model-upload/model-upload-dialog';
@@ -28,7 +29,7 @@ interface RailTab {
 
 @Component({
   selector: 'app-toolbox',
-  imports: [Icon, FurnitureSymbol, ModelLibraryPanel, ModelUploadDialog, RoomsPanel],
+  imports: [Icon, ConsultPanel, FurnitureSymbol, ModelLibraryPanel, ModelUploadDialog, RoomsPanel],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './toolbox.html',
   styleUrl: './toolbox.css',
@@ -51,6 +52,7 @@ export class Toolbox {
     { id: 'furniture', label: 'Decor', icon: 'furniture' },
     { id: 'models', label: 'Models', icon: 'cube' },
     { id: 'rooms', label: 'Rooms', icon: 'plan' },
+    { id: 'consult', label: 'Consult', icon: 'spark' },
   ];
 
   protected readonly query = signal('');
