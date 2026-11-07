@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { boxGlb } from '../testing/glb';
-import { ModelCache, parseModel } from './model-cache';
+import { applyMaterialColors, listMaterials, ModelCache, parseModel } from './model-cache';
 
 describe('parseModel', () => {
   it('reads a GLB into an object with its mesh and size', async () => {
@@ -48,5 +48,21 @@ describe('ModelCache', () => {
     cache.dispose();
     expect(await load).toBe(false);
     expect(cache.get('a')).toBeUndefined();
+  });
+});
+
+describe('material colors', () => {
+  it('lists materials and paints and restores them', async () => {
+    const object = await parseModel(boxGlb([0, 0, 0], [1, 1, 1]));
+    const [first] = listMaterials(object);
+    expect(first.key).toBe('0');
+
+    applyMaterialColors(object, { '0': '#ff0000' });
+    const mesh = object.getObjectByProperty('type', 'Mesh') as THREE.Mesh;
+    expect((mesh.material as THREE.MeshStandardMaterial).color.getHexString()).toBe('ff0000');
+    expect(listMaterials(object)[0].color).toBe(first.color);
+
+    applyMaterialColors(object, undefined);
+    expect(`#${(mesh.material as THREE.MeshStandardMaterial).color.getHexString()}`).toBe(first.color);
   });
 });

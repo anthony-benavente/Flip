@@ -136,6 +136,7 @@ export class PreviewEngine {
     const resolve: ModelResolver = (id) => {
       const meta = source.model(id);
       const object = meta && this.models.get(id);
+      if (meta) this.models.recolor(id, meta.colors);
       return object ? { object, orientation: meta.orientation, trim: meta.trim } : undefined;
     };
     this.clearContent();

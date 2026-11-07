@@ -32,6 +32,15 @@ export const TRIM_SIDES: readonly TrimSide[] = ['left', 'right', 'front', 'back'
 export const MAX_TRIM = 0.45;
 export const NO_TRIM: ModelTrim = { left: 0, right: 0, front: 0, back: 0, top: 0, bottom: 0 };
 
+/**
+ * Replacement colors (`#rrggbb`) for a model's materials, keyed by the material's position in
+ * `listMaterials` order. A recolored material also drops its texture. Unlisted materials keep
+ * the file's look.
+ */
+export type ModelColors = Record<string, string>;
+
+const HEX_COLOR = /^#[0-9a-f]{6}$/i;
+
 export interface CustomModel {
   id: string;
   name: string;
@@ -43,10 +52,12 @@ export interface CustomModel {
   orientation: ModelOrientation;
   /** Unset when nothing is trimmed. */
   trim?: ModelTrim;
+  /** Unset when every material keeps its own color. */
+  colors?: ModelColors;
 }
 
 /** What can change after upload: everything but the file. */
-export type ModelSettings = Partial<Pick<CustomModel, 'name' | 'catalogId' | 'orientation' | 'trim'>>;
+export type ModelSettings = Partial<Pick<CustomModel, 'name' | 'catalogId' | 'orientation' | 'trim' | 'colors'>>;
 
 /** A model's metadata plus its glTF / GLB file bytes. */
 export interface CustomModelRecord {
@@ -89,6 +100,23 @@ export function storedTrim(trim: ModelTrim): ModelTrim | undefined {
   return TRIM_SIDES.some((s) => trim[s] > 0) ? { ...trim } : undefined;
 }
 
+/** Sets or clears (`null`) one material's replacement color. */
+export function setModelColor(colors: ModelColors, key: string, color: string | null): ModelColors {
+  const next = { ...colors };
+  if (color && HEX_COLOR.test(color)) next[key] = color.toLowerCase();
+  else delete next[key];
+  return next;
+}
+
+/** The colors to store on a model: `undefined` when no material is recolored. */
+export function storedColors(colors: ModelColors): ModelColors | undefined {
+  return Object.keys(colors).length ? { ...colors } : undefined;
+}
+
+export function isModelColors(v: unknown): v is ModelColors {
+  return !!v && typeof v === 'object' && Object.values(v).every((c) => typeof c === 'string' && HEX_COLOR.test(c));
+}
+
 export function isModelTrim(v: unknown): v is ModelTrim {
   if (!v || typeof v !== 'object') return false;
   return TRIM_SIDES.every((s) => {
@@ -110,6 +138,7 @@ export function isCustomModel(v: unknown): v is CustomModel {
     ['id', 'name', 'catalogId', 'fileName', 'createdAt'].every((k) => typeof m[k] === 'string') &&
     typeof m['byteSize'] === 'number' &&
     isModelOrientation(m['orientation']) &&
-    (m['trim'] === undefined || isModelTrim(m['trim']))
+    (m['trim'] === undefined || isModelTrim(m['trim'])) &&
+    (m['colors'] === undefined || isModelColors(m['colors']))
   );
 }

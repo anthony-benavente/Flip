@@ -1,6 +1,8 @@
 import { catalogItem } from './catalog';
 import {
   isCustomModel,
+  setModelColor,
+  storedColors,
   MAX_TRIM,
   modelDisplayName,
   modelNameFromFile,
@@ -47,5 +49,20 @@ describe('custom models', () => {
     expect(isCustomModel({ ...meta, orientation: { x: 0, y: 4, z: 0 } })).toBe(false);
     expect(isCustomModel({ ...meta, byteSize: '10' })).toBe(false);
     expect(isCustomModel(null)).toBe(false);
+  });
+
+  it('sets, clears and stores material colors', () => {
+    const red = setModelColor({}, '0', '#FF0000');
+    expect(red).toEqual({ '0': '#ff0000' });
+    expect(setModelColor(red, '0', 'red')).toEqual({});
+    expect(setModelColor(red, '0', null)).toEqual({});
+    expect(storedColors({})).toBeUndefined();
+    expect(storedColors(red)).toEqual(red);
+  });
+
+  it('validates stored colors', () => {
+    expect(isCustomModel({ ...meta, colors: { '0': '#aabbcc' } })).toBe(true);
+    expect(isCustomModel({ ...meta, colors: { '0': 'blue' } })).toBe(false);
+    expect(isCustomModel({ ...meta, colors: 'x' })).toBe(false);
   });
 });

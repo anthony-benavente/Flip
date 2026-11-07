@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { ModelOrientation, ModelTrim } from '../model/custom-model';
-import { disposeObject, parseModel } from './model-cache';
+import { ModelColors, ModelOrientation, ModelTrim } from '../model/custom-model';
+import { applyMaterialColors, disposeObject, listMaterials, parseModel } from './model-cache';
 import { fitModelToBox } from './model-fit';
 
-export { disposeObject, parseModel };
+export { disposeObject, listMaterials, parseModel };
+export type { ModelMaterialInfo } from './model-cache';
 
 /**
  * Small 3D view for the model upload dialog: the model fitted into a template's box, drawn as a
@@ -39,6 +40,13 @@ export class ModelPreview {
   setModel(source: THREE.Object3D): void {
     this.clearModel();
     this.source = source;
+  }
+
+  /** Paints the model's materials; fitted copies share them, so no refit is needed. */
+  setColors(colors: ModelColors | undefined): void {
+    if (!this.source) return;
+    applyMaterialColors(this.source, colors);
+    this.requestRender();
   }
 
   /** Fits the model into a `w` × `d` × `h` meter box and frames the camera on it. */

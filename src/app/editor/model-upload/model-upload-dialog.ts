@@ -20,11 +20,14 @@ import {
   MAX_MODEL_BYTES,
   MODEL_FILE_ACCEPT,
   MAX_TRIM,
+  ModelColors,
   ModelOrientation,
   modelNameFromFile,
   ModelTrim,
   NO_TRIM,
+  setModelColor,
   setTrimSide,
+  storedColors,
   storedTrim,
   TRIM_SIDES,
   TrimSide,
@@ -34,7 +37,7 @@ import { ModelLibrary } from '../../persistence/model-library';
 import { focusWhileOpen, trapTab } from '../../shared/dom';
 import { Icon } from '../../shared/icon';
 import { PlanStore } from '../../state/plan.store';
-import type { ModelPreview } from '../../preview3d/model-preview';
+import type { ModelMaterialInfo, ModelPreview } from '../../preview3d/model-preview';
 
 type PreviewModule = typeof import('../../preview3d/model-preview');
 
@@ -138,6 +141,30 @@ type PreviewModule = typeof import('../../preview3d/model-preview');
           </div>
         </div>
 
+        @if (materials().length) {
+          <div class="colors">
+            <div class="trim-head">
+              <span>Colors: pick a new color for any part of the model</span>
+              <button class="btn ghost" [disabled]="!hasColors()" (click)="colors.set({})">Reset all</button>
+            </div>
+            <ul class="color-list">
+              @for (m of materials(); track m.key) {
+                <li class="color-row">
+                  <input
+                    type="color"
+                    [value]="colorOf(m)"
+                    (input)="setColor(m.key, $any($event.target).value)"
+                    [attr.aria-label]="'Color of ' + m.name"
+                  />
+                  <span class="mat-name" [title]="m.name">{{ m.name }}</span>
+                  @if (m.textured && !colors()[m.key]) { <span class="mat-note">has a texture</span> }
+                  <button class="btn ghost" [disabled]="!colors()[m.key]" (click)="setColor(m.key, null)" [attr.aria-label]="'Reset ' + m.name">Reset</button>
+                </li>
+              }
+            </ul>
+          </div>
+        }
+
         <div class="actions">
           <button class="btn ghost" (click)="close()">Cancel</button>
           <button class="btn primary" [disabled]="status() !== 'ready' || saving()" (click)="save()">
@@ -171,6 +198,13 @@ type PreviewModule = typeof import('../../preview3d/model-preview');
     .trim-side input { width: 100%; min-width: 0; }
     .side { text-transform: capitalize; }
     .pct { color: var(--text-muted); text-align: right; font-variant-numeric: tabular-nums; }
+    .colors { margin-top: 12px; }
+    .color-list { list-style: none; margin: 4px 0 0; padding: 0; max-height: 132px; overflow-y: auto; }
+    .color-row { display: grid; grid-template-columns: 32px 1fr auto auto; align-items: center; gap: 8px; padding: 2px 0; font-size: 13px; }
+    .color-row input[type='color'] { width: 32px; height: 24px; padding: 0; border: 1px solid var(--border); border-radius: 4px;
+      background: none; cursor: pointer; }
+    .mat-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mat-note { color: var(--text-muted); font-size: 12px; }
     .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
   `,
 })
@@ -202,6 +236,9 @@ export class ModelUploadDialog implements OnInit {
   protected readonly name = signal('');
   protected readonly orientation = signal<ModelOrientation>(DEFAULT_ORIENTATION);
   protected readonly trim = signal<ModelTrim>(NO_TRIM);
+  protected readonly colors = signal<ModelColors>({});
+  protected readonly materials = signal<ModelMaterialInfo[]>([]);
+  protected readonly hasColors = computed(() => Object.keys(this.colors()).length > 0);
   protected readonly status = signal<'idle' | 'reading' | 'ready'>('idle');
   protected readonly error = signal<string | null>(null);
   protected readonly saving = signal(false);
@@ -227,6 +264,10 @@ export class ModelUploadDialog implements OnInit {
       const o = this.orientation();
       const trim = this.trim();
       if (this.status() === 'ready') this.preview?.fit(o, c.width / 100, c.depth / 100, c.height / 100, trim);
+    });
+    effect(() => {
+      const colors = this.colors();
+      if (this.status() === 'ready') this.preview?.setColors(colors);
     });
     inject(DestroyRef).onDestroy(() => {
       this.destroyed = true;
@@ -258,6 +299,7 @@ export class ModelUploadDialog implements OnInit {
     const pick = ++this.pick;
     this.file = null;
     this.error.set(null);
+    this.materials.set([]);
     this.status.set('idle');
     if (!file) return;
     if (!/\.(glb|gltf)$/i.test(file.name)) return this.error.set(`${file.name} is not a .glb or .gltf file.`);
@@ -293,6 +335,8 @@ export class ModelUploadDialog implements OnInit {
     }
     this.orientation.set(this.editing()?.orientation ?? DEFAULT_ORIENTATION);
     this.trim.set(this.editing()?.trim ?? NO_TRIM);
+    this.colors.set(this.editing()?.colors ?? {});
+    this.materials.set(mod.listMaterials(object));
     this.showInPreview(mod, object);
     this.status.set('ready');
     return true;
@@ -311,6 +355,15 @@ export class ModelUploadDialog implements OnInit {
     this.trim.update((t) => setTrimSide(t, side, value));
   }
 
+  protected setColor(key: string, color: string | null): void {
+    this.colors.update((c) => setModelColor(c, key, color));
+  }
+
+  /** The color shown in a material's picker: the replacement, or the file's own. */
+  protected colorOf(m: ModelMaterialInfo): string {
+    return this.colors()[m.key] ?? m.color;
+  }
+
   /** "12.5%". */
   protected percent(side: TrimSide): string {
     return `${Math.round(this.trim()[side] * 1000) / 10}%`;
@@ -321,12 +374,13 @@ export class ModelUploadDialog implements OnInit {
     if ((!editing && !this.file) || this.saving()) return;
     this.saving.set(true);
     const trim = storedTrim(this.trim());
+    const colors = storedColors(this.colors());
     try {
       if (editing) {
-        await this.library.update(editing.id, { name: this.name(), catalogId: this.catalogId(), orientation: this.orientation(), trim });
+        await this.library.update(editing.id, { name: this.name(), catalogId: this.catalogId(), orientation: this.orientation(), trim, colors });
         this.closed.emit(this.library.model(editing.id) ?? editing);
       } else {
-        this.closed.emit(await this.library.upload(this.file!, this.catalogId(), this.name(), this.orientation(), trim));
+        this.closed.emit(await this.library.upload(this.file!, this.catalogId(), this.name(), this.orientation(), trim, colors));
       }
     } catch (e) {
       this.error.set(e instanceof Error ? e.message : 'The model could not be saved.');
