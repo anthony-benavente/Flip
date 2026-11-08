@@ -72,21 +72,44 @@ describe('OpenAiCompatibleProvider', () => {
     expect((api.calls[0].init.headers as Record<string, string>)['authorization']).toBe('Bearer sk-1');
   });
 
-  it('retries with reasoning off when the model refuses tools while reasoning', async () => {
-    const calls: any[] = [];
-    const fetcher = async (_url: string, init: RequestInit) => {
+  it('switches to the Responses API for a model that only allows tools there', async () => {
+    const calls: { url: string; body: any }[] = [];
+    const fetcher = async (url: string, init: RequestInit) => {
       const body = JSON.parse(init.body as string);
-      calls.push(body);
-      return body.reasoning_effort
-        ? new Response(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }), { status: 200 })
-        : new Response(JSON.stringify({ error: { message: "Function tools with reasoning_effort are not supported for m-reason in /v1/chat/completions. Set reasoning_effort to 'none'." } }), { status: 400, statusText: 'Bad Request' });
+      calls.push({ url, body });
+      if (url.endsWith('/chat/completions')) {
+        return new Response(JSON.stringify({ error: { message: 'Function tools with reasoning_effort are not supported for m-resp in /v1/chat/completions. To use function tools, use /v1/responses.' } }), { status: 400, statusText: 'Bad Request' });
+      }
+      return new Response(
+        JSON.stringify({
+          output: [
+            { type: 'reasoning', summary: [] },
+            { type: 'message', content: [{ type: 'output_text', text: 'ok' }] },
+            { type: 'function_call', call_id: 'c9', name: 'get_plan', arguments: '{"a":1}' },
+          ],
+        }),
+        { status: 200 },
+      );
     };
-    const provider = new OpenAiCompatibleProvider('https://x/v1', 'k', 'm-reason', fetcher);
-    expect((await provider.send(request)).content).toEqual([{ type: 'text', text: 'ok' }]);
-    expect(calls.map((c) => c.reasoning_effort)).toEqual([undefined, 'none']);
+    const reply = await new OpenAiCompatibleProvider('https://x/v1', 'k', 'm-resp', fetcher).send(request);
 
-    // Remembered for later requests, even from a new provider object.
-    await new OpenAiCompatibleProvider('https://x/v1', 'k', 'm-reason', fetcher).send(request);
-    expect(calls.map((c) => c.reasoning_effort)).toEqual([undefined, 'none', 'none']);
+    expect(calls.map((c) => c.url)).toEqual(['https://x/v1/chat/completions', 'https://x/v1/responses']);
+    const sent = calls[1].body;
+    expect(sent).toMatchObject({ model: 'm-resp', instructions: 'be helpful' });
+    expect(sent.tools[0]).toMatchObject({ type: 'function', name: 'get_plan', parameters: { type: 'object' } });
+    expect(sent.input).toEqual([
+      { role: 'user', content: 'hi' },
+      { role: 'assistant', content: 'looking' },
+      { type: 'function_call', call_id: 't1', name: 'get_plan', arguments: '{}' },
+      { type: 'function_call_output', call_id: 't1', output: '{"rooms":[]}' },
+    ]);
+    expect(reply.content).toEqual([
+      { type: 'text', text: 'ok' },
+      { type: 'tool_use', id: 'c9', name: 'get_plan', input: { a: 1 } },
+    ]);
+
+    // Remembered: the next request goes straight to /responses.
+    await new OpenAiCompatibleProvider('https://x/v1', 'k', 'm-resp', fetcher).send(request);
+    expect(calls.map((c) => c.url).slice(2)).toEqual(['https://x/v1/responses']);
   });
 });
