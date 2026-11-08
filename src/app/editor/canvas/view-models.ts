@@ -136,6 +136,7 @@ export function furnitureViews(
       shape: c.shape,
       w: f.width,
       d: f.depth,
+      arms: f.arms,
       color: f.color,
       layer: c.floorLayer && !isSelected ? ('floor' as const) : ('top' as const),
       mount: mountOf(c),

@@ -57,7 +57,7 @@
     @for (f of furniture(); track f.id) {
       @if (f.layer === 'floor') {
         <g class="furniture" [class.selected]="f.selected" [attr.transform]="f.transform" data-kind="furniture" [attr.data-id]="f.id">
-          <g appFurnitureSymbol [shape]="f.shape" [width]="f.w" [depth]="f.d" [color]="f.color" />
+          <g appFurnitureSymbol [shape]="f.shape" [width]="f.w" [depth]="f.d" [arms]="f.arms" [color]="f.color" />
           @if (f.selected) {
             <rect class="selection-outline" [attr.x]="-f.w / 2" [attr.y]="-f.d / 2" [attr.width]="f.w" [attr.height]="f.d" />
           }
@@ -155,7 +155,7 @@
           data-kind="furniture"
           [attr.data-id]="f.id"
         >
-          <g appFurnitureSymbol [shape]="f.shape" [width]="f.w" [depth]="f.d" [color]="f.color" />
+          <g appFurnitureSymbol [shape]="f.shape" [width]="f.w" [depth]="f.d" [arms]="f.arms" [color]="f.color" />
           @if (f.overlap) {
             <rect class="overlap-outline" [attr.x]="-f.w / 2" [attr.y]="-f.d / 2" [attr.width]="f.w" [attr.height]="f.d" />
           }

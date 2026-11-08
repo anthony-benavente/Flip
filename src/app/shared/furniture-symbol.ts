@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { FurnitureShape } from '../model/catalog';
 import { isRoundShape, symbolParts } from '../model/furniture-symbols';
+import { LArms } from '../model/plan.model';
 import { shade } from './color';
 
 /**
@@ -56,11 +57,13 @@ export class FurnitureSymbol {
   readonly width = input.required<number>();
   readonly depth = input.required<number>();
   readonly color = input.required<string>();
+  /** Arm depths of an L-shaped item (`FurnitureItem.arms`). */
+  readonly arms = input<LArms | undefined>();
 
   protected readonly round = computed(() => isRoundShape(this.shape()));
   protected readonly stroke = computed(() => shade(this.color(), -0.45));
   protected readonly parts = computed(() =>
-    symbolParts(this.shape(), this.width(), this.depth()).map((p) => ({
+    symbolParts(this.shape(), this.width(), this.depth(), this.arms()).map((p) => ({
       ...p,
       fill: 'tone' in p && p.tone !== undefined ? shade(this.color(), p.tone) : 'none',
     })),
