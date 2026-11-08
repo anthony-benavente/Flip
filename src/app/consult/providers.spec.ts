@@ -71,4 +71,22 @@ describe('OpenAiCompatibleProvider', () => {
     await new OpenAiCompatibleProvider('https://x/v1', 'sk-1', 'm', api.fetcher).send(request);
     expect((api.calls[0].init.headers as Record<string, string>)['authorization']).toBe('Bearer sk-1');
   });
+
+  it('retries with reasoning off when the model refuses tools while reasoning', async () => {
+    const calls: any[] = [];
+    const fetcher = async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(init.body as string);
+      calls.push(body);
+      return body.reasoning_effort
+        ? new Response(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }), { status: 200 })
+        : new Response(JSON.stringify({ error: { message: "Function tools with reasoning_effort are not supported for m-reason in /v1/chat/completions. Set reasoning_effort to 'none'." } }), { status: 400, statusText: 'Bad Request' });
+    };
+    const provider = new OpenAiCompatibleProvider('https://x/v1', 'k', 'm-reason', fetcher);
+    expect((await provider.send(request)).content).toEqual([{ type: 'text', text: 'ok' }]);
+    expect(calls.map((c) => c.reasoning_effort)).toEqual([undefined, 'none']);
+
+    // Remembered for later requests, even from a new provider object.
+    await new OpenAiCompatibleProvider('https://x/v1', 'k', 'm-reason', fetcher).send(request);
+    expect(calls.map((c) => c.reasoning_effort)).toEqual([undefined, 'none', 'none']);
+  });
 });

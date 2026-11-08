@@ -3,6 +3,12 @@ import { AiBlock, AiMessage, AiProvider, AiRequest, apiErrorMessage, FetchLike }
 export const OPENAI_BASE_URL = 'https://api.openai.com/v1';
 
 /**
+ * Models that refused tool calls while reasoning was on, which chat completions only allows with
+ * `reasoning_effort: "none"`. Learned from the error, so it is sent from the first request on.
+ */
+const NEEDS_NO_REASONING = new Set<string>();
+
+/**
  * Any service that speaks the OpenAI chat completions format with tool calls: OpenAI itself,
  * OpenRouter, or a local server such as Ollama or LM Studio (`baseUrl` points at it, and the key may be empty).
  */
@@ -27,9 +33,17 @@ export class OpenAiCompatibleProvider implements AiProvider {
         model: this.model,
         messages: [{ role: 'system', content: req.system }, ...req.messages.flatMap(toWire)],
         tools: req.tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.inputSchema } })),
+        ...(NEEDS_NO_REASONING.has(this.model) && { reasoning_effort: 'none' }),
       }),
     });
-    if (!res.ok) throw new Error(await apiErrorMessage(res));
+    if (!res.ok) {
+      const message = await apiErrorMessage(res);
+      if (res.status === 400 && /reasoning_effort/.test(message) && !NEEDS_NO_REASONING.has(this.model)) {
+        NEEDS_NO_REASONING.add(this.model);
+        return this.send(req);
+      }
+      throw new Error(message);
+    }
     const message = (await res.json()).choices?.[0]?.message;
     if (!message) throw new Error('The service sent no reply.');
     const content: AiBlock[] = [];
