@@ -79,6 +79,17 @@ export interface FurnitureItem {
   elevation?: number;
   /** Uploaded picture (`ArtImage.id`) shown on art items. */
   artImageId?: string;
+  /**
+   * L-shaped items: depth of the main top along the back (`back`, measured front to back) and of
+   * the return along the left side (`side`, measured side to side), in cm. Unset parts use the
+   * default for the item's size; read them through `lArms`, which also keeps them inside the item.
+   */
+  arms?: LArms;
+}
+
+export interface LArms {
+  back?: number;
+  side?: number;
 }
 
 export interface RoomMeta {

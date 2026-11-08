@@ -81,6 +81,7 @@ export function buildPlanScene(
       : factory.build(catalogItem(f.catalogId).shape, f.width * M, f.depth * M, f.height * M, f.color, {
           map: f.artImageId ? images(f.artImageId) : undefined,
           own,
+          arms: f.arms && { back: f.arms.back && f.arms.back * M, side: f.arms.side && f.arms.side * M },
         });
     model.name = `furniture:${f.id}`;
     tagPick(model, { kind: 'furniture', id: f.id });
