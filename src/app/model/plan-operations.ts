@@ -9,7 +9,8 @@ import { attachRoomMeta, detectRooms, Room } from '../geometry/room-detection';
 import { add, angleDeg, scale } from '../geometry/vec';
 import { clampOpeningOffset, nodeMap, reclampOpenings, WallSegment, wallSegment } from '../geometry/wall-geometry';
 import { catalogItem, mountOf } from './catalog';
-import { FurnitureItem, newId, Opening, Plan, RoomMeta, Wall, WallSide, WallType } from './plan.model';
+import { lArms } from './furniture-symbols';
+import { FurnitureItem, LArms, newId, Opening, Plan, RoomMeta, Wall, WallSide, WallType } from './plan.model';
 
 /** Wraps an angle in degrees into (-180, 180]. */
 export function normalizeRotation(deg: number): number {
@@ -137,6 +138,15 @@ export function resetFurnitureSize(draft: Plan, id: string): void {
   if (!f) return;
   const c = catalogItem(f.catalogId);
   Object.assign(f, { width: c.width, depth: c.depth, height: c.height });
+  delete f.arms;
+}
+
+/** Sets one arm depth of an L-shaped item, kept inside the item (see `lArms`). */
+export function setLArm(draft: Plan, id: string, arm: keyof LArms, value: number): void {
+  const f = draft.furniture.find((x) => x.id === id);
+  if (!f || !Number.isFinite(value)) return;
+  const clamped = lArms(f.width, f.depth, { ...f.arms, [arm]: value });
+  f.arms = { ...f.arms, [arm]: clamped[arm] };
 }
 
 export type RoomPatch = Partial<Omit<RoomMeta, 'id' | 'anchor'>>;

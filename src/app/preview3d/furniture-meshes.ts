@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { FurnitureShape } from '../model/catalog';
-import { cooktopBurners, cooktopKnobs, cooktopKnobStrip } from '../model/furniture-symbols';
-import { FloorMaterial } from '../model/plan.model';
+import { cooktopBurners, cooktopKnobs, cooktopKnobStrip, lArms } from '../model/furniture-symbols';
+import { FloorMaterial, LArms } from '../model/plan.model';
 import { shade } from '../shared/color';
 import { floorPattern } from './floor-textures';
 
@@ -10,6 +10,8 @@ export interface BuildOptions {
   map?: THREE.Texture;
   /** Takes ownership of materials made just for this item (the scene disposes them). */
   own?: <T extends THREE.Material>(m: T) => T;
+  /** Arm depths of an L-shaped item, in meters. */
+  arms?: LArms;
 }
 
 const BULB = '#ffe7b0';
@@ -201,6 +203,28 @@ export class FurnitureMeshFactory {
         box(X0, X1, h - top, h, Z0, Z1, c);
         legs(0.05, h - top, shape === 'coffee-table' ? 0.025 : 0.025, dark);
         if (shape === 'desk') box(X1 - Math.min(0.45, w * 0.35), X1 - 0.02, h * 0.45, h - top, Z0 + 0.03, Z1 - 0.03, dark);
+        break;
+      }
+      case 'l-desk': {
+        const top = 0.035;
+        const { back, side } = lArms(w, d, opts.arms);
+        // Main top along the back, return along the left side.
+        box(X0, X1, h - top, h, Z0, Z0 + back, c);
+        box(X0, X0 + side, h - top, h, Z0 + back, Z1, c);
+        const r = 0.025;
+        const i = Math.min(0.05, back / 2, side / 2);
+        for (const [x, z] of [
+          [X0 + i, Z0 + i],
+          [X1 - i, Z0 + i],
+          [X1 - i, Z0 + back - i],
+          [X0 + i, Z1 - i],
+          [X0 + side - i, Z1 - i],
+          [X0 + side - i, Z0 + back - i],
+        ]) {
+          cyl(x, z, r, r, 0, h - top, dark);
+        }
+        // Modesty panel under the main top.
+        box(X0 + i, X1 - i, h * 0.45, h - top, Z0 + 0.03, Z0 + 0.045, dark);
         break;
       }
       case 'round-table':

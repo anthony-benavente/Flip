@@ -3,8 +3,9 @@ import { ceilingHeightAt, itemElevation } from '../../geometry/elevation';
 import { catalogItem, mountOf } from '../../model/catalog';
 import { modelDisplayName } from '../../model/custom-model';
 import { FURNITURE_SWATCHES } from '../../model/palettes';
-import { resetFurnitureSize, setFurnitureModel, updateFurniture } from '../../model/plan-operations';
-import { FurnitureItem } from '../../model/plan.model';
+import { lArms } from '../../model/furniture-symbols';
+import { resetFurnitureSize, setFurnitureModel, setLArm, updateFurniture } from '../../model/plan-operations';
+import { FurnitureItem, LArms } from '../../model/plan.model';
 import { ModelLibrary } from '../../persistence/model-library';
 import { ColorPick, ColorSwatches } from '../../shared/color-swatches';
 import { Icon } from '../../shared/icon';
@@ -40,6 +41,18 @@ import { ArtProperties } from './art-properties';
         <app-length-input [value]="f.height" [units]="units()" [min]="1" [max]="1000" label="Height" (valueChange)="update({ height: $event })" />
       </label>
     </div>
+    @if (arms(); as a) {
+      <div class="row">
+        <label class="field">
+          <span>Main top depth</span>
+          <app-length-input [value]="a.back" [units]="units()" [min]="1" [max]="f.depth" label="Main top depth" (valueChange)="setArm('back', $event)" />
+        </label>
+        <label class="field">
+          <span>Return depth</span>
+          <app-length-input [value]="a.side" [units]="units()" [min]="1" [max]="f.width" label="Return depth" (valueChange)="setArm('side', $event)" />
+        </label>
+      </div>
+    }
     <div class="field">
       <span>Rotation</span>
       <div class="rotation">
@@ -119,6 +132,11 @@ export class FurnitureProperties {
   protected readonly maxElevation = computed(() =>
     Math.max(0, ceilingHeightAt(this.plan.rooms(), this.item()) - this.item().height),
   );
+  /** Arm depths for L-shaped items, null for everything else. */
+  protected readonly arms = computed(() => {
+    const f = this.item();
+    return catalogItem(f.catalogId).shape === 'l-desk' ? lArms(f.width, f.depth, f.arms) : null;
+  });
   protected readonly modelMissing = computed(() => !!this.item().modelId && !this.library.model(this.item().modelId));
 
   protected update(patch: Partial<Omit<FurnitureItem, 'id'>>, coalesceKey?: string): void {
@@ -138,6 +156,11 @@ export class FurnitureProperties {
 
   protected setColor(pick: ColorPick): void {
     this.update({ color: pick.color }, pick.live ? `color:${this.item().id}` : undefined);
+  }
+
+  protected setArm(arm: keyof LArms, value: number): void {
+    const id = this.item().id;
+    this.plan.update((d) => setLArm(d, id, arm, value));
   }
 
   protected resetSize(): void {

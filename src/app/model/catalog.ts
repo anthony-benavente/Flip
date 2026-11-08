@@ -11,6 +11,7 @@ export type FurnitureShape =
   | 'round-table'
   | 'coffee-table'
   | 'desk'
+  | 'l-desk'
   | 'bed'
   | 'nightstand'
   | 'dresser'
@@ -100,6 +101,7 @@ export const CATALOG: CatalogItem[] = [
   { id: 'coffee-table', name: 'Coffee table', category: 'Tables', shape: 'coffee-table', width: 48 * IN, depth: 24 * IN, height: 18 * IN, color: '#6e5038', noWallSnap: true },
   { id: 'side-table', name: 'Side table', category: 'Tables', shape: 'round-table', width: 20 * IN, depth: 20 * IN, height: 24 * IN, color: '#6e5038', noWallSnap: true },
   { id: 'desk', name: 'Desk', category: 'Tables', shape: 'desk', width: 55 * IN, depth: 26 * IN, height: 30 * IN, color: '#c4a57c' },
+  { id: 'l-desk', name: 'L-shaped desk', category: 'Tables', shape: 'l-desk', width: 60 * IN, depth: 60 * IN, height: 30 * IN, color: '#c4a57c' },
 
   { id: 'bed-queen', name: 'Queen bed', category: 'Bedroom', shape: 'bed', width: 64 * IN, depth: 84 * IN, height: 24 * IN, color: '#e6e1d8' },
   { id: 'bed-king', name: 'King bed', category: 'Bedroom', shape: 'bed', width: 80 * IN, depth: 84 * IN, height: 24 * IN, color: '#e6e1d8' },

@@ -1,5 +1,6 @@
 /** 2D top-down drawings of furniture, in local coordinates centered on the item (back edge at -depth/2). */
 import { FurnitureShape } from './catalog';
+import { LArms } from './plan.model';
 
 export type SymbolPart =
   | { t: 'rect'; x: number; y: number; w: number; h: number; r?: number; tone?: number }
@@ -32,10 +33,23 @@ export function cooktopKnobs(w: number, d: number): { x: number; y: number }[] {
 }
 
 /**
+ * Arm depths of an L-shaped desk, in the units of `w`, `d` and `arms`. The main top runs along the
+ * back (-y) and is `back` deep; the return runs along the left (-x) and is `side` wide. Unset arms
+ * default to 40% of the shorter side, and each is kept between 5% and 100% of the item. The 2D
+ * symbol and the 3D mesh share it.
+ */
+export function lArms(w: number, d: number, arms?: LArms): Required<LArms> {
+  const fallback = Math.min(w, d) * 0.4;
+  const clamp = (v: number | undefined, full: number) =>
+    Math.min(Math.max(Number.isFinite(v) ? v! : fallback, full * 0.05), full);
+  return { back: clamp(arms?.back, d), side: clamp(arms?.side, w) };
+}
+
+/**
  * Detail parts drawn on top of the item's base outline. `tone` lightens (+) or darkens (-)
  * the item color. The base outline is drawn separately (rect or ellipse).
  */
-export function symbolParts(shape: FurnitureShape, w: number, d: number): SymbolPart[] {
+export function symbolParts(shape: FurnitureShape, w: number, d: number, arms?: LArms): SymbolPart[] {
   const x0 = -w / 2;
   const y0 = -d / 2;
   const m = Math.min(w, d);
@@ -81,6 +95,15 @@ export function symbolParts(shape: FurnitureShape, w: number, d: number): Symbol
     case 'desk':
     case 'coffee-table':
       return [{ t: 'rect', x: x0 + 3, y: y0 + 3, w: w - 6, h: d - 6, r: 2, tone: 0.08 }];
+    case 'l-desk': {
+      const { back, side } = lArms(w, d, arms);
+      return [
+        // The open corner the chair sits in, drawn pale so the L reads.
+        { t: 'rect', x: x0 + side, y: y0 + back, w: w - side, h: d - back, tone: 0.6 },
+        // Seam where the return meets the main top.
+        { t: 'line', x1: x0, y1: y0 + back, x2: x0 + side, y2: y0 + back },
+      ];
+    }
     case 'bed': {
       const pillowH = Math.min(d * 0.14, 28);
       const pillows = w > 120 ? 2 : 1;
