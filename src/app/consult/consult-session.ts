@@ -1,7 +1,9 @@
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
-import { CommandCall, CommandResult } from '../commands/command';
+import { CommandCall, CommandContext, CommandResult } from '../commands/command';
 import { commandSpecs, isReadOnlyCommand, runCommand } from '../commands/run-command';
 import { newId } from '../model/plan.model';
+import { ImageLibrary } from '../persistence/image-library';
+import { ModelLibrary } from '../persistence/model-library';
 import { PlanStore } from '../state/plan.store';
 import { AiBlock, AiMessage, AiStreamEvent } from './ai-provider';
 import { AiSettings } from './ai-settings';
@@ -37,6 +39,8 @@ class Rejected extends Error {}
 export class ConsultSession {
   private readonly plan = inject(PlanStore);
   private readonly settings = inject(AiSettings);
+  private readonly modelLibrary = inject(ModelLibrary);
+  private readonly imageLibrary = inject(ImageLibrary);
 
   readonly entries = signal<ChatEntry[]>([]);
   readonly busy = signal(false);
@@ -71,13 +75,14 @@ export class ConsultSession {
    * This is the one entry point for every AI, the chat below and `window.flip` alike.
    */
   execute(call: CommandCall): CommandResult {
-    if (isReadOnlyCommand(call.name)) return runCommand(structuredClone(this.plan.plan()), call);
+    const ctx = this.context();
+    if (isReadOnlyCommand(call.name)) return runCommand(structuredClone(this.plan.plan()), call, ctx);
     const key = (this.editKey ??= `ai-${newId()}`);
     let result: CommandResult = { ok: false, error: 'The command did not run.' };
     try {
       this.plan.update(
         (draft) => {
-          result = runCommand(draft, call);
+          result = runCommand(draft, call, ctx);
           // Throwing discards the draft, so a refused command changes nothing.
           if (!result.ok) throw new Rejected();
         },
@@ -91,6 +96,11 @@ export class ConsultSession {
       this.proposal.update((p) => ({ summaries: [...(p?.summaries ?? []), summary], revision: this.plan.revision() }));
     }
     return result;
+  }
+
+  /** The user's uploaded models and pictures, which some commands use. */
+  private context(): CommandContext {
+    return { models: this.modelLibrary.models(), images: this.imageLibrary.images() };
   }
 
   /** Accepts the proposal; the changes stay and the next edit starts a new undo step. */

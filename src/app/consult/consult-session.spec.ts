@@ -1,5 +1,8 @@
 import { TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { createEmptyPlan } from '../model/defaults';
+import { ImageLibrary } from '../persistence/image-library';
+import { ModelLibrary } from '../persistence/model-library';
 import { PlanStore } from '../state/plan.store';
 import { AiMessage, AiProvider, AiRequest, AiStreamEvent } from './ai-provider';
 import { AiSettings } from './ai-settings';
@@ -24,9 +27,16 @@ function script(...replies: (AiMessage | Error)[]): AiProvider & { requests: AiR
   };
 }
 
+const chairModel = { id: 'm1', name: 'Aeron', catalogId: 'office-chair', fileName: 'a.glb', byteSize: 1, createdAt: '', orientation: { x: 0, y: 0, z: 0 } } as const;
+
 function setup(provider: AiProvider | null) {
   TestBed.configureTestingModule({
-    providers: [ConsultSession, { provide: AiSettings, useValue: { createProvider: () => provider } }],
+    providers: [
+      ConsultSession,
+      { provide: AiSettings, useValue: { createProvider: () => provider } },
+      { provide: ModelLibrary, useValue: { models: signal([chairModel]).asReadonly() } },
+      { provide: ImageLibrary, useValue: { images: signal([]).asReadonly() } },
+    ],
   });
   const plan = TestBed.inject(PlanStore);
   plan.load(createEmptyPlan());
@@ -130,6 +140,17 @@ describe('ConsultSession', () => {
     expect(results.map((r: { ok: boolean }) => r.ok)).toEqual([true, false]);
     expect(plan.plan().walls).toHaveLength(4);
     expect(flip.run('get_plan').ok).toBe(true);
+  });
+
+  it('lets commands use the user\'s uploaded models', async () => {
+    const provider = script(
+      call('1', 'place_furniture', { catalogId: 'office-chair', x: 100, y: 100, rotation: 0, modelId: 'm1' }),
+      say('Done.'),
+    );
+    const { plan, session } = setup(provider);
+    await session.send('Use my chair');
+    expect(plan.plan().furniture[0].modelId).toBe('m1');
+    expect(session.execute({ name: 'list_uploads' })).toMatchObject({ ok: true, output: { models: [{ modelId: 'm1', templateName: 'Office chair' }] } });
   });
 
   describe('live progress', () => {

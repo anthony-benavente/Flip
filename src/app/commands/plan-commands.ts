@@ -30,6 +30,8 @@ import {
 import {
   moveOnWall,
   RoomPatch,
+  setFurnitureArt,
+  setFurnitureModel,
   setRoomCeilingHeight,
   setWallColor,
   setWallType,
@@ -39,7 +41,9 @@ import {
   upsertRoomMeta,
 } from '../model/plan-operations';
 import { FloorMaterial, newId, Plan } from '../model/plan.model';
-import { Command, CommandError } from './command';
+import { ArtImage } from '../model/art-image';
+import { CustomModel } from '../model/custom-model';
+import { Command, CommandContext, CommandError } from './command';
 import { ObjectSchema, Schema } from './schema';
 
 const round = (n: number) => Math.round(n * 10) / 10;
@@ -89,6 +93,29 @@ function catalogEntry(id: string) {
   const entry = CATALOG.find((c) => c.id === id);
   if (!entry) throw new CommandError(`Unknown catalogId "${id}". Call list_catalog for the valid ids.`);
   return entry;
+}
+
+const ART_SHAPES = ['art', 'canvas-art'];
+
+function isArt(catalogId: string): boolean {
+  const shape = CATALOG.find((c) => c.id === catalogId)?.shape;
+  return !!shape && ART_SHAPES.includes(shape);
+}
+
+/** The uploaded model, if it exists and was made for this catalog item. */
+function usableModel(ctx: CommandContext, modelId: string, catalogId: string): CustomModel {
+  const model = ctx.models.find((m) => m.id === modelId);
+  if (!model) throw new CommandError(`No uploaded model "${modelId}". Call list_uploads for the valid ids.`);
+  if (model.catalogId !== catalogId) {
+    throw new CommandError(`"${model.name}" was uploaded as a ${catalogEntry(model.catalogId).name}, so it only fits that item, not a ${catalogEntry(catalogId).name}.`);
+  }
+  return model;
+}
+
+function uploadedImage(ctx: CommandContext, imageId: string): ArtImage {
+  const image = ctx.images.find((i) => i.id === imageId);
+  if (!image) throw new CommandError(`No uploaded picture "${imageId}". Call list_uploads for the valid ids.`);
+  return image;
 }
 
 /** The fields of an item that a command may set directly. */
@@ -169,6 +196,8 @@ export const PLAN_COMMANDS: Command[] = [
             height: round(f.height),
             elevation: round(itemElevation(f, rooms)),
             color: f.color,
+            modelId: f.modelId,
+            artImageId: f.artImageId,
             room: roomAt(rooms, f)?.name ?? null,
             overlapping: overlaps.has(f.id),
           })),
@@ -179,10 +208,11 @@ export const PLAN_COMMANDS: Command[] = [
   },
   {
     name: 'list_catalog',
-    description: 'Lists the furniture, decor and lighting you can place, with default sizes and how each mounts (floor, wall or ceiling).',
+    description:
+      'Lists the furniture, decor and lighting you can place, with default sizes and how each mounts (floor, wall or ceiling). modelIds lists the user\'s uploaded 3D models made for that item.',
     readOnly: true,
     input: object({ category: text('Only items in this category.', CATALOG_CATEGORIES) }),
-    run(_draft, args) {
+    run(_draft, args, ctx) {
       const items = CATALOG.filter((c) => !args['category'] || c.category === args['category']);
       return {
         summary: 'Read the catalog',
@@ -195,6 +225,7 @@ export const PLAN_COMMANDS: Command[] = [
           depth: round(c.depth),
           height: round(c.height),
           stackable: c.stackable ?? false,
+          ...(ctx.models.some((m) => m.catalogId === c.id) && { modelIds: ctx.models.filter((m) => m.catalogId === c.id).map((m) => m.id) }),
         })),
       };
     },
@@ -218,6 +249,22 @@ export const PLAN_COMMANDS: Command[] = [
           trim: swatches(TRIM_SWATCHES),
           door: swatches(DOOR_SWATCHES),
           furniture: swatches(FURNITURE_SWATCHES).map((s) => s.color),
+        },
+      };
+    },
+  },
+  {
+    name: 'list_uploads',
+    description:
+      'Lists the 3D models and pictures the user uploaded. A model fits only the catalog item it was uploaded for (catalogId). A picture can go on any framed art item. You cannot see the files, so choose by name, and leave them alone when none fits.',
+    readOnly: true,
+    input: object({}),
+    run(_draft, _args, ctx) {
+      return {
+        summary: 'Read the uploads',
+        output: {
+          models: ctx.models.map((m) => ({ modelId: m.id, name: m.name, catalogId: m.catalogId, templateName: catalogEntry(m.catalogId).name })),
+          pictures: ctx.images.map((i) => ({ imageId: i.id, name: i.name, widthPx: i.width, heightPx: i.height })),
         },
       };
     },
@@ -420,15 +467,18 @@ export const PLAN_COMMANDS: Command[] = [
         y: length('Center y.', -10000, 10000),
         ...ITEM_FIELDS,
         elevation: length('Height of the bottom above the floor. Normally leave it out.', 0, 600),
+        modelId: text('An uploaded 3D model for this item, from list_uploads. Leave out for the built-in look.'),
       },
       ['catalogId', 'x', 'y'],
     ),
-    run(draft, a) {
+    run(draft, a, ctx) {
       const entry = catalogEntry(a['catalogId']);
       if (mountOf(entry) === 'wall') throw new CommandError(`${entry.name} hangs on a wall. Use hang_on_wall.`);
+      const model = a['modelId'] ? usableModel(ctx, a['modelId'], entry.id) : undefined;
       const { rooms, segs } = derive(draft);
       const item = createFurniture(entry.id, { x: a['x'], y: a['y'] }, a['rotation'] ?? 0);
       Object.assign(item, itemPatch({ ...a, x: undefined, y: undefined, rotation: undefined, elevation: undefined }));
+      if (model) item.modelId = model.id;
       if (a['rotation'] === undefined && !entry.noWallSnap && mountOf(entry) === 'floor') {
         const snapped = snapFurnitureToWall({ x: a['x'], y: a['y'] }, item, segs, 45, true);
         if (snapped) Object.assign(item, snapped);
@@ -461,18 +511,22 @@ export const PLAN_COMMANDS: Command[] = [
         label: ITEM_FIELDS['label'],
         width: ITEM_FIELDS['width'],
         height: ITEM_FIELDS['height'],
+        imageId: text('An uploaded picture to show on framed art, from list_uploads. The frame is resized to the picture\'s proportions.'),
       },
       ['catalogId', 'wallId', 'side', 'along'],
     ),
-    run(draft, a) {
+    run(draft, a, ctx) {
       const entry = catalogEntry(a['catalogId']);
       if (mountOf(entry) !== 'wall') throw new CommandError(`${entry.name} does not hang on walls. Use place_furniture.`);
+      if (a['imageId'] && !isArt(entry.id)) throw new CommandError(`${entry.name} cannot show a picture. Use a framed print or canvas.`);
+      const image = a['imageId'] ? uploadedImage(ctx, a['imageId']) : undefined;
       const wall = findWall(draft, a['wallId']);
       if (wall.type) throw new CommandError(`Nothing hangs on a ${wall.type} wall.`);
       const seg = derive(draft).segs.find((s) => s.wall.id === wall.id)!;
       const item = createFurniture(entry.id, seg.a);
       Object.assign(item, itemPatch({ color: a['color'], label: a['label'], width: a['width'], height: a['height'] }));
       draft.furniture.push(item);
+      if (image) setFurnitureArt(draft, item.id, image.id, image.height / image.width);
       moveOnWall(draft, item.id, seg, a['side'], a['along'], a['bottom'] ?? item.elevation ?? 0);
       return { summary: `Hung ${a['label'] ?? entry.name} on a wall`, output: { id: item.id } };
     },
@@ -494,6 +548,44 @@ export const PLAN_COMMANDS: Command[] = [
       const item = findItem(draft, a['id']);
       updateFurniture(draft, a['id'], itemPatch(a));
       return { summary: `Updated ${item.label ?? catalogName(item.catalogId)}` };
+    },
+  },
+  {
+    name: 'set_furniture_model',
+    description: 'Draws an item in 3D with one of the user\'s uploaded models (list_uploads), or with the built-in look when modelId is "none". The model must have been uploaded for the same catalog item.',
+    input: object({ id: text('Id of the furniture item.'), modelId: text('An uploaded model id, or "none".') }, ['id', 'modelId']),
+    run(draft, a, ctx) {
+      const item = findItem(draft, a['id']);
+      if (a['modelId'] === 'none') {
+        setFurnitureModel(draft, item.id, undefined);
+        return { summary: `Used the built-in look for ${item.label ?? catalogName(item.catalogId)}` };
+      }
+      const model = usableModel(ctx, a['modelId'], item.catalogId);
+      setFurnitureModel(draft, item.id, model.id);
+      return { summary: `Showed the ${model.name} model on ${item.label ?? catalogName(item.catalogId)}` };
+    },
+  },
+  {
+    name: 'set_furniture_art',
+    description: 'Shows one of the user\'s uploaded pictures (list_uploads) on a framed print or canvas, or clears it when imageId is "none". By default the frame is resized to the picture\'s proportions.',
+    input: object(
+      {
+        id: text('Id of the art item.'),
+        imageId: text('An uploaded picture id, or "none".'),
+        fitFrame: { type: 'boolean', description: 'Resize the frame height to the picture\'s proportions. Defaults to true.' },
+      },
+      ['id', 'imageId'],
+    ),
+    run(draft, a, ctx) {
+      const item = findItem(draft, a['id']);
+      if (!isArt(item.catalogId)) throw new CommandError(`${item.label ?? catalogName(item.catalogId)} is not framed art, so it cannot show a picture.`);
+      if (a['imageId'] === 'none') {
+        setFurnitureArt(draft, item.id, undefined);
+        return { summary: `Cleared the picture on ${item.label ?? catalogName(item.catalogId)}` };
+      }
+      const image = uploadedImage(ctx, a['imageId']);
+      setFurnitureArt(draft, item.id, image.id, a['fitFrame'] === false ? undefined : image.height / image.width);
+      return { summary: `Showed "${image.name}" on ${item.label ?? catalogName(item.catalogId)}` };
     },
   },
   {

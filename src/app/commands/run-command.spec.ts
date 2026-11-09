@@ -1,16 +1,22 @@
 import { roomAt, attachRoomMeta, detectRooms } from '../geometry/room-detection';
 import { createEmptyPlan } from '../model/defaults';
 import { Plan } from '../model/plan.model';
-import { CommandCall } from './command';
+import { ArtImage } from '../model/art-image';
+import { CustomModel } from '../model/custom-model';
+import { CommandCall, CommandContext } from './command';
 import { commandSpecs, runCommand } from './run-command';
 import { validate } from './schema';
 
-function run(plan: Plan, name: string, args?: unknown) {
-  return runCommand(plan, { name, args } satisfies CommandCall);
+const model = { id: 'm1', name: 'Aeron', catalogId: 'office-chair', fileName: 'a.glb', byteSize: 1, createdAt: '', orientation: { x: 0, y: 0, z: 0 } } satisfies CustomModel;
+const picture: ArtImage = { id: 'i1', name: 'Sunset', fileName: 's.png', mimeType: 'image/png', width: 400, height: 600, byteSize: 1, createdAt: '' };
+const uploads: CommandContext = { models: [model], images: [picture] };
+
+function run(plan: Plan, name: string, args?: unknown, ctx?: CommandContext) {
+  return runCommand(plan, { name, args } satisfies CommandCall, ctx);
 }
 
-function ok(plan: Plan, name: string, args?: unknown): any {
-  const r = run(plan, name, args);
+function ok(plan: Plan, name: string, args?: unknown, ctx?: CommandContext): any {
+  const r = run(plan, name, args, ctx);
   if (!r.ok) throw new Error(`${name} failed: ${r.error}`);
   return r.output;
 }
@@ -143,6 +149,64 @@ describe('runCommand', () => {
     expect(check.outsideRooms).toHaveLength(1);
     expect(ok(plan, 'list_catalog', { category: 'Seating' }).length).toBeGreaterThan(0);
     expect(ok(plan, 'list_palettes').schemes.length).toBeGreaterThan(0);
+  });
+
+  describe('uploads', () => {
+    it('lists uploaded models and pictures, and marks them in the catalog and the plan', () => {
+      const plan = roomPlan();
+      const listed = ok(plan, 'list_uploads', undefined, uploads);
+      expect(listed.models).toEqual([{ modelId: 'm1', name: 'Aeron', catalogId: 'office-chair', templateName: 'Office chair' }]);
+      expect(listed.pictures).toEqual([{ imageId: 'i1', name: 'Sunset', widthPx: 400, heightPx: 600 }]);
+      expect(ok(plan, 'list_uploads').models).toEqual([]);
+      const chair = ok(plan, 'list_catalog', { category: 'Seating' }, uploads).find((c: any) => c.catalogId === 'office-chair');
+      expect(chair.modelIds).toEqual(['m1']);
+      const { id } = ok(plan, 'place_furniture', { catalogId: 'office-chair', x: 200, y: 150, rotation: 0, modelId: 'm1' }, uploads);
+      expect(ok(plan, 'get_plan').furniture.find((f: any) => f.id === id).modelId).toBe('m1');
+    });
+
+    it('sets and clears a model, but only one made for the same item', () => {
+      const plan = roomPlan();
+      const { id } = ok(plan, 'place_furniture', { catalogId: 'office-chair', x: 200, y: 150, rotation: 0 });
+      ok(plan, 'set_furniture_model', { id, modelId: 'm1' }, uploads);
+      expect(plan.furniture[0].modelId).toBe('m1');
+      ok(plan, 'set_furniture_model', { id, modelId: 'none' }, uploads);
+      expect(plan.furniture[0].modelId).toBeUndefined();
+
+      const sofa = ok(plan, 'place_furniture', { catalogId: 'sofa-3', x: 100, y: 100, rotation: 0 }).id;
+      const wrong = run(plan, 'set_furniture_model', { id: sofa, modelId: 'm1' }, uploads);
+      expect(wrong).toMatchObject({ ok: false });
+      expect((wrong as { error: string }).error).toContain('Office chair');
+      expect(run(plan, 'set_furniture_model', { id, modelId: 'nope' }, uploads).ok).toBe(false);
+      expect(run(plan, 'set_furniture_model', { id, modelId: 'm1' }).ok).toBe(false);
+      expect(run(plan, 'place_furniture', { catalogId: 'sofa-3', x: 0, y: 0, modelId: 'm1' }, uploads).ok).toBe(false);
+      expect(plan.furniture).toHaveLength(2);
+    });
+
+    it('shows a picture on art, fitting the frame unless told not to', () => {
+      const plan = roomPlan();
+      const wall = plan.walls[0].id;
+      const hung = ok(plan, 'hang_on_wall', { catalogId: 'art-medium', wallId: wall, side: 'front', along: 200, imageId: 'i1' }, uploads);
+      const art = plan.furniture.find((f) => f.id === hung.id)!;
+      expect(art.artImageId).toBe('i1');
+      expect(art.height).toBeCloseTo(art.width * 1.5, 1);
+
+      const other = ok(plan, 'hang_on_wall', { catalogId: 'art-large', wallId: wall, side: 'front', along: 100 });
+      const before = plan.furniture.find((f) => f.id === other.id)!.height;
+      ok(plan, 'set_furniture_art', { id: other.id, imageId: 'i1', fitFrame: false }, uploads);
+      expect(plan.furniture.find((f) => f.id === other.id)).toMatchObject({ artImageId: 'i1', height: before });
+      ok(plan, 'set_furniture_art', { id: other.id, imageId: 'none' }, uploads);
+      expect(plan.furniture.find((f) => f.id === other.id)!.artImageId).toBeUndefined();
+    });
+
+    it('refuses pictures on things that are not art, and unknown pictures', () => {
+      const plan = roomPlan();
+      const wall = plan.walls[0].id;
+      const sofa = ok(plan, 'place_furniture', { catalogId: 'sofa-3', x: 100, y: 100, rotation: 0 }).id;
+      expect(run(plan, 'set_furniture_art', { id: sofa, imageId: 'i1' }, uploads).ok).toBe(false);
+      expect(run(plan, 'hang_on_wall', { catalogId: 'mirror', wallId: wall, side: 'front', along: 100, imageId: 'i1' }, uploads).ok).toBe(false);
+      expect(run(plan, 'hang_on_wall', { catalogId: 'art-small', wallId: wall, side: 'front', along: 100, imageId: 'nope' }, uploads).ok).toBe(false);
+      expect(plan.furniture).toHaveLength(1);
+    });
   });
 
   it('read-only commands do not change the plan', () => {

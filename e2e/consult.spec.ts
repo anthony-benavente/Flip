@@ -1,4 +1,6 @@
+import { writeFile } from 'node:fs/promises';
 import { Page } from '@playwright/test';
+import { boxGlb } from '../src/app/testing/glb';
 import { expect, newStarterRoom, savedPlan, test } from './helpers';
 
 const panel = (page: Page) => page.getByRole('tabpanel', { name: 'Consult' });
@@ -73,6 +75,34 @@ test.describe('consult', () => {
     await expect(panel(page).getByRole('group', { name: 'Proposed changes' })).toContainText('1 change applied');
     await panel(page).getByRole('button', { name: 'Keep' }).click();
     await savedPlan(page, (p) => p.furniture.some((f: any) => f.label === 'Agent plant'));
+  });
+
+  test('the AI applies a model the user uploaded, and Discard takes it back', async ({ page }, testInfo) => {
+    await newStarterRoom(page);
+    const file = testInfo.outputPath('aeron.glb');
+    await writeFile(file, Buffer.from(boxGlb([0, 0, 0], [0.6, 1, 0.6])));
+    await page.getByRole('tab', { name: 'Models' }).click();
+    await page.getByRole('button', { name: 'Upload model' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Upload 3D model' });
+    await dialog.getByLabel('Model file').setInputFiles(file);
+    await expect(dialog.getByRole('button', { name: 'Add to furniture' })).toBeEnabled();
+    await dialog.getByLabel('Model name').fill('Aeron');
+    await dialog.getByRole('button', { name: 'Add to furniture' }).click();
+    await expect(dialog).toHaveCount(0);
+
+    const result = await page.evaluate(() => {
+      const flip = (window as any).flip;
+      const chair = flip.run('place_furniture', { catalogId: 'office-chair', x: 200, y: 200, rotation: 0 });
+      const uploads = flip.run('list_uploads');
+      const modelId = uploads.output.models[0].modelId;
+      return { chair, set: flip.run('set_furniture_model', { id: chair.output.id, modelId }), modelId };
+    });
+    expect(result.set.ok).toBe(true);
+    await savedPlan(page, (p) => p.furniture.some((f: any) => f.modelId === result.modelId));
+
+    await page.getByRole('tab', { name: 'Consult' }).click();
+    await panel(page).getByRole('button', { name: 'Discard' }).click();
+    await savedPlan(page, (p) => p.furniture.length === 0);
   });
 
   test('asks for an API key before the first message', async ({ page }) => {

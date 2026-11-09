@@ -1,3 +1,5 @@
+import { ArtImage } from '../model/art-image';
+import { CustomModel } from '../model/custom-model';
 import { Plan } from '../model/plan.model';
 import { ObjectSchema } from './schema';
 
@@ -14,6 +16,14 @@ export type CommandResult =
 /** Thrown by a command for a request it cannot carry out; the message goes back to the caller. */
 export class CommandError extends Error {}
 
+/** What commands may need to know that is not in the plan: the user's uploaded models and pictures. */
+export interface CommandContext {
+  models: readonly CustomModel[];
+  images: readonly ArtImage[];
+}
+
+export const EMPTY_CONTEXT: CommandContext = { models: [], images: [] };
+
 export interface Command {
   /** snake_case, so it is a valid tool name for every AI provider. */
   name: string;
@@ -26,7 +36,7 @@ export interface Command {
    * Carries the command out on `draft`. Arguments are already checked against `input`. Check
    * everything before changing anything: a command that throws must leave the draft untouched.
    */
-  run(draft: Plan, args: Record<string, any>): { summary: string; output?: unknown };
+  run(draft: Plan, args: Record<string, any>, ctx: CommandContext): { summary: string; output?: unknown };
 }
 
 /** What an AI provider needs to offer a command as a tool. */
