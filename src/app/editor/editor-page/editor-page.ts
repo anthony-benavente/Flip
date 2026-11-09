@@ -16,6 +16,8 @@ import { ToastService } from '../../shared/toast';
 import { HelpDialog } from '../help-dialog';
 import { Autosave } from '../autosave';
 import { ConsultSession } from '../../consult/consult-session';
+import { PLAN_SNAPSHOT } from '../../consult/snapshot';
+import { loadPlanSnapshotter } from '../plan-snapshotter';
 import { PlanCanvas } from '../canvas/plan-canvas';
 import { PropertiesPanel } from '../properties/properties-panel';
 import { findShortcut } from '../shortcuts';
@@ -27,7 +29,7 @@ import { Toolbox } from '../toolbox/toolbox';
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './editor-page.html',
   styleUrl: './editor-page.css',
-  providers: [Autosave, ConsultSession],
+  providers: [Autosave, ConsultSession, { provide: PLAN_SNAPSHOT, useValue: loadPlanSnapshotter }],
   host: {
     '(window:keydown)': 'onKeyDown($event)',
     '(window:beforeunload)': 'flushSave()',

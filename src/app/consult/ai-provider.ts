@@ -9,10 +9,16 @@ export interface AiToolSpec {
   inputSchema: object;
 }
 
+/** A picture the AI is shown, base64 without the data URL prefix. */
+export interface AiImage {
+  mediaType: 'image/jpeg';
+  data: string;
+}
+
 export type AiBlock =
   | { type: 'text'; text: string }
   | { type: 'tool_use'; id: string; name: string; input: unknown }
-  | { type: 'tool_result'; toolUseId: string; content: string; isError?: boolean };
+  | { type: 'tool_result'; toolUseId: string; content: string; isError?: boolean; images?: AiImage[] };
 
 export interface AiMessage {
   role: 'user' | 'assistant';

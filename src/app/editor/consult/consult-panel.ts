@@ -54,6 +54,10 @@ const STARTERS = [
           <span>API key{{ config().kind === 'openai' ? ' (optional for local servers)' : '' }}</span>
           <input class="input" type="password" autocomplete="off" aria-label="API key" [value]="config().apiKey" (change)="settings.update({ apiKey: $any($event.target).value })" />
         </label>
+        <label class="check">
+          <input type="checkbox" [checked]="config().vision" (change)="settings.update({ vision: $any($event.target).checked })" />
+          Model can see images (lets it look at screenshots of the plan)
+        </label>
         <p class="note">
           The key is saved in this browser only and sent only to the service you chose. The AI can read and change this plan through
           commands; anything you ask it is sent to that service.
@@ -64,6 +68,7 @@ const STARTERS = [
     <div #log class="log" role="log" aria-live="polite" aria-label="Conversation">
       @for (e of session.entries(); track $index) {
         <p class="entry" [class]="e.kind">@if (e.kind === 'thinking') { <span class="label">Thinking</span> }{{ e.text }}</p>
+        @if (e.image) { <img class="shot" [src]="e.image" alt="Screenshot the AI looked at" /> }
       } @empty {
         <p class="empty">Ask for a layout, a color scheme or decor. Changes show up on the plan right away and you decide whether to keep them.</p>
         <div class="starters">
@@ -121,6 +126,8 @@ const STARTERS = [
     h2 { flex: 1; margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; }
     .settings { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
     .field { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--text-muted); }
+    .check { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; color: var(--text-muted); }
+    .shot { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-sm); }
     .note { margin: 0; color: var(--text-muted); font-size: 12px; }
     .log { display: flex; flex-direction: column; flex: 1; gap: 8px; min-height: 120px; overflow-y: auto; }
     .entry { margin: 0; padding: 8px 10px; border-radius: var(--radius-sm); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; }

@@ -6,6 +6,7 @@ import { ModelLibrary } from '../persistence/model-library';
 import { PlanStore } from '../state/plan.store';
 import { AiMessage, AiProvider, AiRequest, AiStreamEvent } from './ai-provider';
 import { AiSettings } from './ai-settings';
+import { PLAN_SNAPSHOT, PlanSnapshotter, VIEW_PLAN } from './snapshot';
 import { ConsultSession, MAX_STEPS } from './consult-session';
 
 const say = (text: string): AiMessage => ({ role: 'assistant', content: [{ type: 'text', text }] });
@@ -29,11 +30,12 @@ function script(...replies: (AiMessage | Error)[]): AiProvider & { requests: AiR
 
 const chairModel = { id: 'm1', name: 'Aeron', catalogId: 'office-chair', fileName: 'a.glb', byteSize: 1, createdAt: '', orientation: { x: 0, y: 0, z: 0 } } as const;
 
-function setup(provider: AiProvider | null) {
+function setup(provider: AiProvider | null, options: { vision?: boolean; snapshot?: PlanSnapshotter } = {}) {
   TestBed.configureTestingModule({
     providers: [
       ConsultSession,
-      { provide: AiSettings, useValue: { createProvider: () => provider } },
+      { provide: AiSettings, useValue: { createProvider: () => provider, config: () => ({ vision: options.vision ?? true }) } },
+      ...(options.snapshot ? [{ provide: PLAN_SNAPSHOT, useValue: options.snapshot }] : []),
       { provide: ModelLibrary, useValue: { models: signal([chairModel]).asReadonly() } },
       { provide: ImageLibrary, useValue: { images: signal([]).asReadonly() } },
     ],
@@ -151,6 +153,66 @@ describe('ConsultSession', () => {
     await session.send('Use my chair');
     expect(plan.plan().furniture[0].modelId).toBe('m1');
     expect(session.execute({ name: 'list_uploads' })).toMatchObject({ ok: true, output: { models: [{ modelId: 'm1', templateName: 'Office chair' }] } });
+  });
+
+  describe('screenshots', () => {
+    const jpeg = 'data:image/jpeg;base64,QUJD';
+
+    it('lets the AI look at the plan, and shows the user what it saw', async () => {
+      const calls: { view: string; sizeOk: boolean; rooms: number }[] = [];
+      const snapshot: PlanSnapshotter = async (r) => {
+        calls.push({ view: r.view, sizeOk: r.width > 0 && r.height > 0, rooms: r.rooms.length });
+        return jpeg;
+      };
+      const provider = script(call('1', 'add_room', room), call('2', 'view_plan', { view: 'top' }), say('Looks good.'));
+      const { session } = setup(provider, { snapshot });
+      await session.send('Build and check it');
+
+      expect(calls).toEqual([{ view: 'top', sizeOk: true, rooms: 1 }]);
+      const result = provider.requests[2].messages.at(-1)!.content[0];
+      expect(result).toMatchObject({ type: 'tool_result', toolUseId: '2', images: [{ mediaType: 'image/jpeg', data: 'QUJD' }] });
+      expect(session.entries().find((e) => e.image)).toEqual({ kind: 'action', text: 'Looked at the top view', image: jpeg });
+    });
+
+    it('offers the screenshot tool only when the model can see images', async () => {
+      const on = script(say('a'));
+      await setup(on).session.send('hi');
+      expect(on.requests[0].tools.map((t) => t.name)).toContain(VIEW_PLAN.name);
+
+      TestBed.resetTestingModule();
+      const off = script(say('a'));
+      await setup(off, { vision: false }).session.send('hi');
+      expect(off.requests[0].tools.map((t) => t.name)).not.toContain(VIEW_PLAN.name);
+    });
+
+    it('tells the AI when a screenshot fails or the arguments are wrong, and carries on', async () => {
+      const provider = script(call('1', 'view_plan', { view: 'top' }), call('2', 'view_plan', { view: 'sideways' }), say('ok'));
+      const { session } = setup(provider, {
+        snapshot: async () => {
+          throw new Error('Screenshots need WebGL.');
+        },
+      });
+      await session.send('look');
+      const first = provider.requests[1].messages.at(-1)!.content[0];
+      expect(first).toMatchObject({ isError: true, content: 'Screenshots need WebGL.' });
+      const second = provider.requests[2].messages.at(-1)!.content[0] as { content: string };
+      expect(second.content).toContain('view');
+      expect(session.entries().at(-1)).toEqual({ kind: 'assistant', text: 'ok' });
+    });
+
+    it('gives other agents the same screenshot through window.flip', async () => {
+      setup(null, { snapshot: async () => jpeg });
+      const flip = (window as unknown as { flip: { snapshot(view?: string): Promise<string> } }).flip;
+      expect(await flip.snapshot('corner')).toBe(jpeg);
+    });
+
+    it('sends only the latest screenshot on each request', async () => {
+      const provider = script(call('1', 'view_plan', { view: 'top' }), call('2', 'view_plan', { view: 'corner' }), say('done'));
+      const { session } = setup(provider, { snapshot: async () => jpeg });
+      await session.send('look twice');
+      const images = (i: number) => provider.requests[i].messages.flatMap((m) => m.content.flatMap((b) => (b.type === 'tool_result' ? (b.images ?? []) : [])));
+      expect([images(1).length, images(2).length]).toEqual([1, 1]);
+    });
   });
 
   describe('live progress', () => {

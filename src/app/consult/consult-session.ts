@@ -1,12 +1,15 @@
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { CommandCall, CommandContext, CommandResult } from '../commands/command';
 import { commandSpecs, isReadOnlyCommand, runCommand } from '../commands/run-command';
+import { validate } from '../commands/schema';
 import { newId } from '../model/plan.model';
 import { ImageLibrary } from '../persistence/image-library';
 import { ModelLibrary } from '../persistence/model-library';
 import { PlanStore } from '../state/plan.store';
-import { AiBlock, AiMessage, AiStreamEvent } from './ai-provider';
+import { AiBlock, AiMessage, AiStreamEvent, AiToolSpec } from './ai-provider';
 import { AiSettings } from './ai-settings';
+import { withLatestImagesOnly } from './history';
+import { PLAN_SNAPSHOT, SNAPSHOT_SIZE, SnapshotView, VIEW_PLAN } from './snapshot';
 import { SYSTEM_PROMPT } from './system-prompt';
 import { installWindowApi } from './window-api';
 
@@ -19,6 +22,8 @@ export interface ChatEntry {
   /** `thinking` is a summary of the model's reasoning, when the service provides one. */
   kind: 'user' | 'assistant' | 'thinking' | 'action' | 'error';
   text: string;
+  /** A screenshot the AI looked at, as a data URL. */
+  image?: string;
 }
 
 /** Changes made since the user last kept or discarded: they are already in the plan, as one undo step. */
@@ -41,6 +46,7 @@ export class ConsultSession {
   private readonly settings = inject(AiSettings);
   private readonly modelLibrary = inject(ModelLibrary);
   private readonly imageLibrary = inject(ImageLibrary);
+  private readonly snapshotter = inject(PLAN_SNAPSHOT);
 
   readonly entries = signal<ChatEntry[]>([]);
   readonly busy = signal(false);
@@ -149,8 +155,8 @@ export class ConsultSession {
         this.status.set(step ? `Asking the model… (step ${step + 1})` : 'Asking the model…');
         const reply = await provider.send({
           system: SYSTEM_PROMPT,
-          messages: this.history,
-          tools: commandSpecs(),
+          messages: withLatestImagesOnly(this.history),
+          tools: this.tools(),
           signal: abort.signal,
           onEvent: (e) => this.onStream(e),
         });
@@ -158,7 +164,9 @@ export class ConsultSession {
         this.finishReplyText(reply);
         const calls = reply.content.filter((b): b is Extract<AiBlock, { type: 'tool_use' }> => b.type === 'tool_use');
         if (!calls.length) return;
-        this.history.push({ role: 'user', content: calls.map((c) => this.runToolCall(c)) });
+        const results: AiBlock[] = [];
+        for (const c of calls) results.push(await this.runToolCall(c));
+        this.history.push({ role: 'user', content: results });
       }
     } catch (e) {
       this.closeOpenToolCalls();
@@ -200,7 +208,50 @@ export class ConsultSession {
     if (thought !== undefined) this.entries.update((entries) => entries.map((x, i) => (i === thought ? { ...x, text: x.text.trim() } : x)));
   }
 
-  private runToolCall(call: Extract<AiBlock, { type: 'tool_use' }>): AiBlock {
+  /** Renders the plan as it is now: a JPEG data URL of the `top` or `corner` view. */
+  snapshot(view: SnapshotView): Promise<string> {
+    return this.snapshotter({
+      plan: this.plan.plan(),
+      rooms: this.plan.rooms(),
+      segments: this.plan.segments(),
+      models: this.modelLibrary,
+      images: this.imageLibrary,
+      view,
+      ...SNAPSHOT_SIZE,
+    });
+  }
+
+  /** The commands, plus the screenshot tool when the model can look at images. */
+  private tools(): AiToolSpec[] {
+    return this.settings.config().vision ? [...commandSpecs(), VIEW_PLAN] : commandSpecs();
+  }
+
+  private async viewPlan(call: Extract<AiBlock, { type: 'tool_use' }>): Promise<AiBlock> {
+    const fail = (error: string): AiBlock => {
+      this.say('action', `✗ view_plan: ${error}`);
+      return { type: 'tool_result', toolUseId: call.id, content: error, isError: true };
+    };
+    const problem = validate(VIEW_PLAN.inputSchema as Parameters<typeof validate>[0], call.input ?? {});
+    if (problem) return fail(problem);
+    if (!this.settings.config().vision) return fail('Screenshots are turned off for this model.');
+    const view = (call.input as { view: SnapshotView }).view;
+    this.status.set('Taking a screenshot…');
+    try {
+      const image = await this.snapshot(view);
+      this.entries.update((e) => [...e, { kind: 'action', text: `Looked at the ${view} view`, image }]);
+      return {
+        type: 'tool_result',
+        toolUseId: call.id,
+        content: `Screenshot of the ${view} view of the plan as it is now.`,
+        images: [{ mediaType: 'image/jpeg', data: image.slice(image.indexOf(',') + 1) }],
+      };
+    } catch (e) {
+      return fail(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  private async runToolCall(call: Extract<AiBlock, { type: 'tool_use' }>): Promise<AiBlock> {
+    if (call.name === VIEW_PLAN.name) return this.viewPlan(call);
     const result = this.execute({ name: call.name, args: call.input });
     if (!result.ok) this.say('action', `✗ ${call.name}: ${result.error}`);
     else if (!isReadOnlyCommand(call.name)) this.say('action', result.summary);

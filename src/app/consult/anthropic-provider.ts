@@ -76,6 +76,11 @@ export class AnthropicProvider implements AiProvider {
 }
 
 function toWire(b: AiBlock): object {
-  if (b.type === 'tool_result') return { type: 'tool_result', tool_use_id: b.toolUseId, content: b.content, is_error: b.isError ?? false };
+  if (b.type === 'tool_result') {
+    const content = b.images?.length
+      ? [{ type: 'text', text: b.content }, ...b.images.map((i) => ({ type: 'image', source: { type: 'base64', media_type: i.mediaType, data: i.data } }))]
+      : b.content;
+    return { type: 'tool_result', tool_use_id: b.toolUseId, content, is_error: b.isError ?? false };
+  }
   return b;
 }

@@ -89,6 +89,21 @@ describe('AnthropicProvider', () => {
     ]);
   });
 
+  it('sends a screenshot inside the tool result', async () => {
+    const api = respond(sse(['message_stop', { type: 'message_stop' }]));
+    const withImage: AiRequest = {
+      ...request,
+      messages: [...request.messages.slice(0, 2), { role: 'user', content: [{ type: 'tool_result', toolUseId: 't1', content: 'a screenshot', images: [{ mediaType: 'image/jpeg', data: 'QUJD' }] }] }],
+    };
+    await new AnthropicProvider('k', 'm', api.fetcher).send(withImage);
+    expect(api.sent().messages[2].content[0]).toEqual({
+      type: 'tool_result',
+      tool_use_id: 't1',
+      content: [{ type: 'text', text: 'a screenshot' }, { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: 'QUJD' } }],
+      is_error: false,
+    });
+  });
+
   it('turns an API error into a readable message', async () => {
     const api = respond({ error: { message: 'invalid x-api-key' } }, 401);
     await expect(new AnthropicProvider('bad', 'm', api.fetcher).send(request)).rejects.toThrow('401 Bad: invalid x-api-key');
@@ -144,6 +159,21 @@ describe('OpenAiCompatibleProvider', () => {
       { type: 'thinking', delta: 'Hmm' },
       { type: 'text', delta: 'Hi' },
     ]);
+  });
+
+  it('shows a screenshot to the model in a user message after the tool result', async () => {
+    const api = respond(sse(chunk({ content: 'ok' }), ['message', '[DONE]']));
+    const withImage: AiRequest = {
+      ...request,
+      messages: [...request.messages.slice(0, 2), { role: 'user', content: [{ type: 'tool_result', toolUseId: 't1', content: 'a screenshot', images: [{ mediaType: 'image/jpeg', data: 'QUJD' }] }] }],
+    };
+    await new OpenAiCompatibleProvider('https://x/v1', '', 'm', api.fetcher).send(withImage);
+    const sent = api.sent().messages;
+    expect(sent[3]).toEqual({ role: 'tool', tool_call_id: 't1', content: 'a screenshot' });
+    expect(sent[4]).toEqual({
+      role: 'user',
+      content: [{ type: 'text', text: 'Screenshot from the tool call above:' }, { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,QUJD' } }],
+    });
   });
 
   it('sends the key as a bearer token', async () => {
@@ -209,6 +239,24 @@ describe('OpenAiCompatibleProvider', () => {
         return new Response(stream);
       }).send(request);
       expect(calls.map((c) => c.url).slice(2)).toEqual(['https://x/v1/responses']);
+    });
+
+    it('shows a screenshot as an input image after the tool output', async () => {
+      const bodies: any[] = [];
+      const fetcher = async (url: string, init: RequestInit) => {
+        if (url.endsWith('/chat/completions')) return refusal.clone();
+        bodies.push(JSON.parse(init.body as string));
+        return new Response(sse(completed([])));
+      };
+      const withImage: AiRequest = {
+        ...request,
+        messages: [...request.messages.slice(0, 2), { role: 'user', content: [{ type: 'tool_result', toolUseId: 't1', content: 'a screenshot', images: [{ mediaType: 'image/jpeg', data: 'QUJD' }] }] }],
+      };
+      await new OpenAiCompatibleProvider('https://x/v1', 'k', 'm-img', fetcher).send(withImage);
+      expect(bodies[0].input.slice(-2)).toEqual([
+        { type: 'function_call_output', call_id: 't1', output: 'a screenshot' },
+        { role: 'user', content: [{ type: 'input_text', text: 'Screenshot from the tool call above:' }, { type: 'input_image', image_url: 'data:image/jpeg;base64,QUJD' }] },
+      ]);
     });
 
     it('asks again without a reasoning summary when the account or model refuses one', async () => {

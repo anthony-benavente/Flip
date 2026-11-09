@@ -1,5 +1,6 @@
 import { CommandCall, CommandResult, CommandSpec } from '../commands/command';
 import { commandSpecs } from '../commands/run-command';
+import { SnapshotView } from './snapshot';
 
 /** What `window.flip` offers to scripts and browser agents running in the page. */
 export interface FlipWindowApi {
@@ -10,16 +11,19 @@ export interface FlipWindowApi {
   run(name: string, args?: unknown): CommandResult;
   /** Runs commands in order. A failing command is reported and the rest still run. */
   runBatch(calls: CommandCall[]): CommandResult[];
+  /** A screenshot of the plan as a JPEG data URL, with furniture and rooms labeled. */
+  snapshot(view?: SnapshotView): Promise<string>;
 }
 
 /** Publishes `window.flip` for the open plan and returns a function that removes it. */
-export function installWindowApi(session: { execute(call: CommandCall): CommandResult }): () => void {
+export function installWindowApi(session: { execute(call: CommandCall): CommandResult; snapshot(view: SnapshotView): Promise<string> }): () => void {
   if (typeof window === 'undefined') return () => {};
   const api: FlipWindowApi = {
     version: 1,
     commands: commandSpecs,
     run: (name, args) => session.execute({ name, args }),
     runBatch: (calls) => calls.map((c) => session.execute(c)),
+    snapshot: (view = 'top') => session.snapshot(view),
   };
   const host = window as unknown as { flip?: FlipWindowApi };
   host.flip = api;

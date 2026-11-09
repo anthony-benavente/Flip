@@ -105,6 +105,33 @@ test.describe('consult', () => {
     await savedPlan(page, (p) => p.furniture.length === 0);
   });
 
+  test('the AI looks at a screenshot of the plan and the user sees it too', async ({ page }) => {
+    const requests = await scriptClaude(page, [
+      [{ type: 'tool_use', id: 't1', name: 'view_plan', input: { view: 'top' } }],
+      [{ type: 'text', text: 'The layout looks fine.' }],
+    ]);
+    await newStarterRoom(page);
+    await page.getByRole('tab', { name: 'Consult' }).click();
+    await panel(page).getByLabel('Message').fill('How does it look?');
+    await panel(page).getByRole('button', { name: 'Send' }).click();
+
+    await expect(panel(page).getByText('The layout looks fine.')).toBeVisible();
+    await expect(panel(page).getByRole('img', { name: 'Screenshot the AI looked at' })).toBeVisible();
+    expect(requests[0].tools.map((t: any) => t.name)).toContain('view_plan');
+    const result = requests[1].messages.at(-1).content[0];
+    expect(result.content.at(-1)).toMatchObject({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg' } });
+    expect(result.content.at(-1).source.data.length).toBeGreaterThan(5000);
+  });
+
+  test('window.flip.snapshot renders the plan whatever view the editor is in', async ({ page }) => {
+    await newStarterRoom(page);
+    for (const view of ['top', 'corner']) {
+      const url = await page.evaluate((v) => (window as any).flip.snapshot(v), view);
+      expect(url).toMatch(/^data:image\/jpeg;base64,/);
+      expect(url.length).toBeGreaterThan(5000);
+    }
+  });
+
   test('asks for an API key before the first message', async ({ page }) => {
     await newStarterRoom(page);
     await page.getByRole('tab', { name: 'Consult' }).click();

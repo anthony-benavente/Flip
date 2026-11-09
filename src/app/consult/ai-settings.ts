@@ -11,10 +11,12 @@ export interface AiConfig {
   model: string;
   /** OpenAI-compatible services only. */
   baseUrl: string;
+  /** The model can look at images, so it is offered screenshots of the plan. */
+  vision: boolean;
 }
 
 const KEY = 'flip.ai';
-const DEFAULTS: AiConfig = { kind: 'anthropic', apiKey: '', model: ANTHROPIC_MODELS[0], baseUrl: OPENAI_BASE_URL };
+const DEFAULTS: AiConfig = { kind: 'anthropic', apiKey: '', model: ANTHROPIC_MODELS[0], baseUrl: OPENAI_BASE_URL, vision: true };
 
 /** Which AI service the consult tab talks to. Saved in this browser only (the key included). */
 @Injectable({ providedIn: 'root' })
@@ -59,6 +61,7 @@ function load(): AiConfig {
       apiKey: str(raw.apiKey, ''),
       model: str(raw.model, DEFAULTS.model),
       baseUrl: str(raw.baseUrl, DEFAULTS.baseUrl),
+      vision: raw.vision !== false,
     };
   } catch {
     return DEFAULTS;

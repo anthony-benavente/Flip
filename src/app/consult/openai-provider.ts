@@ -147,6 +147,11 @@ export class OpenAiCompatibleProvider implements AiProvider {
   }
 }
 
+/** The pictures a message's tool results carry. Neither OpenAI API accepts images inside a tool result, so they follow it as a user message. */
+const imagesOf = (m: AiMessage) => m.content.flatMap((b) => (b.type === 'tool_result' ? (b.images ?? []) : []));
+const IMAGE_NOTE = 'Screenshot from the tool call above:';
+const dataUrl = (i: { mediaType: string; data: string }) => `data:${i.mediaType};base64,${i.data}`;
+
 const textOf = (m: AiMessage) => m.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('\n');
 
 function toChatMessages(m: AiMessage): object[] {
@@ -158,7 +163,11 @@ function toChatMessages(m: AiMessage): object[] {
     return [{ role: 'assistant', content: text || null, ...(calls.length && { tool_calls: calls }) }];
   }
   const results = m.content.flatMap((b) => (b.type === 'tool_result' ? [{ role: 'tool', tool_call_id: b.toolUseId, content: b.content }] : []));
-  return [...results, ...(text ? [{ role: 'user', content: text }] : [])];
+  const images = imagesOf(m);
+  const shown = images.length
+    ? [{ role: 'user', content: [{ type: 'text', text: IMAGE_NOTE }, ...images.map((i) => ({ type: 'image_url', image_url: { url: dataUrl(i) } }))] }]
+    : [];
+  return [...results, ...shown, ...(text ? [{ role: 'user', content: text }] : [])];
 }
 
 function toResponseItems(m: AiMessage): object[] {
@@ -170,5 +179,9 @@ function toResponseItems(m: AiMessage): object[] {
     return [...(text ? [{ role: 'assistant', content: text }] : []), ...calls];
   }
   const results = m.content.flatMap((b) => (b.type === 'tool_result' ? [{ type: 'function_call_output', call_id: b.toolUseId, output: b.content }] : []));
-  return [...results, ...(text ? [{ role: 'user', content: text }] : [])];
+  const images = imagesOf(m);
+  const shown = images.length
+    ? [{ role: 'user', content: [{ type: 'input_text', text: IMAGE_NOTE }, ...images.map((i) => ({ type: 'input_image', image_url: dataUrl(i) }))] }]
+    : [];
+  return [...results, ...shown, ...(text ? [{ role: 'user', content: text }] : [])];
 }
