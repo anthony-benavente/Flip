@@ -3,7 +3,7 @@ import { CommandCall, CommandResult } from '../commands/command';
 import { commandSpecs, isReadOnlyCommand, runCommand } from '../commands/run-command';
 import { newId } from '../model/plan.model';
 import { PlanStore } from '../state/plan.store';
-import { AiBlock, AiMessage } from './ai-provider';
+import { AiBlock, AiMessage, AiStreamEvent } from './ai-provider';
 import { AiSettings } from './ai-settings';
 import { SYSTEM_PROMPT } from './system-prompt';
 import { installWindowApi } from './window-api';
@@ -14,7 +14,8 @@ export const MAX_STEPS = 25;
 const MAX_RESULT_CHARS = 60_000;
 
 export interface ChatEntry {
-  kind: 'user' | 'assistant' | 'action' | 'error';
+  /** `thinking` is a summary of the model's reasoning, when the service provides one. */
+  kind: 'user' | 'assistant' | 'thinking' | 'action' | 'error';
   text: string;
 }
 
@@ -39,6 +40,10 @@ export class ConsultSession {
 
   readonly entries = signal<ChatEntry[]>([]);
   readonly busy = signal(false);
+  /** What the AI is doing right now, such as "Asking the model… (step 2)"; empty when idle. */
+  readonly status = signal('');
+  /** Seconds since the message was sent. */
+  readonly elapsed = signal(0);
   readonly proposal = signal<Proposal | null>(null);
   /** Discarding undoes cleanly only while nothing else has edited the plan since the proposal. */
   readonly canDiscard = computed(() => {
@@ -48,6 +53,8 @@ export class ConsultSession {
 
   private history: AiMessage[] = [];
   private abort: AbortController | null = null;
+  /** Index in `entries` of the thinking and reply text still streaming in for the current step. */
+  private live: Partial<Record<'assistant' | 'thinking', number>> = {};
   /** Coalesces every change of one proposal into one undo step. */
   private editKey: string | null = null;
 
@@ -121,13 +128,24 @@ export class ConsultSession {
     this.say('user', text);
     this.history.push({ role: 'user', content: [{ type: 'text', text }] });
     this.busy.set(true);
+    this.elapsed.set(0);
+    const started = Date.now();
+    const timer = setInterval(() => this.elapsed.set(Math.floor((Date.now() - started) / 1000)), 1000);
     const abort = (this.abort = new AbortController());
     try {
       for (let step = 0; ; step++) {
         if (step === MAX_STEPS) return this.say('error', `Stopped after ${MAX_STEPS} steps. Ask it to continue if it was not done.`);
-        const reply = await provider.send({ system: SYSTEM_PROMPT, messages: this.history, tools: commandSpecs(), signal: abort.signal });
+        this.live = {};
+        this.status.set(step ? `Asking the model… (step ${step + 1})` : 'Asking the model…');
+        const reply = await provider.send({
+          system: SYSTEM_PROMPT,
+          messages: this.history,
+          tools: commandSpecs(),
+          signal: abort.signal,
+          onEvent: (e) => this.onStream(e),
+        });
         this.history.push(reply);
-        for (const b of reply.content) if (b.type === 'text' && b.text.trim()) this.say('assistant', b.text.trim());
+        this.finishReplyText(reply);
         const calls = reply.content.filter((b): b is Extract<AiBlock, { type: 'tool_use' }> => b.type === 'tool_use');
         if (!calls.length) return;
         this.history.push({ role: 'user', content: calls.map((c) => this.runToolCall(c)) });
@@ -137,9 +155,39 @@ export class ConsultSession {
       if (abort.signal.aborted) this.say('action', 'Stopped.');
       else this.say('error', e instanceof Error ? e.message : String(e));
     } finally {
+      clearInterval(timer);
       this.busy.set(false);
+      this.status.set('');
       this.abort = null;
     }
+  }
+
+  private onStream(e: AiStreamEvent): void {
+    if (e.type === 'tool') this.status.set(`Writing ${e.name}…`);
+    else this.stream(e.type === 'text' ? 'assistant' : 'thinking', e.delta);
+  }
+
+  /** Appends streamed text to the step's entry of that kind, starting one on the first piece. */
+  private stream(kind: 'assistant' | 'thinking', delta: string): void {
+    const at = this.live[kind];
+    if (at === undefined) {
+      this.entries.update((entries) => {
+        this.live[kind] = entries.length;
+        return [...entries, { kind, text: delta.trimStart() }];
+      });
+    } else {
+      this.entries.update((entries) => entries.map((x, i) => (i === at ? { ...x, text: x.text + delta } : x)));
+    }
+  }
+
+  /** Settles the reply's text: replaces what streamed with the final text, or adds it if nothing streamed. */
+  private finishReplyText(reply: AiMessage): void {
+    const text = reply.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('\n').trim();
+    const at = this.live.assistant;
+    if (at !== undefined) this.entries.update((entries) => entries.flatMap((x, i) => (i !== at ? [x] : text ? [{ ...x, text }] : [])));
+    else if (text) this.say('assistant', text);
+    const thought = this.live.thinking;
+    if (thought !== undefined) this.entries.update((entries) => entries.map((x, i) => (i === thought ? { ...x, text: x.text.trim() } : x)));
   }
 
   private runToolCall(call: Extract<AiBlock, { type: 'tool_use' }>): AiBlock {

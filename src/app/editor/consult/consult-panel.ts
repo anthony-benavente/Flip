@@ -63,7 +63,7 @@ const STARTERS = [
 
     <div #log class="log" role="log" aria-live="polite" aria-label="Conversation">
       @for (e of session.entries(); track $index) {
-        <p class="entry" [class]="e.kind">{{ e.text }}</p>
+        <p class="entry" [class]="e.kind">@if (e.kind === 'thinking') { <span class="label">Thinking</span> }{{ e.text }}</p>
       } @empty {
         <p class="empty">Ask for a layout, a color scheme or decor. Changes show up on the plan right away and you decide whether to keep them.</p>
         <div class="starters">
@@ -72,7 +72,9 @@ const STARTERS = [
           }
         </div>
       }
-      @if (session.busy()) { <p class="entry action">Working…</p> }
+      @if (session.busy()) {
+        <p class="entry action status" role="status">{{ session.status() }} · {{ session.elapsed() }}s</p>
+      }
     </div>
 
     @if (session.proposal(); as p) {
@@ -125,6 +127,8 @@ const STARTERS = [
     .entry.user { align-self: flex-end; max-width: 90%; background: var(--accent-soft); }
     .entry.assistant { background: var(--surface-2); }
     .entry.action { padding: 2px 10px; color: var(--text-muted); font-size: 12px; }
+    .entry.thinking { max-height: 110px; overflow-y: auto; padding: 4px 10px; color: var(--text-muted); font-size: 12px; font-style: italic; }
+    .entry.thinking .label { display: block; font-style: normal; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; font-size: 11px; }
     .entry.error { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
     .empty { margin: 0; color: var(--text-muted); }
     .starters { display: flex; flex-direction: column; gap: 6px; }

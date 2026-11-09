@@ -19,11 +19,21 @@ export interface AiMessage {
   content: AiBlock[];
 }
 
+/** Progress while a reply is still being written, so the UI can show it before the reply is whole. */
+export type AiStreamEvent =
+  | { type: 'text'; delta: string }
+  /** Part of a summary of the model's reasoning, for services that offer one. */
+  | { type: 'thinking'; delta: string }
+  /** The model started writing a command call. */
+  | { type: 'tool'; name: string };
+
 export interface AiRequest {
   system: string;
   messages: AiMessage[];
   tools: AiToolSpec[];
   signal?: AbortSignal;
+  /** Called as the reply streams in. The resolved message is still the complete reply. */
+  onEvent?: (event: AiStreamEvent) => void;
 }
 
 export interface AiProvider {
@@ -45,4 +55,13 @@ export async function apiErrorMessage(res: Response): Promise<string> {
     // Not JSON; the status line will do.
   }
   return `${res.status} ${res.statusText}${detail ? `: ${detail}` : ''}`.trim();
+}
+
+/** Parses the JSON a model wrote for a command's arguments. Malformed text becomes `null`, which the command rejects with an error the model can read and fix. */
+export function parseJsonArguments(raw: unknown): unknown {
+  try {
+    return JSON.parse(typeof raw === 'string' && raw ? raw : '{}');
+  } catch {
+    return null;
+  }
 }

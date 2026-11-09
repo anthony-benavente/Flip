@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { createEmptyPlan } from '../model/defaults';
 import { PlanStore } from '../state/plan.store';
-import { AiMessage, AiProvider, AiRequest } from './ai-provider';
+import { AiMessage, AiProvider, AiRequest, AiStreamEvent } from './ai-provider';
 import { AiSettings } from './ai-settings';
 import { ConsultSession, MAX_STEPS } from './consult-session';
 
@@ -130,5 +130,65 @@ describe('ConsultSession', () => {
     expect(results.map((r: { ok: boolean }) => r.ok)).toEqual([true, false]);
     expect(plan.plan().walls).toHaveLength(4);
     expect(flip.run('get_plan').ok).toBe(true);
+  });
+
+  describe('live progress', () => {
+    /** A provider that streams `events` before each reply, and records the status while it waits. */
+    function streaming(reply: AiMessage, events: AiStreamEvent[], statuses: string[], session: () => ConsultSession): AiProvider {
+      return {
+        label: 'stream',
+        async send(req) {
+          statuses.push(session().status());
+          for (const e of events) {
+            req.onEvent?.(e);
+            statuses.push(session().status());
+          }
+          return reply;
+        },
+      };
+    }
+
+    it('shows thinking and reply text as they stream, without repeating them when the reply ends', async () => {
+      const statuses: string[] = [];
+      let session!: ConsultSession;
+      const provider = streaming(
+        say('Hello there.'),
+        [
+          { type: 'thinking', delta: 'Planning ' },
+          { type: 'thinking', delta: 'a layout.' },
+          { type: 'text', delta: 'Hello ' },
+          { type: 'text', delta: 'there.' },
+        ],
+        statuses,
+        () => session,
+      );
+      ({ session } = setup(provider));
+      await session.send('hi');
+
+      expect(session.entries()).toEqual([
+        { kind: 'user', text: 'hi' },
+        { kind: 'thinking', text: 'Planning a layout.' },
+        { kind: 'assistant', text: 'Hello there.' },
+      ]);
+      expect(session.status()).toBe('');
+      expect(session.busy()).toBe(false);
+    });
+
+    it('reports what the AI is doing, step by step', async () => {
+      const statuses: string[] = [];
+      let session!: ConsultSession;
+      const first = streaming(call('1', 'get_plan'), [{ type: 'tool', name: 'get_plan' }], statuses, () => session);
+      const second = streaming(say('Done.'), [], statuses, () => session);
+      const replies = [first, second];
+      ({ session } = setup({ label: 'two', send: (req) => replies.shift()!.send(req) }));
+      await session.send('look');
+      expect(statuses).toEqual(['Asking the model…', 'Writing get_plan…', 'Asking the model… (step 2)']);
+    });
+
+    it('keeps a streamed reply as text when the provider does not stream', async () => {
+      const { session } = setup(script(say('Plain reply.')));
+      await session.send('hi');
+      expect(session.entries().at(-1)).toEqual({ kind: 'assistant', text: 'Plain reply.' });
+    });
   });
 });

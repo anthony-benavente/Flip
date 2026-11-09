@@ -3,7 +3,24 @@ import { expect, newStarterRoom, savedPlan, test } from './helpers';
 
 const panel = (page: Page) => page.getByRole('tabpanel', { name: 'Consult' });
 
-/** Answers each request to the Claude API with the next scripted reply. */
+/** The Messages API stream for a reply made of these content blocks. */
+function claudeStream(content: any[]): string {
+  const events: [string, unknown][] = [['message_start', { type: 'message_start' }]];
+  content.forEach((b, index) => {
+    if (b.type === 'text') {
+      events.push(['content_block_start', { type: 'content_block_start', index, content_block: { type: 'text', text: '' } }]);
+      events.push(['content_block_delta', { type: 'content_block_delta', index, delta: { type: 'text_delta', text: b.text } }]);
+    } else {
+      events.push(['content_block_start', { type: 'content_block_start', index, content_block: { type: 'tool_use', id: b.id, name: b.name, input: {} } }]);
+      events.push(['content_block_delta', { type: 'content_block_delta', index, delta: { type: 'input_json_delta', partial_json: JSON.stringify(b.input) } }]);
+    }
+    events.push(['content_block_stop', { type: 'content_block_stop', index }]);
+  });
+  events.push(['message_stop', { type: 'message_stop' }]);
+  return events.map(([event, data]) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`).join('');
+}
+
+/** Answers each request to the Claude API with the next scripted reply, streamed like the real one. */
 async function scriptClaude(page: Page, replies: object[][]) {
   await page.addInitScript(() => localStorage.setItem('flip.ai', JSON.stringify({ kind: 'anthropic', apiKey: 'sk-test', model: 'claude-sonnet-5-5', baseUrl: '' })));
   const requests: any[] = [];
@@ -12,9 +29,9 @@ async function scriptClaude(page: Page, replies: object[][]) {
     const content = replies.shift() ?? [{ type: 'text', text: 'Nothing more.' }];
     await route.fulfill({
       status: 200,
-      contentType: 'application/json',
+      contentType: 'text/event-stream',
       headers: { 'access-control-allow-origin': '*' },
-      body: JSON.stringify({ content }),
+      body: claudeStream(content),
     });
   });
   return requests;
