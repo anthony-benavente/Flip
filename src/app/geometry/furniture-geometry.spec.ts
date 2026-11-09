@@ -89,4 +89,13 @@ describe('findOverlaps', () => {
     const box = { ...createFurniture('box', { x: 10, y: 300 }), id: 'box' };
     expect([...findOverlaps([art, box], segs, (f) => f.elevation ?? 0)]).toEqual(['box']);
   });
+
+  it('lets a chair or stool overlap a table or desk, but not other furniture', () => {
+    const at = (catalogId: string, x: number, y: number, id: string) => ({ ...createFurniture(catalogId, { x, y }), id });
+    const desk = at('desk', 300, 300, 'desk');
+    expect(findOverlaps([desk, at('office-chair', 300, 340, 'chair')], []).size).toBe(0);
+    expect(findOverlaps([desk, at('stool', 300, 320, 'stool')], []).size).toBe(0);
+    expect(findOverlaps([desk, at('sofa-3', 300, 320, 'sofa')], []).size).toBe(2);
+    expect(findOverlaps([at('sofa-3', 300, 300, 'sofa'), at('office-chair', 300, 320, 'chair')], []).size).toBe(2);
+  });
 });

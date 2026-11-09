@@ -132,8 +132,18 @@ function raySegment(o: Point, d: Point, a: Point, b: Point): number | null {
 /** Height of an item's bottom above the floor (see `itemElevation`). */
 export type ElevationOf = (f: FurnitureItem) => number;
 
+/** Seats that are pushed in under a table or desk when not in use. */
+const TUCKABLE_SEATS = new Set(['dining-chair', 'office-chair', 'stool']);
+
+/** True when one item is a chair or stool and the other a table or desk, which may overlap on purpose. */
+function tucksUnder(a: FurnitureItem, b: FurnitureItem): boolean {
+  const seatAndTable = (seat: FurnitureItem, table: FurnitureItem) =>
+    TUCKABLE_SEATS.has(seat.catalogId) && catalogItem(table.catalogId).category === 'Tables';
+  return seatAndTable(a, b) || seatAndTable(b, a);
+}
+
 /**
- * Ids of furniture items that overlap another item or a wall. Floor-layer items (rugs) are ignored,
+ * Ids of furniture items that overlap another item or a wall. A chair or stool may overlap a table or desk. Floor-layer items (rugs) are ignored,
  * items at different heights (art above a sofa, a lamp on a dresser) don't overlap, and wall-mounted
  * items may touch their wall.
  */
@@ -147,7 +157,7 @@ export function findOverlaps(furniture: FurnitureItem[], segs: WallSegment[], el
     for (let j = i + 1; j < solid.length; j++) {
       const stacked =
         bottoms[i] + solid[i].height - VERTICAL_TOLERANCE <= bottoms[j] || bottoms[j] + solid[j].height - VERTICAL_TOLERANCE <= bottoms[i];
-      if (!stacked && convexOverlap(corners[i], corners[j])) {
+      if (!stacked && !tucksUnder(solid[i], solid[j]) && convexOverlap(corners[i], corners[j])) {
         out.add(solid[i].id);
         out.add(solid[j].id);
       }
