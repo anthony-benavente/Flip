@@ -1,5 +1,5 @@
 import { InjectionToken } from '@angular/core';
-import { CustomModel, CustomModelRecord, ModelSettings } from '../model/custom-model';
+import { CustomModel, CustomModelRecord, ModelRenders, ModelSettings } from '../model/custom-model';
 import { IndexedDbModelRepository } from './indexed-db-model.repository';
 import { MemoryModelRepository } from './memory-model.repository';
 
@@ -15,7 +15,12 @@ export interface ModelRepository {
   save(record: CustomModelRecord): Promise<void>;
   /** Changes a model's settings; the file stays the same. */
   update(id: string, patch: ModelSettings): Promise<void>;
+  /** Deletes the model, its file and its pictures. */
   delete(id: string): Promise<void>;
+  /** Every model's stored pictures, by model id. */
+  listRenders(): Promise<Map<string, ModelRenders>>;
+  /** Replaces a model's pictures. Ignored when the model is gone. */
+  saveRenders(id: string, renders: ModelRenders): Promise<void>;
 }
 
 /** IndexedDB when the browser has it, otherwise an in-memory library that lasts for the session. */

@@ -54,10 +54,50 @@ export interface CustomModel {
   trim?: ModelTrim;
   /** Unset when every material keeps its own color. */
   colors?: ModelColors;
+  /** True to draw the template's 2D symbol on the plan instead of a top view of the model. */
+  planSymbol?: boolean;
 }
 
 /** What can change after upload: everything but the file. */
-export type ModelSettings = Partial<Pick<CustomModel, 'name' | 'catalogId' | 'orientation' | 'trim' | 'colors'>>;
+export type ModelSettings = Partial<Pick<CustomModel, 'name' | 'catalogId' | 'orientation' | 'trim' | 'colors' | 'planSymbol'>>;
+
+/**
+ * Pictures rendered from a model's file and settings: a top view for the 2D plan and a thumbnail
+ * for lists. Kept in the model repository beside the file, never in the plan.
+ */
+export interface ModelRenders {
+  /** The `modelRenderKey` the pictures were made from; any other key means they are out of date. */
+  key: string;
+  /**
+   * PNG with a transparent background, looking straight down on the model fitted to its
+   * template's box and framed exactly on that box: plan x runs right and the item's front is at
+   * the bottom, so it can be stretched over the item's rectangle.
+   */
+  top: Blob;
+  /** PNG three-quarter view for lists. */
+  thumb: Blob;
+}
+
+/** Bump to redraw every model's pictures, e.g. after changing how they are rendered. */
+const RENDER_STYLE = 1;
+
+/**
+ * Identifies everything a model's pictures depend on: the file, the template's size (the model is
+ * stretched to it), orientation, trim and colors. Not the name.
+ */
+export function modelRenderKey(model: CustomModel, template: Pick<CatalogItem, 'width' | 'depth' | 'height'>): string {
+  const colors = model.colors ? Object.entries(model.colors).sort(([a], [b]) => a.localeCompare(b)) : [];
+  const t = model.trim ?? NO_TRIM;
+  return JSON.stringify([
+    RENDER_STYLE,
+    model.fileName,
+    model.byteSize,
+    [template.width, template.depth, template.height],
+    [model.orientation.x, model.orientation.y, model.orientation.z],
+    TRIM_SIDES.map((s) => t[s]),
+    colors,
+  ]);
+}
 
 /** A model's metadata plus its glTF / GLB file bytes. */
 export interface CustomModelRecord {
@@ -139,6 +179,7 @@ export function isCustomModel(v: unknown): v is CustomModel {
     typeof m['byteSize'] === 'number' &&
     isModelOrientation(m['orientation']) &&
     (m['trim'] === undefined || isModelTrim(m['trim'])) &&
-    (m['colors'] === undefined || isModelColors(m['colors']))
+    (m['colors'] === undefined || isModelColors(m['colors'])) &&
+    (m['planSymbol'] === undefined || typeof m['planSymbol'] === 'boolean')
   );
 }

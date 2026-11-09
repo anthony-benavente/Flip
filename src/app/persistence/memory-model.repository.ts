@@ -1,9 +1,10 @@
-import { CustomModel, CustomModelRecord, ModelSettings } from '../model/custom-model';
+import { CustomModel, CustomModelRecord, ModelRenders, ModelSettings } from '../model/custom-model';
 import type { ModelRepository } from './model-repository';
 
 /** Keeps models in memory. Used when IndexedDB is unavailable, and in tests. */
 export class MemoryModelRepository implements ModelRepository {
   private readonly records = new Map<string, CustomModelRecord>();
+  private readonly renders = new Map<string, ModelRenders>();
 
   async list(): Promise<CustomModel[]> {
     return [...this.records.values()].map((r) => ({ ...r.meta }));
@@ -25,5 +26,14 @@ export class MemoryModelRepository implements ModelRepository {
 
   async delete(id: string): Promise<void> {
     this.records.delete(id);
+    this.renders.delete(id);
+  }
+
+  async listRenders(): Promise<Map<string, ModelRenders>> {
+    return new Map(this.renders);
+  }
+
+  async saveRenders(id: string, renders: ModelRenders): Promise<void> {
+    if (this.records.has(id)) this.renders.set(id, { ...renders });
   }
 }

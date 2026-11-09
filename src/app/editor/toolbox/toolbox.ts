@@ -83,6 +83,7 @@ export class Toolbox {
       key: encodeFurnitureDrag(drag),
       drag,
       model,
+      thumbnail: model ? this.library.thumbnail(model.id) : undefined,
       name: model ? modelDisplayName(model, c) : c.name,
       size: `${formatLength(c.width, units)} × ${formatLength(c.depth, units)}`,
       viewBox: `${-c.width / 2 - pad} ${-c.depth / 2 - pad} ${c.width + pad * 2} ${c.depth + pad * 2}`,

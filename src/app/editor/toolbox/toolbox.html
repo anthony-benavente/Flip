@@ -81,15 +81,19 @@
                   (click)="place(item.drag)"
                   [title]="'Add ' + item.name"
                 >
-                  <svg [attr.viewBox]="item.viewBox" preserveAspectRatio="xMidYMid meet">
-                    <g
-                      appFurnitureSymbol
-                      [shape]="item.shape"
-                      [width]="item.w"
-                      [depth]="item.d"
-                      [color]="item.color"
-                    />
-                  </svg>
+                  @if (item.thumbnail; as thumb) {
+                    <img class="thumb" [src]="thumb" alt="" />
+                  } @else {
+                    <svg [attr.viewBox]="item.viewBox" preserveAspectRatio="xMidYMid meet">
+                      <g
+                        appFurnitureSymbol
+                        [shape]="item.shape"
+                        [width]="item.w"
+                        [depth]="item.d"
+                        [color]="item.color"
+                      />
+                    </svg>
+                  }
                   <span class="item-text">
                     <span class="item-name">{{ item.name }}</span>
                     <span class="item-size">{{ item.size }}</span>

@@ -203,10 +203,15 @@ ul {
   cursor: grabbing;
 }
 
-.item svg {
+.item svg,
+.item .thumb {
   flex: none;
   width: 40px;
   height: 32px;
+}
+
+.item .thumb {
+  object-fit: contain;
 }
 
 .item-text {

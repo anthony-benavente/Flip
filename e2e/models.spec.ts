@@ -48,6 +48,9 @@ test.describe('uploaded 3D models', () => {
     expect(modelId).toMatch(/^m_/);
     expect(plan.furniture[0].catalogId).toBe('office-chair');
     await expect(page.getByLabel('3D model')).toHaveValue(modelId);
+    // The model's rendered top view replaces the chair symbol on the plan, and its thumbnail shows in the catalog.
+    await expect(page.locator(`app-plan-canvas [data-id="${plan.furniture[0].id}"] image.top-view`)).toHaveAttribute('href', /^blob:/);
+    await expect(entry.locator('img.thumb')).toHaveAttribute('src', /^blob:/);
 
     await page.locator('.view-modes button', { hasText: 'Split' }).click();
     await expect(page.locator('app-preview3d canvas')).toBeVisible();

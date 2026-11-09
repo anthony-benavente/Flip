@@ -10,10 +10,15 @@ export const BLOBS = 'blobs';
 export class FileDatabase {
   private db: Promise<IDBDatabase> | null = null;
 
-  /** `what` names the contents in error messages, e.g. "Model". */
+  /**
+   * `what` names the contents in error messages, e.g. "Model". `extraStores` are further
+   * out-of-line-key stores; raise `version` whenever one is added so existing databases upgrade.
+   */
   constructor(
     private readonly name: string,
     private readonly what: string,
+    private readonly version = 1,
+    private readonly extraStores: readonly string[] = [],
   ) {}
 
   /** Runs `work` in a transaction and resolves with its result once the transaction completes. */
@@ -32,11 +37,13 @@ export class FileDatabase {
 
   private open(): Promise<IDBDatabase> {
     this.db ??= new Promise((resolve, reject) => {
-      const req = indexedDB.open(this.name, 1);
+      const req = indexedDB.open(this.name, this.version);
       req.onupgradeneeded = () => {
         const db = req.result;
         if (!db.objectStoreNames.contains(META)) db.createObjectStore(META, { keyPath: 'id' });
-        if (!db.objectStoreNames.contains(BLOBS)) db.createObjectStore(BLOBS);
+        for (const store of [BLOBS, ...this.extraStores]) {
+          if (!db.objectStoreNames.contains(store)) db.createObjectStore(store);
+        }
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);

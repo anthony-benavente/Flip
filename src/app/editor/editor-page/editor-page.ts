@@ -18,6 +18,7 @@ import { Autosave } from '../autosave';
 import { ConsultSession } from '../../consult/consult-session';
 import { PLAN_SNAPSHOT } from '../../consult/snapshot';
 import { loadPlanSnapshotter } from '../plan-snapshotter';
+import { ModelRenderQueue } from '../model-render-queue';
 import { PlanCanvas } from '../canvas/plan-canvas';
 import { PropertiesPanel } from '../properties/properties-panel';
 import { findShortcut } from '../shortcuts';
@@ -29,7 +30,7 @@ import { Toolbox } from '../toolbox/toolbox';
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './editor-page.html',
   styleUrl: './editor-page.css',
-  providers: [Autosave, ConsultSession, { provide: PLAN_SNAPSHOT, useValue: loadPlanSnapshotter }],
+  providers: [Autosave, ConsultSession, ModelRenderQueue, { provide: PLAN_SNAPSHOT, useValue: loadPlanSnapshotter }],
   host: {
     '(window:keydown)': 'onKeyDown($event)',
     '(window:beforeunload)': 'flushSave()',
@@ -51,6 +52,8 @@ export class EditorPage {
   private readonly toast = inject(ToastService);
   /** Created with the page so `window.flip` exists whenever the editor is open, not only once the Consult tab is. */
   private readonly consult = inject(ConsultSession);
+  /** Draws the plan top views and thumbnails of uploaded models while the editor is open. */
+  private readonly modelRenders = inject(ModelRenderQueue);
 
   protected readonly state = signal<'loading' | 'ready' | 'missing' | 'error'>('loading');
   protected readonly loadError = signal('');

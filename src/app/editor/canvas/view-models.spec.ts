@@ -107,6 +107,17 @@ describe('canvas view models', () => {
     expect(furnitureViews([sofa], new Set(), new Set(), 0.05)[0].showLabel).toBe(false);
   });
 
+  it("passes each item's model top view through", () => {
+    const sofa = { ...createFurniture('sofa-3', { x: 0, y: 0 }), id: 'sofa', modelId: 'm1' };
+    const desk = { ...createFurniture('desk', { x: 0, y: 0 }), id: 'desk' };
+    const topViewOf = (f: { modelId?: string }) => (f.modelId === 'm1' ? 'blob:top' : undefined);
+    const views = furnitureViews([sofa, desk], new Set(), new Set(), 1, undefined, topViewOf);
+    expect(views.map((v) => [v.id, v.topView])).toEqual([
+      ['sofa', 'blob:top'],
+      ['desk', undefined],
+    ]);
+  });
+
   it('draws selected items last, lifting a selected rug above the furniture on it', () => {
     const sofa = { ...createFurniture('sofa-3', { x: 0, y: 0 }), id: 'sofa' };
     const rug = { ...createFurniture('rug-large', { x: 0, y: 0 }), id: 'rug' };

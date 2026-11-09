@@ -22,9 +22,13 @@ import { PlanStore } from '../../state/plan.store';
       <ul>
         @for (row of rows(); track row.model.id) {
           <li [attr.aria-label]="row.model.name">
-            <svg [attr.viewBox]="row.viewBox" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-              <g appFurnitureSymbol [shape]="row.template.shape" [width]="row.template.width" [depth]="row.template.depth" [color]="row.template.color" />
-            </svg>
+            @if (row.thumbnail; as thumb) {
+              <img class="thumb" [src]="thumb" alt="" />
+            } @else {
+              <svg [attr.viewBox]="row.viewBox" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+                <g appFurnitureSymbol [shape]="row.template.shape" [width]="row.template.width" [depth]="row.template.depth" [color]="row.template.color" />
+              </svg>
+            }
             <span class="text">
               <span class="name">{{ row.model.name }}</span>
               <span class="meta">{{ row.template.name }} · {{ row.size }}</span>
@@ -61,7 +65,8 @@ import { PlanStore } from '../../state/plan.store';
     .hint { margin: 8px 0 10px; color: var(--text-muted); font-size: 12px; }
     ul { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--border); }
     li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
-    svg { flex: none; width: 40px; height: 32px; }
+    svg, .thumb { flex: none; width: 48px; height: 40px; }
+    .thumb { object-fit: contain; }
     .text { display: flex; flex: 1; flex-direction: column; min-width: 0; }
     .name { overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
     .meta { overflow: hidden; color: var(--text-muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
@@ -88,6 +93,7 @@ export class ModelLibraryPanel {
       return {
         model,
         template,
+        thumbnail: this.library.thumbnail(model.id),
         used,
         size: formatBytes(model.byteSize),
         usage: used ? `Used by ${used} item${used === 1 ? '' : 's'} in this plan` : 'Not used in this plan',

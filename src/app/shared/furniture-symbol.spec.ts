@@ -6,19 +6,32 @@ import { FurnitureSymbol } from './furniture-symbol';
 
 @Component({
   imports: [FurnitureSymbol],
-  template: `<svg><g appFurnitureSymbol [shape]="shape()" [width]="200" [depth]="90" color="#808080" /></svg>`,
+  template: `<svg><g appFurnitureSymbol [shape]="shape()" [width]="200" [depth]="90" color="#808080" [topView]="topView()" /></svg>`,
 })
 class Host {
   readonly shape = signal<FurnitureShape>('sofa');
+  readonly topView = signal<string | undefined>(undefined);
 }
 
 describe('FurnitureSymbol', () => {
-  const render = (shape: FurnitureShape) => {
+  const render = (shape: FurnitureShape, topView?: string) => {
     const fixture = TestBed.createComponent(Host);
     fixture.componentInstance.shape.set(shape);
+    fixture.componentInstance.topView.set(topView);
     fixture.detectChanges();
     return fixture.nativeElement as HTMLElement;
   };
+
+  it('stretches a model top view over the box instead of drawing the symbol parts', () => {
+    const el = render('sofa', 'blob:top');
+    const image = el.querySelector('image.top-view')!;
+    expect(image.getAttribute('href')).toBe('blob:top');
+    expect([image.getAttribute('x'), image.getAttribute('y'), image.getAttribute('width'), image.getAttribute('height')]).toEqual(['-100', '-45', '200', '90']);
+    expect(image.getAttribute('preserveAspectRatio')).toBe('none');
+    expect(el.querySelectorAll('.part')).toHaveLength(0);
+    expect(el.querySelector('.base')!.classList).toContain('faint');
+    expect(render('sofa').querySelector('image')).toBeNull();
+  });
 
   it('draws a rectangular base plus one element per symbol part, in the SVG namespace', () => {
     const el = render('sofa');

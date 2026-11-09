@@ -1,11 +1,13 @@
 import { catalogItem } from './catalog';
 import {
+  CustomModel,
   isCustomModel,
   setModelColor,
   storedColors,
   MAX_TRIM,
   modelDisplayName,
   modelNameFromFile,
+  modelRenderKey,
   NO_TRIM,
   setTrimSide,
   storedTrim,
@@ -13,7 +15,7 @@ import {
 } from './custom-model';
 
 describe('custom models', () => {
-  const meta = { id: 'm', name: 'Aeron', catalogId: 'office-chair', fileName: 'a.glb', byteSize: 10, createdAt: '2026-01-01', orientation: { x: 0, y: 3, z: 1 } };
+  const meta: CustomModel = { id: 'm', name: 'Aeron', catalogId: 'office-chair', fileName: 'a.glb', byteSize: 10, createdAt: '2026-01-01', orientation: { x: 0, y: 3, z: 1 } };
 
   it('names a model after its template', () => {
     expect(modelDisplayName(meta, catalogItem('office-chair'))).toBe('Office chair · Aeron');
@@ -64,5 +66,26 @@ describe('custom models', () => {
     expect(isCustomModel({ ...meta, colors: { '0': '#aabbcc' } })).toBe(true);
     expect(isCustomModel({ ...meta, colors: { '0': 'blue' } })).toBe(false);
     expect(isCustomModel({ ...meta, colors: 'x' })).toBe(false);
+  });
+
+  it('validates the plan drawing choice', () => {
+    expect(isCustomModel({ ...meta, planSymbol: true })).toBe(true);
+    expect(isCustomModel({ ...meta, planSymbol: 'yes' })).toBe(false);
+  });
+
+  it('keys pictures on everything they show, but not the name', () => {
+    const chair = catalogItem('office-chair');
+    const key = modelRenderKey(meta, chair);
+    expect(modelRenderKey({ ...meta, name: 'Other' }, chair)).toBe(key);
+    expect(modelRenderKey({ ...meta, planSymbol: true }, chair)).toBe(key);
+    expect(modelRenderKey({ ...meta, trim: NO_TRIM }, chair)).toBe(key);
+    expect(modelRenderKey(meta, { ...chair, width: chair.width + 1 })).not.toBe(key);
+    expect(modelRenderKey({ ...meta, orientation: { x: 1, y: 3, z: 1 } }, chair)).not.toBe(key);
+    expect(modelRenderKey({ ...meta, trim: { ...NO_TRIM, top: 0.1 } }, chair)).not.toBe(key);
+    expect(modelRenderKey({ ...meta, colors: { '0': '#ff0000' } }, chair)).not.toBe(key);
+    expect(modelRenderKey({ ...meta, byteSize: 11 }, chair)).not.toBe(key);
+    expect(modelRenderKey({ ...meta, colors: { '0': '#ff0000', '1': '#00ff00' } }, chair)).toBe(
+      modelRenderKey({ ...meta, colors: { '1': '#00ff00', '0': '#ff0000' } }, chair),
+    );
   });
 });

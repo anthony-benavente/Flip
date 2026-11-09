@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { MAX_MODEL_BYTES } from '../model/custom-model';
 import { boxGlb } from '../testing/glb';
 import { MemoryModelRepository } from './memory-model.repository';
-import { ModelLibrary } from './model-library';
+import { currentRenderKey, ModelLibrary } from './model-library';
 import { MODEL_REPOSITORY } from './model-repository';
 
 describe('ModelLibrary', () => {
@@ -57,6 +57,73 @@ describe('ModelLibrary', () => {
     await library.remove(model.id);
     expect(library.models()).toEqual([]);
     expect(await library.bytes(model.id)).toBeNull();
+  });
+
+  describe('pictures', () => {
+    let urls = 0;
+    const revoked: string[] = [];
+    const pictures = (key: string) => ({ key, top: new Blob(['top']), thumb: new Blob(['thumb']) });
+
+    const original = { create: URL.createObjectURL, revoke: URL.revokeObjectURL };
+    beforeEach(() => {
+      urls = 0;
+      revoked.length = 0;
+      URL.createObjectURL = () => `blob:${++urls}`;
+      URL.revokeObjectURL = (u: string) => void revoked.push(u);
+    });
+    afterEach(() => {
+      URL.createObjectURL = original.create;
+      URL.revokeObjectURL = original.revoke;
+    });
+
+    it('lists models without current pictures, and shows saved pictures until the settings change', async () => {
+      const model = await library.upload(glb(), 'desk', 'Oak', orientation);
+      expect(library.staleRenders()).toEqual([model]);
+      expect(library.topView(model.id)).toBeUndefined();
+
+      await library.saveRenders(model.id, pictures(currentRenderKey(model)));
+      expect(library.staleRenders()).toEqual([]);
+      expect(library.topView(model.id)).toBe('blob:1');
+      expect(library.thumbnail(model.id)).toBe('blob:2');
+
+      await library.update(model.id, { name: 'Walnut' });
+      expect(library.topView(model.id)).toBe('blob:1');
+      await library.update(model.id, { orientation: { x: 0, y: 2, z: 0 } });
+      expect(library.staleRenders().map((m) => m.id)).toEqual([model.id]);
+      expect(library.topView(model.id)).toBeUndefined();
+      expect(library.thumbnail(model.id)).toBeUndefined();
+    });
+
+    it('draws the symbol instead of the top view when the model asks for it', async () => {
+      const model = await library.upload(glb(), 'desk', 'Oak', orientation, undefined, undefined, true);
+      expect(model.planSymbol).toBe(true);
+      await library.saveRenders(model.id, pictures(currentRenderKey(model)));
+      expect(library.topView(model.id)).toBeUndefined();
+      expect(library.thumbnail(model.id)).toBe('blob:2');
+    });
+
+    it('loads stored pictures, replaces them and frees their URLs', async () => {
+      const model = await library.upload(glb(), 'desk', 'Oak', orientation);
+      await repo.saveRenders(model.id, pictures(currentRenderKey(model)));
+      await library.refresh();
+      expect(library.topView(model.id)).toBe('blob:1');
+
+      await library.saveRenders(model.id, pictures(currentRenderKey(model)));
+      expect(library.topView(model.id)).toBe('blob:3');
+      expect(revoked).toEqual(['blob:1', 'blob:2']);
+
+      await library.remove(model.id);
+      expect(revoked).toEqual(['blob:1', 'blob:2', 'blob:3', 'blob:4']);
+      expect(await repo.listRenders()).toEqual(new Map());
+    });
+
+    it('drops pictures of a model deleted while they were drawn', async () => {
+      const model = await library.upload(glb(), 'desk', 'Oak', orientation);
+      await library.remove(model.id);
+      await library.saveRenders(model.id, pictures(currentRenderKey(model)));
+      expect(urls).toBe(0);
+      expect(await repo.listRenders()).toEqual(new Map());
+    });
   });
 
   it('reads file bytes once and caches them', async () => {

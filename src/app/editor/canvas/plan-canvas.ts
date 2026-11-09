@@ -19,6 +19,7 @@ import { rectCorners } from '../../geometry/vec';
 import { fitViewport, screenToWorld, worldToScreen, zoomAt } from '../../geometry/viewport';
 import { CATALOG } from '../../model/catalog';
 import { Point } from '../../model/plan.model';
+import { ModelLibrary } from '../../persistence/model-library';
 import { FurnitureSymbol } from '../../shared/furniture-symbol';
 import { isTypingTarget } from '../../shared/dom';
 import { EditorActions } from '../../state/editor-actions';
@@ -60,6 +61,7 @@ export class PlanCanvas {
   protected readonly editor = inject(EditorStore);
   private readonly actions = inject(EditorActions);
   private readonly document = inject(DOCUMENT);
+  private readonly models = inject(ModelLibrary);
   private readonly svgRef = viewChild.required<ElementRef<SVGSVGElement>>('svg');
 
   /** Canvas size in px; 0 until the first layout. */
@@ -120,8 +122,13 @@ export class PlanCanvas {
     openingViews(this.planStore.plan().openings, this.planStore.segmentById(), this.editor.selectedIds(), this.px()),
   );
   protected readonly furniture = computed(() =>
-    furnitureViews(this.planStore.plan().furniture, this.overlaps(), this.editor.selectedIds(), this.zoom(), (f) =>
-      itemElevation(f, this.planStore.rooms()),
+    furnitureViews(
+      this.planStore.plan().furniture,
+      this.overlaps(),
+      this.editor.selectedIds(),
+      this.zoom(),
+      (f) => itemElevation(f, this.planStore.rooms()),
+      (f) => this.models.topView(f.modelId),
     ),
   );
   protected readonly dimensions = computed(() => dimensionViews(this.planStore.segments(), this.planStore.rooms(), this.units(), this.zoom()));

@@ -165,6 +165,11 @@ type PreviewModule = typeof import('../../preview3d/model-preview');
           </div>
         }
 
+        <label class="plan-view">
+          <input type="checkbox" [checked]="!planSymbol()" (change)="planSymbol.set(!$any($event.target).checked)" aria-label="Show a top view of the model on the plan" />
+          <span>Show a top view of the model on the plan. Clear this to draw the plain {{ templateName() }} symbol instead.</span>
+        </label>
+
         <div class="actions">
           <button class="btn ghost" (click)="close()">Cancel</button>
           <button class="btn primary" [disabled]="status() !== 'ready' || saving()" (click)="save()">
@@ -205,6 +210,8 @@ type PreviewModule = typeof import('../../preview3d/model-preview');
       background: none; cursor: pointer; }
     .mat-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .mat-note { color: var(--text-muted); font-size: 12px; }
+    .plan-view { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; font-size: 13px; }
+    .plan-view input { margin: 2px 0 0; }
     .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
   `,
 })
@@ -237,6 +244,9 @@ export class ModelUploadDialog implements OnInit {
   protected readonly orientation = signal<ModelOrientation>(DEFAULT_ORIENTATION);
   protected readonly trim = signal<ModelTrim>(NO_TRIM);
   protected readonly colors = signal<ModelColors>({});
+  /** Draw the template's symbol on the plan instead of the model's top view. */
+  protected readonly planSymbol = signal(false);
+  protected readonly templateName = computed(() => catalogItem(this.catalogId()).name.toLowerCase());
   protected readonly materials = signal<ModelMaterialInfo[]>([]);
   protected readonly hasColors = computed(() => Object.keys(this.colors()).length > 0);
   protected readonly status = signal<'idle' | 'reading' | 'ready'>('idle');
@@ -284,6 +294,7 @@ export class ModelUploadDialog implements OnInit {
     }
     this.catalogId.set(model.catalogId);
     this.name.set(model.name);
+    this.planSymbol.set(!!model.planSymbol);
     this.status.set('reading');
     this.library.bytes(model.id).then(
       (data) => {
@@ -377,10 +388,19 @@ export class ModelUploadDialog implements OnInit {
     const colors = storedColors(this.colors());
     try {
       if (editing) {
-        await this.library.update(editing.id, { name: this.name(), catalogId: this.catalogId(), orientation: this.orientation(), trim, colors });
+        await this.library.update(editing.id, {
+          name: this.name(),
+          catalogId: this.catalogId(),
+          orientation: this.orientation(),
+          trim,
+          colors,
+          planSymbol: this.planSymbol() || undefined,
+        });
         this.closed.emit(this.library.model(editing.id) ?? editing);
       } else {
-        this.closed.emit(await this.library.upload(this.file!, this.catalogId(), this.name(), this.orientation(), trim, colors));
+        this.closed.emit(
+          await this.library.upload(this.file!, this.catalogId(), this.name(), this.orientation(), trim, colors, this.planSymbol()),
+        );
       }
     } catch (e) {
       this.error.set(e instanceof Error ? e.message : 'The model could not be saved.');

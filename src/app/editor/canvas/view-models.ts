@@ -125,6 +125,7 @@ export function furnitureViews(
   selected: SelectedIds,
   zoom: number,
   elevationOf: (f: FurnitureItem) => number = () => 0,
+  topViewOf: (f: FurnitureItem) => string | undefined = () => undefined,
 ) {
   const items = furniture.map((f) => {
     const c = catalogItem(f.catalogId);
@@ -138,6 +139,7 @@ export function furnitureViews(
       d: f.depth,
       arms: f.arms,
       color: f.color,
+      topView: topViewOf(f),
       layer: c.floorLayer && !isSelected ? ('floor' as const) : ('top' as const),
       mount: mountOf(c),
       elevation: elevationOf(f),
