@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, effect, ElementRef, inject, signal,
 import { ANTHROPIC_MODELS } from '../../consult/anthropic-provider';
 import { AiProviderKind, AiSettings } from '../../consult/ai-settings';
 import { ConsultSession } from '../../consult/consult-session';
+import { SCREENSHOT_MODES, ScreenshotMode } from '../../consult/snapshot';
 import { Icon } from '../../shared/icon';
 
 const STARTERS = [
@@ -54,10 +55,6 @@ const STARTERS = [
           <span>API key{{ config().kind === 'openai' ? ' (optional for local servers)' : '' }}</span>
           <input class="input" type="password" autocomplete="off" aria-label="API key" [value]="config().apiKey" (change)="settings.update({ apiKey: $any($event.target).value })" />
         </label>
-        <label class="check">
-          <input type="checkbox" [checked]="config().vision" (change)="settings.update({ vision: $any($event.target).checked })" />
-          Model can see images (lets it look at screenshots of the plan)
-        </label>
         <p class="note">
           The key is saved in this browser only and sent only to the service you chose. The AI can read and change this plan through
           commands; anything you ask it is sent to that service.
@@ -103,6 +100,15 @@ const STARTERS = [
       </div>
     }
 
+    <label class="shots" title="Screenshots cost extra input tokens. Corner view is enough for colors and decor; top view helps with layout. Turn them off for models that cannot see images.">
+      <span>Screenshots</span>
+      <select class="input" aria-label="Screenshots" (change)="settings.update({ screenshots: $any($event.target).value })">
+        @for (m of screenshotModes; track m.id) {
+          <option [value]="m.id" [selected]="m.id === config().screenshots">{{ m.label }}</option>
+        }
+      </select>
+    </label>
+
     <form class="compose" (submit)="$event.preventDefault(); send(box.value); box.value = ''">
       <textarea
         #box
@@ -126,7 +132,8 @@ const STARTERS = [
     h2 { flex: 1; margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; }
     .settings { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
     .field { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--text-muted); }
-    .check { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; color: var(--text-muted); }
+    .shots { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); }
+    .shots select { flex: 1; height: 28px; }
     .shot { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-sm); }
     .note { margin: 0; color: var(--text-muted); font-size: 12px; }
     .log { display: flex; flex-direction: column; flex: 1; gap: 8px; min-height: 120px; overflow-y: auto; }
@@ -153,6 +160,7 @@ export class ConsultPanel {
   protected readonly config = this.settings.config;
   protected readonly models = ANTHROPIC_MODELS;
   protected readonly starters = STARTERS;
+  protected readonly screenshotModes: { id: ScreenshotMode; label: string }[] = SCREENSHOT_MODES;
   protected readonly showSettings = signal(false);
   private readonly log = viewChild.required<ElementRef<HTMLElement>>('log');
 

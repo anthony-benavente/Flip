@@ -1,5 +1,6 @@
 import { computed, Injectable, signal } from '@angular/core';
 import { AiProvider } from './ai-provider';
+import { ScreenshotMode } from './snapshot';
 import { ANTHROPIC_MODELS, AnthropicProvider } from './anthropic-provider';
 import { OPENAI_BASE_URL, OpenAiCompatibleProvider } from './openai-provider';
 
@@ -11,12 +12,12 @@ export interface AiConfig {
   model: string;
   /** OpenAI-compatible services only. */
   baseUrl: string;
-  /** The model can look at images, so it is offered screenshots of the plan. */
-  vision: boolean;
+  /** Which screenshots of the plan the model may take; `off` for models that cannot see images or to save cost. */
+  screenshots: ScreenshotMode;
 }
 
 const KEY = 'flip.ai';
-const DEFAULTS: AiConfig = { kind: 'anthropic', apiKey: '', model: ANTHROPIC_MODELS[0], baseUrl: OPENAI_BASE_URL, vision: true };
+const DEFAULTS: AiConfig = { kind: 'anthropic', apiKey: '', model: ANTHROPIC_MODELS[0], baseUrl: OPENAI_BASE_URL, screenshots: 'corner' };
 
 /** Which AI service the consult tab talks to. Saved in this browser only (the key included). */
 @Injectable({ providedIn: 'root' })
@@ -61,7 +62,8 @@ function load(): AiConfig {
       apiKey: str(raw.apiKey, ''),
       model: str(raw.model, DEFAULTS.model),
       baseUrl: str(raw.baseUrl, DEFAULTS.baseUrl),
-      vision: raw.vision !== false,
+      // Settings saved before the choice existed had a plain on/off.
+      screenshots: ['off', 'corner', 'all'].includes(raw.screenshots) ? raw.screenshots : raw.vision === false ? 'off' : 'corner',
     };
   } catch {
     return DEFAULTS;

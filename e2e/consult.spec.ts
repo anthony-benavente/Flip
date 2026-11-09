@@ -24,7 +24,7 @@ function claudeStream(content: any[]): string {
 
 /** Answers each request to the Claude API with the next scripted reply, streamed like the real one. */
 async function scriptClaude(page: Page, replies: object[][]) {
-  await page.addInitScript(() => localStorage.setItem('flip.ai', JSON.stringify({ kind: 'anthropic', apiKey: 'sk-test', model: 'claude-sonnet-5-5', baseUrl: '' })));
+  await page.addInitScript(() => localStorage.setItem('flip.ai', JSON.stringify({ kind: 'anthropic', apiKey: 'sk-test', model: 'claude-sonnet-5-5', baseUrl: '', screenshots: 'all' })));
   const requests: any[] = [];
   await page.route('https://api.anthropic.com/v1/messages', async (route) => {
     requests.push(route.request().postDataJSON());
@@ -130,6 +130,26 @@ test.describe('consult', () => {
       expect(url).toMatch(/^data:image\/jpeg;base64,/);
       expect(url.length).toBeGreaterThan(5000);
     }
+  });
+
+  test('screenshots default to the corner view and can be changed in the chat box', async ({ page }) => {
+    const requests = await scriptClaude(page, [[{ type: 'text', text: 'one' }], [{ type: 'text', text: 'two' }]]);
+    await newStarterRoom(page);
+    await page.getByRole('tab', { name: 'Consult' }).click();
+    const choice = panel(page).getByLabel('Screenshots');
+    // The scripted settings above start at "all"; pick each mode and check what the model is offered.
+    await expect(choice).toHaveValue('all');
+    await choice.selectOption('corner');
+    await panel(page).getByLabel('Message').fill('hello');
+    await panel(page).getByRole('button', { name: 'Send' }).click();
+    await expect(panel(page).getByText('one')).toBeVisible();
+    expect(requests[0].tools.find((t: any) => t.name === 'view_plan').input_schema.properties.view.enum).toEqual(['corner']);
+
+    await choice.selectOption('off');
+    await panel(page).getByLabel('Message').fill('again');
+    await panel(page).getByRole('button', { name: 'Send' }).click();
+    await expect(panel(page).getByText('two')).toBeVisible();
+    expect(requests[1].tools.map((t: any) => t.name)).not.toContain('view_plan');
   });
 
   test('asks for an API key before the first message', async ({ page }) => {

@@ -6,7 +6,7 @@ import { ModelLibrary } from '../persistence/model-library';
 import { PlanStore } from '../state/plan.store';
 import { AiMessage, AiProvider, AiRequest, AiStreamEvent } from './ai-provider';
 import { AiSettings } from './ai-settings';
-import { PLAN_SNAPSHOT, PlanSnapshotter, VIEW_PLAN } from './snapshot';
+import { PLAN_SNAPSHOT, PlanSnapshotter, ScreenshotMode, VIEW_PLAN_NAME } from './snapshot';
 import { ConsultSession, MAX_STEPS } from './consult-session';
 
 const say = (text: string): AiMessage => ({ role: 'assistant', content: [{ type: 'text', text }] });
@@ -30,11 +30,11 @@ function script(...replies: (AiMessage | Error)[]): AiProvider & { requests: AiR
 
 const chairModel = { id: 'm1', name: 'Aeron', catalogId: 'office-chair', fileName: 'a.glb', byteSize: 1, createdAt: '', orientation: { x: 0, y: 0, z: 0 } } as const;
 
-function setup(provider: AiProvider | null, options: { vision?: boolean; snapshot?: PlanSnapshotter } = {}) {
+function setup(provider: AiProvider | null, options: { screenshots?: ScreenshotMode; snapshot?: PlanSnapshotter } = {}) {
   TestBed.configureTestingModule({
     providers: [
       ConsultSession,
-      { provide: AiSettings, useValue: { createProvider: () => provider, config: () => ({ vision: options.vision ?? true }) } },
+      { provide: AiSettings, useValue: { createProvider: () => provider, config: () => ({ screenshots: options.screenshots ?? 'all' }) } },
       ...(options.snapshot ? [{ provide: PLAN_SNAPSHOT, useValue: options.snapshot }] : []),
       { provide: ModelLibrary, useValue: { models: signal([chairModel]).asReadonly() } },
       { provide: ImageLibrary, useValue: { images: signal([]).asReadonly() } },
@@ -174,15 +174,36 @@ describe('ConsultSession', () => {
       expect(session.entries().find((e) => e.image)).toEqual({ kind: 'action', text: 'Looked at the top view', image: jpeg });
     });
 
-    it('offers the screenshot tool only when the model can see images', async () => {
-      const on = script(say('a'));
-      await setup(on).session.send('hi');
-      expect(on.requests[0].tools.map((t) => t.name)).toContain(VIEW_PLAN.name);
+    it('offers the screenshot tool for the chosen mode only', async () => {
+      const toolsFor = async (screenshots: ScreenshotMode) => {
+        TestBed.resetTestingModule();
+        const provider = script(say('a'));
+        await setup(provider, { screenshots }).session.send('hi');
+        return provider.requests[0].tools.find((t) => t.name === VIEW_PLAN_NAME);
+      };
+      expect(await toolsFor('off')).toBeUndefined();
+      expect((await toolsFor('corner'))!.inputSchema).toMatchObject({ properties: { view: { enum: ['corner'] } } });
+      expect((await toolsFor('all'))!.inputSchema).toMatchObject({ properties: { view: { enum: ['top', 'corner'] } } });
+    });
 
-      TestBed.resetTestingModule();
-      const off = script(say('a'));
-      await setup(off, { vision: false }).session.send('hi');
-      expect(off.requests[0].tools.map((t) => t.name)).not.toContain(VIEW_PLAN.name);
+    it('refuses a view the mode does not allow, without rendering', async () => {
+      let renders = 0;
+      const provider = script(call('1', 'view_plan', { view: 'top' }), call('2', 'view_plan', { view: 'corner' }), say('ok'));
+      const { session } = setup(provider, {
+        screenshots: 'corner',
+        snapshot: async () => (renders++, jpeg),
+      });
+      await session.send('look');
+      expect(provider.requests[1].messages.at(-1)!.content[0]).toMatchObject({ isError: true });
+      expect(provider.requests[2].messages.at(-1)!.content[0]).toMatchObject({ images: [{ data: 'QUJD' }] });
+      expect(renders).toBe(1);
+    });
+
+    it('refuses screenshots when they are off, even if the model asks', async () => {
+      const provider = script(call('1', 'view_plan', { view: 'corner' }), say('ok'));
+      const { session } = setup(provider, { screenshots: 'off', snapshot: async () => jpeg });
+      await session.send('look');
+      expect(provider.requests[1].messages.at(-1)!.content[0]).toMatchObject({ isError: true, content: 'Screenshots are turned off.' });
     });
 
     it('tells the AI when a screenshot fails or the arguments are wrong, and carries on', async () => {

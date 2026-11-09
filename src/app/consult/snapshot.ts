@@ -32,14 +32,36 @@ export const PLAN_SNAPSHOT = new InjectionToken<PlanSnapshotter>('PLAN_SNAPSHOT'
 
 export const SNAPSHOT_SIZE = { width: 1024, height: 768 };
 
-/** The one tool that is not a plan command: it needs a renderer, so the session handles it. */
-export const VIEW_PLAN: AiToolSpec & { name: 'view_plan' } = {
-  name: 'view_plan',
-  description:
-    'Takes a screenshot of the plan as it is now and shows it to you. view "top" looks straight down, for judging the layout; "corner" is a three-quarter view for judging colors and decor. Furniture is labeled with its name and the last four characters of its id (match them to get_plan), and rooms with their names. Use it after arranging furniture or changing colors, and fix what looks wrong.',
-  inputSchema: {
-    type: 'object',
-    properties: { view: { type: 'string', enum: ['top', 'corner'], description: 'top or corner.' } },
-    required: ['view'],
-  },
-};
+/** Which screenshots the AI may take: none, only the corner view (colors and decor), or both views (layout too). */
+export type ScreenshotMode = 'off' | 'corner' | 'all';
+
+export const SCREENSHOT_MODES: { id: ScreenshotMode; label: string }[] = [
+  { id: 'off', label: 'Off' },
+  { id: 'corner', label: 'Corner view only' },
+  { id: 'all', label: 'Top and corner' },
+];
+
+export const VIEW_PLAN_NAME = 'view_plan';
+
+/**
+ * The screenshot tool for a mode, or null when screenshots are off. It is not a plan command: it
+ * needs a renderer, so the session handles it.
+ */
+export function viewPlanTool(mode: ScreenshotMode): (AiToolSpec & { inputSchema: { type: 'object'; properties: object; required: string[] } }) | null {
+  if (mode === 'off') return null;
+  const views = mode === 'all' ? ['top', 'corner'] : ['corner'];
+  return {
+    name: VIEW_PLAN_NAME,
+    description:
+      `Takes a screenshot of the plan as it is now and shows it to you. ${
+        mode === 'all'
+          ? 'View "top" looks straight down, for judging the layout; "corner" is a three-quarter view for judging colors and decor.'
+          : 'The "corner" view is a three-quarter view for judging colors and decor.'
+      } Furniture is labeled with its name and the last four characters of its id (match them to get_plan), and rooms with their names. Use it after changing colors or decor, and fix what looks wrong.`,
+    inputSchema: {
+      type: 'object',
+      properties: { view: { type: 'string', enum: views, description: views.join(' or ') + '.' } },
+      required: ['view'],
+    },
+  };
+}

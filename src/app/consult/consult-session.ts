@@ -9,7 +9,7 @@ import { PlanStore } from '../state/plan.store';
 import { AiBlock, AiMessage, AiStreamEvent, AiToolSpec } from './ai-provider';
 import { AiSettings } from './ai-settings';
 import { withLatestImagesOnly } from './history';
-import { PLAN_SNAPSHOT, SNAPSHOT_SIZE, SnapshotView, VIEW_PLAN } from './snapshot';
+import { PLAN_SNAPSHOT, SNAPSHOT_SIZE, SnapshotView, VIEW_PLAN_NAME, viewPlanTool } from './snapshot';
 import { SYSTEM_PROMPT } from './system-prompt';
 import { installWindowApi } from './window-api';
 
@@ -221,9 +221,10 @@ export class ConsultSession {
     });
   }
 
-  /** The commands, plus the screenshot tool when the model can look at images. */
+  /** The commands, plus the screenshot tool for the chosen mode. */
   private tools(): AiToolSpec[] {
-    return this.settings.config().vision ? [...commandSpecs(), VIEW_PLAN] : commandSpecs();
+    const screenshots = viewPlanTool(this.settings.config().screenshots);
+    return screenshots ? [...commandSpecs(), screenshots] : commandSpecs();
   }
 
   private async viewPlan(call: Extract<AiBlock, { type: 'tool_use' }>): Promise<AiBlock> {
@@ -231,9 +232,10 @@ export class ConsultSession {
       this.say('action', `✗ view_plan: ${error}`);
       return { type: 'tool_result', toolUseId: call.id, content: error, isError: true };
     };
-    const problem = validate(VIEW_PLAN.inputSchema as Parameters<typeof validate>[0], call.input ?? {});
+    const tool = viewPlanTool(this.settings.config().screenshots);
+    if (!tool) return fail('Screenshots are turned off.');
+    const problem = validate(tool.inputSchema as Parameters<typeof validate>[0], call.input ?? {});
     if (problem) return fail(problem);
-    if (!this.settings.config().vision) return fail('Screenshots are turned off for this model.');
     const view = (call.input as { view: SnapshotView }).view;
     this.status.set('Taking a screenshot…');
     try {
@@ -251,7 +253,7 @@ export class ConsultSession {
   }
 
   private async runToolCall(call: Extract<AiBlock, { type: 'tool_use' }>): Promise<AiBlock> {
-    if (call.name === VIEW_PLAN.name) return this.viewPlan(call);
+    if (call.name === VIEW_PLAN_NAME) return this.viewPlan(call);
     const result = this.execute({ name: call.name, args: call.input });
     if (!result.ok) this.say('action', `✗ ${call.name}: ${result.error}`);
     else if (!isReadOnlyCommand(call.name)) this.say('action', result.summary);
